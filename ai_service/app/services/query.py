@@ -1,0 +1,214 @@
+"""Natural language query engine — RAG pipeline combining vector search, graph traversal, and LLM synthesis."""
+
+import json
+import logging
+import re
+
+from app.services.llm import call_llm
+from app.services.vector import search as vector_search
+from app.services.graph import expand_neighborhood
+
+logger = logging.getLogger(__name__)
+
+RAG_SYSTEM_PROMPT = """你是一个实验知识图谱的智能助手。用户会用自然语言提问，你需要基于提供的知识图谱上下文来回答问题。
+
+你必须严格按照以下 JSON 格式输出：
+{
+  "answer": "文字回答，详细且有条理",
+  "highlighted_nodes": ["相关的实体ID列表"],
+  "source_documents": [
+    {"id": "文档ID", "title": "文档或实验名称", "relevance": 0.9}
+  ],
+  "suggestions": ["建议用户下一步可以探索的方向1", "方向2"],
+  "related_queries": ["相关的搜索建议1", "搜索建议2"]
+}
+
+注意：
+- answer 应该详细、有条理，引用具体的实验、设备或理论名称
+- highlighted_nodes 只包含上下文中确实提到的实体 ID
+- 如果没有找到相关内容，answer 中诚实说明，但给出探索建议
+- 只输出 JSON，不要有其他文本"""
+
+SUGGEST_SYSTEM_PROMPT = """你是一个知识图谱分析助手。根据给定节点的现有关系和图谱上下文，推测可能存在但尚未建立的关联关系。
+
+输出严格的 JSON 格式：
+{
+  "suggestions": [
+    {
+      "source_id": "源节点ID",
+      "target_id": "目标节点ID",
+      "target_name": "目标节点名称（如果是新节点）",
+      "type": "USES|BASED_ON|SIMILAR_TO|REQUIRES|RELATED_TO",
+      "confidence": 0.7,
+      "reason": "为什么认为这个关系可能存在"
+    }
+  ]
+}
+
+只输出 JSON，不要有其他文本。"""
+
+
+async def natural_language_query(question: str) -> dict:
+    """RAG pipeline: vector search → graph expansion → LLM synthesis."""
+    # Step 1: Vector search
+    vector_results = await vector_search(question, top_k=10)
+    if not vector_results:
+        return _empty_response(question)
+
+    # Step 2: Graph expansion
+    entity_ids = [eid for eid, score in vector_results]
+    graph_context = await expand_neighborhood(entity_ids, max_hops=2, limit=50)
+
+    # Step 3: Build context for LLM
+    context = _build_context(vector_results, graph_context)
+
+    # Step 4: LLM synthesis
+    prompt = f"用户问题：{question}\n\n知识图谱上下文：\n{context}"
+    response = await call_llm(prompt, system=RAG_SYSTEM_PROMPT, max_tokens=2048)
+
+    # Step 5: Parse response
+    return _parse_response(response, vector_results, graph_context)
+
+
+async def suggest_relations(node_id: str) -> dict:
+    """AI-suggested relationships for a given node."""
+    # Get node's current neighborhood
+    graph_context = await expand_neighborhood([node_id], max_hops=1, limit=30)
+
+    if not graph_context["nodes"]:
+        return {"suggestions": []}
+
+    # Build context about existing relationships
+    node = next((n for n in graph_context["nodes"] if n["id"] == node_id), None)
+    if not node:
+        return {"suggestions": []}
+
+    existing_rels = [
+        f"- {r['type']}: {r['source_id']} → {r['target_id']} (confidence: {r['confidence']})"
+        for r in graph_context["relations"]
+    ]
+    neighbor_names = [
+        f"  [{n['type']}] {n['name']} (ID: {n['id']}): {n['summary'][:80]}"
+        for n in graph_context["nodes"] if n["id"] != node_id
+    ]
+
+    prompt = f"""分析节点 [{node['type']}] {node['name']} (ID: {node_id})
+摘要: {node.get('summary', '无')}
+
+当前邻居节点:
+{chr(10).join(neighbor_names)}
+
+现有关系:
+{chr(10).join(existing_rels) if existing_rels else '无'}
+
+请推测这个节点可能还与其他哪些节点存在关系，或者需要创建哪些新节点。"""
+
+    response = await call_llm(prompt, system=SUGGEST_SYSTEM_PROMPT, max_tokens=1024)
+    return _parse_suggestions(response)
+
+
+def _build_context(vector_results: list, graph_context: dict) -> str:
+    parts = []
+
+    # Vector-matched entities
+    parts.append("=== 向量检索匹配的实体 ===")
+    for eid, score in vector_results:
+        node = next((n for n in graph_context["nodes"] if n["id"] == eid), None)
+        if node:
+            parts.append(f"[{node['type']}] {node['name']} (ID: {eid}, 相关度: {score:.3f})")
+            if node.get("summary"):
+                parts.append(f"  摘要: {node['summary']}")
+            if node.get("document_id"):
+                parts.append(f"  文档ID: {node['document_id']}")
+        else:
+            parts.append(f"[未知] ID: {eid} (相关度: {score:.3f})")
+
+    # Graph relationships
+    if graph_context["relations"]:
+        parts.append("\n=== 图谱关系 ===")
+        for rel in graph_context["relations"][:30]:
+            src = next((n for n in graph_context["nodes"] if n["id"] == rel["source_id"]), None)
+            tgt = next((n for n in graph_context["nodes"] if n["id"] == rel["target_id"]), None)
+            src_name = src["name"] if src else rel["source_id"][:8]
+            tgt_name = tgt["name"] if tgt else rel["target_id"][:8]
+            parts.append(f"{src_name} --[{rel['type']}]--> {tgt_name} (置信度: {rel['confidence']})")
+
+    # All discovered nodes
+    other_nodes = [
+        n for n in graph_context["nodes"]
+        if n["id"] not in {eid for eid, _ in vector_results}
+    ]
+    if other_nodes:
+        parts.append("\n=== 图谱扩展发现的实体 ===")
+        for n in other_nodes[:20]:
+            parts.append(f"[{n['type']}] {n['name']} (ID: {n['id']}): {n.get('summary', '无')[:60]}")
+
+    return "\n".join(parts)
+
+
+def _parse_response(response: str, vector_results: list, graph_context: dict) -> dict:
+    """Parse LLM JSON response, with fallback handling."""
+    try:
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", response)
+        json_str = json_match.group(1) if json_match else response
+        result = json.loads(json_str.strip())
+    except (json.JSONDecodeError, AttributeError):
+        brace_match = re.search(r"\{[\s\S]*\}", response)
+        if brace_match:
+            try:
+                result = json.loads(brace_match.group())
+            except json.JSONDecodeError:
+                result = {}
+        else:
+            result = {}
+
+    # Build fallback if LLM didn't provide highlighted_nodes
+    highlighted = result.get("highlighted_nodes", [eid for eid, _ in vector_results[:5]])
+    all_nodes = {n["id"]: n for n in graph_context["nodes"]}
+
+    # Build source documents from highlighted nodes that have document_id
+    source_docs = result.get("source_documents", [])
+    if not source_docs:
+        seen = set()
+        for n in graph_context["nodes"]:
+            did = n.get("document_id")
+            if did and did not in seen:
+                seen.add(did)
+                source_docs.append({"id": did, "title": n["name"], "relevance": 0.8})
+
+    # Collect entity details for highlighted nodes
+    entities = []
+    for eid in highlighted:
+        if eid in all_nodes:
+            entities.append(all_nodes[eid])
+
+    return {
+        "answer": result.get("answer", response[:500]),
+        "highlighted_nodes": highlighted,
+        "source_documents": source_docs,
+        "suggestions": result.get("suggestions", []),
+        "related_queries": result.get("related_queries", []),
+        "entities": entities,
+    }
+
+
+def _parse_suggestions(response: str) -> dict:
+    """Parse AI suggestion response."""
+    try:
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", response)
+        json_str = json_match.group(1) if json_match else response
+        result = json.loads(json_str.strip())
+    except (json.JSONDecodeError, AttributeError):
+        return {"suggestions": []}
+    return {"suggestions": result.get("suggestions", [])}
+
+
+def _empty_response(question: str) -> dict:
+    return {
+        "answer": f"未找到与「{question}」相关的知识图谱数据。请先上传实验文档，系统将自动构建图谱。",
+        "highlighted_nodes": [],
+        "source_documents": [],
+        "suggestions": ["尝试上传更多实验文档", "使用更具体的关键词搜索"],
+        "related_queries": [],
+        "entities": [],
+    }
