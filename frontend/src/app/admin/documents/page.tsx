@@ -31,8 +31,11 @@ export default function AdminDocumentsPage() {
 
   const load = () => {
     adminListDocuments(page, 50, statusFilter || undefined).then((res) => {
-      setDocs(res.items);
-      setTotal(res.total);
+      setDocs(res?.items ?? []);
+      setTotal(res?.total ?? 0);
+    }).catch(() => {
+      setDocs([]);
+      setTotal(0);
     });
   };
   useEffect(() => { load(); }, [page, statusFilter]);

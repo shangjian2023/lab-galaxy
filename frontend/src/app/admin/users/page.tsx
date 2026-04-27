@@ -26,14 +26,20 @@ export default function AdminUsersPage() {
   const pageSize = 20;
 
   const load = async () => {
-    const isActive =
-      statusFilter === "active" ? true :
-      statusFilter === "pending" ? false :
-      statusFilter === "disabled" ? false : undefined;
-    const res = await adminListUsers(page, pageSize, search || undefined, roleFilter || undefined, isActive);
-    setUsers(res.items);
-    setTotal(res.total);
-    setPendingCount(res.items.filter((u) => !u.is_active).length);
+    try {
+      const isActive =
+        statusFilter === "active" ? true :
+        statusFilter === "pending" ? false :
+        statusFilter === "disabled" ? false : undefined;
+      const res = await adminListUsers(page, pageSize, search || undefined, roleFilter || undefined, isActive);
+      setUsers(res?.items ?? []);
+      setTotal(res?.total ?? 0);
+      setPendingCount((res?.items ?? []).filter((u) => !u.is_active).length);
+    } catch {
+      setUsers([]);
+      setTotal(0);
+      setPendingCount(0);
+    }
   };
 
   useEffect(() => {
@@ -221,6 +227,8 @@ export default function AdminUsersPage() {
             <tr className="text-left text-gray-500">
               <th className="px-4 py-2 font-medium">用户名</th>
               <th className="px-4 py-2 font-medium">邮箱</th>
+              <th className="px-4 py-2 font-medium">昵称</th>
+              <th className="px-4 py-2 font-medium">头像</th>
               <th className="px-4 py-2 font-medium">角色</th>
               <th className="px-4 py-2 font-medium">等级</th>
               <th className="px-4 py-2 font-medium">积分</th>
@@ -234,6 +242,32 @@ export default function AdminUsersPage() {
               <tr key={u.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-2 font-medium">{u.username}</td>
                 <td className="px-4 py-2 text-gray-500">{u.email}</td>
+                <td className="px-4 py-2 text-gray-500">
+                  {editing === u.id ? (
+                    <input
+                      type="text"
+                      defaultValue={u.nickname || ""}
+                      onBlur={(e) => void handleUpdate(u.id, { nickname: e.target.value })}
+                      className="w-24 rounded border px-2 py-1 text-xs"
+                      placeholder="昵称"
+                    />
+                  ) : (u.nickname || "-")}
+                </td>
+                <td className="px-4 py-2 text-gray-500">
+                  {editing === u.id ? (
+                    <input
+                      type="text"
+                      defaultValue={u.avatar || ""}
+                      onBlur={(e) => void handleUpdate(u.id, { avatar: e.target.value })}
+                      className="w-32 rounded border px-2 py-1 text-xs"
+                      placeholder="头像URL"
+                    />
+                  ) : u.avatar ? (
+                    <span className="text-xs text-blue-500 truncate max-w-[100px] inline-block" title={u.avatar}>
+                      {u.avatar.slice(0, 20)}…
+                    </span>
+                  ) : "-"}
+                </td>
                 <td className="px-4 py-2">
                   {editing === u.id ? (
                     <select

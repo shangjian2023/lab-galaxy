@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { browseTemplates, toggleTemplateLike, adoptTemplate, type TemplateItem } from "@/lib/api";
+import { browseTemplates, toggleTemplateLike, adoptTemplate, deleteTemplate, type TemplateItem } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
 import { soundEngine } from "@/lib/audio/SoundEngine";
 
 const CATEGORIES = [
@@ -20,6 +21,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function TemplatesPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<TemplateItem[]>([]);
   const [total, setTotal] = useState(0);
   const [keyword, setKeyword] = useState("");
@@ -45,6 +47,13 @@ export default function TemplatesPage() {
     await adoptTemplate(id);
     soundEngine.play("achievement");
     setItems((prev) => prev.map((t) => t.id === id ? { ...t, adoptions: t.adoptions + 1 } : t));
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("确定删除此模板？")) return;
+    await deleteTemplate(id);
+    soundEngine.play("connect");
+    load();
   };
 
   return (
@@ -97,6 +106,14 @@ export default function TemplatesPage() {
             {tpl.tags && tpl.tags.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1">
                 {tpl.tags.map((t) => <span key={t} className="rounded-full bg-gray-50 px-2 py-0.5 text-[10px] text-gray-400">{t}</span>)}
+              </div>
+            )}
+
+            {/* Owner actions */}
+            {user && (tpl.created_by === user.id || user.role === "admin") && (
+              <div className="mb-2 flex gap-2">
+                <a href={`/templates/${tpl.id}/edit`} className="text-xs text-blue-600 hover:underline">编辑</a>
+                <button onClick={() => handleDelete(tpl.id)} className="text-xs text-red-500 hover:underline">删除</button>
               </div>
             )}
 

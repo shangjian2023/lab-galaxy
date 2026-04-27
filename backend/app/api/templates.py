@@ -123,7 +123,8 @@ async def marketplace(
     for t in rows:
         items.append({
             "id": str(t.id), "name": t.name, "description": t.description,
-            "tags": t.tags, "category": t.category, "is_official": t.is_official,
+            "tags": t.tags, "category": t.category,
+            "status": t.status, "is_official": t.is_official,
             "likes": t.likes, "downloads": t.downloads, "adoptions": t.adoptions,
             "is_liked": str(t.id) in liked,
             "created_by": str(t.created_by), "created_at": t.created_at.isoformat(),

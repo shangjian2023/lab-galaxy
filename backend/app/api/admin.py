@@ -5,13 +5,15 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from datetime import datetime
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import require_admin
 from app.core.security import hash_password
-from app.models.models import Document, PointsLog, User
+from app.models.models import Document, Favorite, PointsLog, Template, TemplateComment, TemplateLike, User
 from app.schemas.document import (
     AdminDocumentUpdate,
     DocumentListResponse,
@@ -138,7 +140,25 @@ async def admin_delete_user(
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.role == "admin":
         raise HTTPException(status_code=400, detail="不能删除管理员")
-    user.is_active = False
+
+    # Delete related records in dependency order
+    await db.execute(delete(PointsLog).where(PointsLog.user_id == user_id))
+    await db.execute(delete(Favorite).where(Favorite.user_id == user_id))
+    await db.execute(delete(TemplateLike).where(TemplateLike.user_id == user_id))
+    await db.execute(delete(TemplateComment).where(TemplateComment.user_id == user_id))
+
+    # Delete templates owned by user (clean their likes/comments first)
+    user_tpl_ids = (await db.execute(select(Template.id).where(Template.created_by == user_id))).scalars().all()
+    if user_tpl_ids:
+        await db.execute(delete(TemplateLike).where(TemplateLike.template_id.in_(user_tpl_ids)))
+        await db.execute(delete(TemplateComment).where(TemplateComment.template_id.in_(user_tpl_ids)))
+        await db.execute(delete(Template).where(Template.created_by == user_id))
+
+    # Delete user's documents
+    await db.execute(delete(Document).where(Document.uploaded_by == user_id))
+
+    # Finally delete the user
+    await db.delete(user)
     await db.commit()
 
 
@@ -356,3 +376,78 @@ async def admin_graph_overview(
     nodes = await list_nodes(limit=500)
     relations = await list_relations(limit=500)
     return GraphDataResponse(nodes=nodes, relations=relations)
+
+
+# ========== Admin Template Management ==========
+
+class AdminTemplateUpdate(PydanticBaseModel):
+    name: str | None = None
+    description: str | None = None
+    content: str | None = None
+    tags: list[str] | None = None
+    category: str | None = None
+    status: str | None = None
+    is_official: bool | None = None
+
+
+@router.get("/templates")
+async def admin_list_templates(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    status_filter: str | None = Query(None, alias="status"),
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    base = select(Template)
+    if status_filter:
+        base = base.where(Template.status == status_filter)
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
+    rows = (
+        await db.execute(base.order_by(Template.created_at.desc()).offset((page - 1) * page_size).limit(page_size))
+    ).scalars().all()
+
+    items = []
+    for t in rows:
+        items.append({
+            "id": str(t.id), "name": t.name, "description": t.description,
+            "tags": t.tags, "category": t.category,
+            "status": t.status, "is_official": t.is_official,
+            "likes": t.likes, "downloads": t.downloads, "adoptions": t.adoptions,
+            "is_liked": False,
+            "created_by": str(t.created_by), "created_at": t.created_at.isoformat(),
+        })
+    return {"total": total, "items": items}
+
+
+@router.patch("/templates/{tpl_id}")
+async def admin_update_template(
+    tpl_id: uuid.UUID,
+    body: AdminTemplateUpdate,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    tpl = (await db.execute(select(Template).where(Template.id == tpl_id))).scalar_one_or_none()
+    if not tpl:
+        raise HTTPException(status_code=404, detail="模板不存在")
+
+    payload = body.model_dump(exclude_unset=True)
+    for k, v in payload.items():
+        setattr(tpl, k, v)
+    tpl.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.delete("/templates/{tpl_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def admin_delete_template(
+    tpl_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    tpl = (await db.execute(select(Template).where(Template.id == tpl_id))).scalar_one_or_none()
+    if not tpl:
+        raise HTTPException(status_code=404, detail="模板不存在")
+    await db.execute(delete(TemplateLike).where(TemplateLike.template_id == tpl_id))
+    await db.execute(delete(TemplateComment).where(TemplateComment.template_id == tpl_id))
+    await db.delete(tpl)
+    await db.commit()

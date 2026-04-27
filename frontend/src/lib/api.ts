@@ -377,6 +377,7 @@ export interface TemplateItem {
   description: string | null;
   tags: string[] | null;
   category: string | null;
+  status: string;
   is_official: boolean;
   likes: number;
   downloads: number;
@@ -425,6 +426,23 @@ export function adoptTemplate(id: string) {
 
 export function addTemplateComment(id: string, content: string) {
   return request<{ id: string; content: string; created_at: string }>(`/templates/${id}/comments`, "POST", { content });
+}
+
+// Admin Templates
+export function adminListTemplates(page = 1, pageSize = 50, statusFilter?: string) {
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("page_size", String(pageSize));
+  if (statusFilter) params.set("status", statusFilter);
+  return request<{ total: number; items: TemplateItem[] }>(`/admin/templates?${params}`);
+}
+
+export function adminUpdateTemplate(id: string, data: Record<string, unknown>) {
+  return request<{ status: string }>(`/admin/templates/${id}`, "PATCH", data);
+}
+
+export function adminDeleteTemplate(id: string) {
+  return request<void>(`/admin/templates/${id}`, "DELETE");
 }
 
 // Growth
