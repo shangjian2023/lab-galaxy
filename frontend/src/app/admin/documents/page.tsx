@@ -5,6 +5,7 @@ import {
   adminListDocuments,
   adminUpdateDocument,
   adminDeleteDocument,
+  adminReprocessDocument,
   type DocumentItem,
 } from "@/lib/api";
 import { EXPERIMENT_TYPES, SUBJECT_OPTIONS } from "@/lib/constants";
@@ -45,6 +46,16 @@ export default function AdminDocumentsPage() {
     if (!confirm("确定删除此文档？")) return;
     await adminDeleteDocument(id);
     load();
+  };
+
+  const handleReprocess = async (id: string) => {
+    if (!confirm("确定重新处理此文档？")) return;
+    try {
+      await adminReprocessDocument(id);
+      load();
+    } catch {
+      alert("触发重新处理失败");
+    }
   };
 
   return (
@@ -144,6 +155,10 @@ export default function AdminDocumentsPage() {
                       className="text-xs text-blue-600 hover:underline">
                       {isEditing ? "完成" : "编辑"}
                     </button>
+                    {(doc.status === "failed" || doc.status === "completed") && (
+                      <button onClick={() => handleReprocess(doc.id)}
+                        className="text-xs text-orange-600 hover:underline">重新处理</button>
+                    )}
                     <button onClick={() => handleDelete(doc.id)}
                       className="text-xs text-red-600 hover:underline">删除</button>
                   </td>

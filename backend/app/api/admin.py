@@ -25,6 +25,7 @@ from app.schemas.document import (
     GraphRelationUpdate,
 )
 from app.schemas.user import AdminPointsAdjust, AdminUserCreate, AdminUserUpdate, UserProfile
+from pydantic import BaseModel as PydanticBaseModel
 from app.services.admin_graph import (
     create_node,
     create_relation,
@@ -36,27 +37,41 @@ from app.services.admin_graph import (
     update_node,
     update_relation,
 )
+from app.api.templates import calc_level
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-# ========== Users ==========
+class UserListResponse(PydanticBaseModel):
+    total: int
+    items: list[UserProfile]
 
-@router.get("/users", response_model=list[UserProfile])
+
+@router.get("/users", response_model=UserListResponse)
 async def admin_list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    search: str | None = Query(None),
+    role: str | None = Query(None),
+    is_active: bool | None = Query(None),
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
+    base = select(User)
+    if search:
+        base = base.where(User.username.ilike(f"%{search}%") | User.email.ilike(f"%{search}%"))
+    if role:
+        base = base.where(User.role == role)
+    if is_active is not None:
+        base = base.where(User.is_active == is_active)
+
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
     rows = (
-        await db.execute(
-            select(User).order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
-        )
+        await db.execute(base.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size))
     ).scalars().all()
-    return rows
+    return UserListResponse(total=total, items=rows)
 
 
 @router.patch("/users/{user_id}", response_model=UserProfile)
@@ -80,6 +95,8 @@ async def admin_update_user(
         user.level = body.level
     if body.is_active is not None:
         user.is_active = body.is_active
+    if body.password is not None:
+        user.hashed_password = hash_password(body.password)
 
     await db.commit()
     await db.refresh(user)
@@ -125,8 +142,6 @@ async def admin_delete_user(
     await db.commit()
 
 
-# ========== Points ==========
-
 @router.post("/users/{user_id}/points", response_model=UserProfile)
 async def admin_adjust_points(
     user_id: uuid.UUID,
@@ -139,14 +154,13 @@ async def admin_adjust_points(
         raise HTTPException(status_code=404, detail="用户不存在")
 
     user.points += body.change
+    user.level = calc_level(user.points)["level"]
     log = PointsLog(user_id=user.id, change=body.change, reason=body.reason)
     db.add(log)
     await db.commit()
     await db.refresh(user)
     return user
 
-
-# ========== Documents ==========
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def admin_list_documents(
@@ -187,22 +201,23 @@ async def admin_update_document(
     if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
 
-    if body.title is not None:
-        doc.title = body.title
-    if body.experiment_year is not None:
-        doc.experiment_year = body.experiment_year
-    if body.experiment_type is not None:
-        doc.experiment_type = body.experiment_type
-    if body.subjects is not None:
-        doc.subjects = body.subjects
-    if body.privacy is not None:
-        doc.privacy = body.privacy
-    if body.status is not None:
-        doc.status = body.status
-    if body.extraction_result is not None:
-        doc.extraction_result = json.dumps(body.extraction_result, ensure_ascii=False)
-    if body.error_message is not None:
-        doc.error_message = body.error_message
+    payload = body.model_dump(exclude_unset=True)
+    if "title" in payload:
+        doc.title = payload["title"]
+    if "experiment_year" in payload:
+        doc.experiment_year = payload["experiment_year"]
+    if "experiment_type" in payload:
+        doc.experiment_type = payload["experiment_type"]
+    if "subjects" in payload:
+        doc.subjects = payload["subjects"]
+    if "privacy" in payload:
+        doc.privacy = payload["privacy"]
+    if "status" in payload:
+        doc.status = payload["status"]
+    if "extraction_result" in payload:
+        doc.extraction_result = None if payload["extraction_result"] is None else json.dumps(payload["extraction_result"], ensure_ascii=False)
+    if "error_message" in payload:
+        doc.error_message = payload["error_message"]
 
     await db.commit()
     await db.refresh(doc)
@@ -228,8 +243,6 @@ async def admin_delete_document(
     await db.delete(doc)
     await db.commit()
 
-
-# ========== Knowledge Graph ==========
 
 @router.get("/graph/nodes", response_model=list[GraphNodeResponse])
 async def admin_list_graph_nodes(
@@ -296,10 +309,15 @@ async def admin_create_graph_relation(
     body: GraphRelationCreate,
     _admin: User = Depends(require_admin),
 ):
-    return await create_relation(body.model_dump())
+    try:
+        return await create_relation(body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.patch("/graph/relations/{source_id}/{target_id}/{rel_type}")
+@router.patch("/graph/relations/{source_id}/{target_id}/{rel_type}", response_model=GraphRelationResponse)
 async def admin_update_graph_relation(
     source_id: str,
     target_id: str,
@@ -307,8 +325,13 @@ async def admin_update_graph_relation(
     body: GraphRelationUpdate,
     _admin: User = Depends(require_admin),
 ):
-    await update_relation(source_id, target_id, rel_type, body.model_dump(exclude_none=True))
-    return {"status": "ok"}
+    try:
+        relation = await update_relation(source_id, target_id, rel_type, body.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not relation:
+        raise HTTPException(status_code=404, detail="关系不存在")
+    return relation
 
 
 @router.delete("/graph/relations/{source_id}/{target_id}/{rel_type}", status_code=status.HTTP_204_NO_CONTENT)
@@ -318,7 +341,12 @@ async def admin_delete_graph_relation(
     rel_type: str,
     _admin: User = Depends(require_admin),
 ):
-    await delete_relation(source_id, target_id, rel_type)
+    try:
+        deleted = await delete_relation(source_id, target_id, rel_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not deleted:
+        raise HTTPException(status_code=404, detail="关系不存在")
 
 
 @router.get("/graph/data", response_model=GraphDataResponse)

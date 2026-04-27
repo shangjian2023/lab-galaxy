@@ -12,6 +12,13 @@ def _driver():
     return AsyncGraphDatabase.driver(settings.NEO4J_URI, auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD))
 
 
+def _normalize_rel_type(rel_type: str) -> str:
+    normalized = rel_type.upper().replace(" ", "_")
+    if normalized not in VALID_REL_TYPES:
+        raise ValueError("不支持的关系类型")
+    return normalized
+
+
 async def list_nodes(label: str | None = None, skip: int = 0, limit: int = 100) -> list[dict]:
     driver = _driver()
     results = []
@@ -57,6 +64,7 @@ async def get_node(node_id: str) -> dict | None:
 
 async def create_node(data: dict) -> dict:
     import uuid
+
     driver = _driver()
     node_id = data.get("id") or str(uuid.uuid4())
     label = data.get("type", "Concept")
@@ -65,19 +73,41 @@ async def create_node(data: dict) -> dict:
 
     async with driver.session() as session:
         q = f"""
-        CREATE (n:{label} {{id: $id, name: $name, summary: $summary}})
-        SET n.document_id = $doc_id
-        RETURN n.id AS id
+        MERGE (n:{label} {{name: $name}})
+        ON CREATE SET n.id = $id
+        SET n.summary = $summary, n.document_id = $doc_id
+        RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary, n.document_id AS document_id
         """
-        await session.run(q, id=node_id, name=data.get("name", ""), summary=data.get("summary", ""), doc_id=data.get("document_id"))
+        records = await session.run(
+            q,
+            id=node_id,
+            name=data.get("name", ""),
+            summary=data.get("summary", ""),
+            doc_id=data.get("document_id"),
+        )
+        result = None
+        async for r in records:
+            lbls = [l for l in r["labels"] if l in VALID_LABELS]
+            result = {
+                "id": r["id"],
+                "type": lbls[0] if lbls else label,
+                "name": r["name"] or "",
+                "summary": r["summary"] or "",
+                "document_id": r.get("document_id"),
+            }
     await driver.close()
-    return {"id": node_id, "type": label, "name": data.get("name", ""), "summary": data.get("summary", "")}
+    return result or {
+        "id": node_id,
+        "type": label,
+        "name": data.get("name", ""),
+        "summary": data.get("summary", ""),
+        "document_id": data.get("document_id"),
+    }
 
 
 async def update_node(node_id: str, data: dict) -> bool:
     driver = _driver()
     async with driver.session() as session:
-        # Update properties
         sets = []
         params = {"id": node_id}
         if "name" in data:
@@ -86,17 +116,12 @@ async def update_node(node_id: str, data: dict) -> bool:
         if "summary" in data:
             sets.append("n.summary = $summary")
             params["summary"] = data["summary"]
-        if not sets:
-            await driver.close()
-            return True
+        if sets:
+            q = f"MATCH (n {{id: $id}}) SET {', '.join(sets)}"
+            await session.run(q, **params)
 
-        q = f"MATCH (n {{id: $id}}) SET {', '.join(sets)}"
-        await session.run(q, **params)
-
-        # If type changed, remove old label and add new
         if data.get("type") and data["type"] in VALID_LABELS:
             new_label = data["type"]
-            # Remove all valid labels then add the new one
             for old_label in VALID_LABELS:
                 await session.run(f"MATCH (n {{id: $id}}) REMOVE n:{old_label}", id=node_id)
             await session.run(f"MATCH (n {{id: $id}}) SET n:{new_label}", id=node_id)
@@ -145,43 +170,108 @@ async def list_relations(node_id: str | None = None, skip: int = 0, limit: int =
 
 async def create_relation(data: dict) -> dict:
     driver = _driver()
-    rel_type = data.get("type", "RELATED_TO").upper().replace(" ", "_")
+    rel_type = _normalize_rel_type(data.get("type", "RELATED_TO"))
     async with driver.session() as session:
         q = f"""
         MATCH (a {{id: $src}}), (b {{id: $tgt}})
         MERGE (a)-[r:{rel_type}]->(b)
         SET r.confidence = $conf, r.document_id = $doc_id
+        RETURN a.id AS source_id, b.id AS target_id, type(r) AS type, r.confidence AS confidence, r.document_id AS document_id
         """
-        await session.run(
+        records = await session.run(
             q,
             src=data["source_id"],
             tgt=data["target_id"],
             conf=data.get("confidence", 0.5),
             doc_id=data.get("document_id"),
         )
+        result = None
+        async for r in records:
+            result = {
+                "source_id": r["source_id"],
+                "target_id": r["target_id"],
+                "type": r["type"],
+                "confidence": r["confidence"] or 0.5,
+                "document_id": r.get("document_id"),
+            }
     await driver.close()
-    return {"source_id": data["source_id"], "target_id": data["target_id"], "type": rel_type, "confidence": data.get("confidence", 0.5)}
+    if not result:
+        raise LookupError("关系两端的节点不存在")
+    return result
 
 
-async def update_relation(source_id: str, target_id: str, rel_type: str, data: dict) -> bool:
+async def update_relation(source_id: str, target_id: str, rel_type: str, data: dict) -> dict | None:
     driver = _driver()
+    current_type = _normalize_rel_type(rel_type)
+    new_type = _normalize_rel_type(data["type"]) if data.get("type") else current_type
+
     async with driver.session() as session:
-        sets = []
-        params = {"src": source_id, "tgt": target_id}
-        if "confidence" in data:
-            sets.append("r.confidence = $conf")
-            params["conf"] = data["confidence"]
-        if sets:
-            q = f"MATCH (a {{id: $src}})-[r:{rel_type}]->(b {{id: $tgt}}) SET {', '.join(sets)}"
-            await session.run(q, **params)
+        current_query = f"""
+        MATCH (a {{id: $src}})-[r:{current_type}]->(b {{id: $tgt}})
+        RETURN r.confidence AS confidence, r.document_id AS document_id
+        LIMIT 1
+        """
+        current_records = await session.run(current_query, src=source_id, tgt=target_id)
+        current_relation = None
+        async for record in current_records:
+            current_relation = {
+                "confidence": record["confidence"] or 0.5,
+                "document_id": record.get("document_id"),
+            }
+            break
+
+        if not current_relation:
+            await driver.close()
+            return None
+
+        confidence = data.get("confidence", current_relation["confidence"])
+        document_id = current_relation["document_id"]
+
+        if new_type != current_type:
+            delete_query = f"MATCH (a {{id: $src}})-[r:{current_type}]->(b {{id: $tgt}}) DELETE r"
+            await session.run(delete_query, src=source_id, tgt=target_id)
+            create_query = f"""
+            MATCH (a {{id: $src}}), (b {{id: $tgt}})
+            MERGE (a)-[r:{new_type}]->(b)
+            SET r.confidence = $conf, r.document_id = $doc_id
+            RETURN a.id AS source_id, b.id AS target_id, type(r) AS type, r.confidence AS confidence, r.document_id AS document_id
+            """
+            records = await session.run(create_query, src=source_id, tgt=target_id, conf=confidence, doc_id=document_id)
+        else:
+            update_query = f"""
+            MATCH (a {{id: $src}})-[r:{current_type}]->(b {{id: $tgt}})
+            SET r.confidence = $conf
+            RETURN a.id AS source_id, b.id AS target_id, type(r) AS type, r.confidence AS confidence, r.document_id AS document_id
+            """
+            records = await session.run(update_query, src=source_id, tgt=target_id, conf=confidence)
+
+        result = None
+        async for r in records:
+            result = {
+                "source_id": r["source_id"],
+                "target_id": r["target_id"],
+                "type": r["type"],
+                "confidence": r["confidence"] or 0.5,
+                "document_id": r.get("document_id"),
+            }
     await driver.close()
-    return True
+    return result
 
 
 async def delete_relation(source_id: str, target_id: str, rel_type: str) -> bool:
     driver = _driver()
+    normalized_type = _normalize_rel_type(rel_type)
     async with driver.session() as session:
-        q = f"MATCH (a {{id: $src}})-[r:{rel_type}]->(b {{id: $tgt}}) DELETE r"
-        await session.run(q, src=source_id, tgt=target_id)
+        count_query = f"MATCH (a {{id: $src}})-[r:{normalized_type}]->(b {{id: $tgt}}) RETURN count(r) AS cnt"
+        count_records = await session.run(count_query, src=source_id, tgt=target_id)
+        count = 0
+        async for record in count_records:
+            count = record["cnt"]
+            break
+        if count == 0:
+            await driver.close()
+            return False
+        delete_query = f"MATCH (a {{id: $src}})-[r:{normalized_type}]->(b {{id: $tgt}}) DELETE r"
+        await session.run(delete_query, src=source_id, tgt=target_id)
     await driver.close()
     return True

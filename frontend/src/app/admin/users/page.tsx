@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   adminListUsers,
@@ -13,20 +13,45 @@ import {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "disabled">("all");
   const [editing, setEditing] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showPoints, setShowPoints] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const pageSize = 20;
 
-  const load = () => adminListUsers().then(setUsers);
-  useEffect(() => { load(); }, []);
+  const load = async () => {
+    const isActive =
+      statusFilter === "active" ? true :
+      statusFilter === "pending" ? false :
+      statusFilter === "disabled" ? false : undefined;
+    const res = await adminListUsers(page, pageSize, search || undefined, roleFilter || undefined, isActive);
+    setUsers(res.items);
+    setTotal(res.total);
+    setPendingCount(res.items.filter((u) => !u.is_active).length);
+  };
+
+  useEffect(() => {
+    void load();
+  }, [page, roleFilter, statusFilter]);
+
+  const handleSearch = () => {
+    setPage(1);
+    void load();
+  };
 
   const handleUpdate = async (id: string, data: Record<string, unknown>) => {
     await adminUpdateUser(id, data);
     setEditing(null);
-    load();
+    await load();
   };
 
-  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     await adminCreateUser({
@@ -37,27 +62,60 @@ export default function AdminUsersPage() {
       role: (fd.get("role") as string) || "user",
     });
     setShowCreate(false);
-    load();
+    await load();
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("确定禁用此用户？")) return;
+    if (!confirm("确定删除此用户？此操作不可恢复。")) return;
     await adminDeleteUser(id);
-    load();
+    await load();
   };
 
-  const handlePoints = async (userId: string, e: React.FormEvent<HTMLFormElement>) => {
+  const handleApprove = async (id: string) => {
+    await adminUpdateUser(id, { is_active: true });
+    await load();
+  };
+
+  const handleReject = async (id: string) => {
+    if (!confirm("确定拒绝此用户？")) return;
+    await adminDeleteUser(id);
+    await load();
+  };
+
+  const handlePassword = async (userId: string, e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const pw = fd.get("password") as string;
+    const pw2 = fd.get("password2") as string;
+    if (pw !== pw2) {
+      alert("两次密码不一致");
+      return;
+    }
+    await adminUpdateUser(userId, { password: pw });
+    setShowPassword(null);
+  };
+
+  const handlePoints = async (userId: string, e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     await adminAdjustPoints(userId, Number(fd.get("change")), fd.get("reason") as string);
     setShowPoints(null);
-    load();
+    await load();
   };
+
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">用户管理</h1>
+        <h1 className="text-xl font-bold">
+          用户管理
+          {pendingCount > 0 && (
+            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+              待审批
+            </span>
+          )}
+        </h1>
         <button
           onClick={() => setShowCreate(true)}
           className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
@@ -66,7 +124,46 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      {/* Create modal */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            placeholder="搜索用户名/邮箱..."
+            className="w-48 rounded-lg border px-3 py-1.5 text-sm focus:border-orange-400 focus:outline-none"
+          />
+          <button onClick={handleSearch} className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm hover:bg-gray-200">搜索</button>
+        </div>
+        <select
+          value={roleFilter}
+          onChange={(e) => {
+            setRoleFilter(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-lg border px-3 py-1.5 text-sm"
+        >
+          <option value="">全部角色</option>
+          <option value="user">普通用户</option>
+          <option value="admin">管理员</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value as typeof statusFilter);
+            setPage(1);
+          }}
+          className="rounded-lg border px-3 py-1.5 text-sm"
+        >
+          <option value="all">全部状态</option>
+          <option value="active">已激活</option>
+          <option value="pending">待审批</option>
+          <option value="disabled">已禁用</option>
+        </select>
+        <span className="ml-auto text-xs text-gray-400">共 {total} 个用户</span>
+      </div>
+
       <AnimatePresence>
         {showCreate && (
           <Modal onClose={() => setShowCreate(false)} title="创建用户">
@@ -90,7 +187,20 @@ export default function AdminUsersPage() {
         )}
       </AnimatePresence>
 
-      {/* Points modal */}
+      <AnimatePresence>
+        {showPassword && (
+          <Modal onClose={() => setShowPassword(null)} title="重置密码">
+            <form onSubmit={(e) => handlePassword(showPassword, e)} className="space-y-3">
+              <Input name="password" label="新密码" type="password" required />
+              <Input name="password2" label="确认密码" type="password" required />
+              <button type="submit" className="w-full rounded-lg bg-orange-600 py-2 text-sm font-medium text-white">
+                确认重置
+              </button>
+            </form>
+          </Modal>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showPoints && (
           <Modal onClose={() => setShowPoints(null)} title="调整积分">
@@ -105,18 +215,17 @@ export default function AdminUsersPage() {
         )}
       </AnimatePresence>
 
-      {/* Table */}
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr className="text-left text-gray-500">
               <th className="px-4 py-2 font-medium">用户名</th>
               <th className="px-4 py-2 font-medium">邮箱</th>
-              <th className="px-4 py-2 font-medium">昵称</th>
               <th className="px-4 py-2 font-medium">角色</th>
               <th className="px-4 py-2 font-medium">等级</th>
               <th className="px-4 py-2 font-medium">积分</th>
               <th className="px-4 py-2 font-medium">状态</th>
+              <th className="px-4 py-2 font-medium">注册时间</th>
               <th className="px-4 py-2 font-medium">操作</th>
             </tr>
           </thead>
@@ -125,12 +234,11 @@ export default function AdminUsersPage() {
               <tr key={u.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-2 font-medium">{u.username}</td>
                 <td className="px-4 py-2 text-gray-500">{u.email}</td>
-                <td className="px-4 py-2">{u.nickname || "-"}</td>
                 <td className="px-4 py-2">
                   {editing === u.id ? (
                     <select
                       defaultValue={u.role}
-                      onChange={(e) => handleUpdate(u.id, { role: e.target.value })}
+                      onChange={(e) => void handleUpdate(u.id, { role: e.target.value })}
                       className="rounded border px-2 py-1 text-xs"
                     >
                       <option value="user">user</option>
@@ -145,8 +253,10 @@ export default function AdminUsersPage() {
                 <td className="px-4 py-2">
                   {editing === u.id ? (
                     <input
-                      type="number" defaultValue={u.level} min={1}
-                      onBlur={(e) => handleUpdate(u.id, { level: Number(e.target.value) })}
+                      type="number"
+                      defaultValue={u.level}
+                      min={1}
+                      onBlur={(e) => void handleUpdate(u.id, { level: Number(e.target.value) })}
                       className="w-16 rounded border px-2 py-1 text-xs"
                     />
                   ) : u.level}
@@ -157,60 +267,122 @@ export default function AdminUsersPage() {
                   </button>
                 </td>
                 <td className="px-4 py-2">
-                  <button
-                    onClick={() => handleUpdate(u.id, { is_active: !u.is_active })}
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${
-                      u.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {u.is_active ? "正常" : "已禁用"}
-                  </button>
-                </td>
-                <td className="px-4 py-2 space-x-2">
-                  <button onClick={() => setEditing(editing === u.id ? null : u.id)} className="text-xs text-blue-600 hover:underline">
-                    {editing === u.id ? "完成" : "编辑"}
-                  </button>
-                  {u.role !== "admin" && (
-                    <button onClick={() => handleDelete(u.id)} className="text-xs text-red-600 hover:underline">
-                      禁用
+                  {!u.is_active && u.role !== "admin" ? (
+                    <span className="rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
+                      待审批
+                    </span>
+                  ) : u.is_active ? (
+                    <button
+                      onClick={() => void handleUpdate(u.id, { is_active: false })}
+                      className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
+                    >
+                      正常
                     </button>
+                  ) : (
+                    <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                      已禁用
+                    </span>
                   )}
+                </td>
+                <td className="px-4 py-2 text-gray-400">
+                  {new Date(u.created_at).toLocaleDateString("zh-CN")}
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-1.5">
+                    {!u.is_active && u.role !== "admin" && (
+                      <>
+                        <button onClick={() => void handleApprove(u.id)} className="rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-100">
+                          通过
+                        </button>
+                        <button onClick={() => void handleReject(u.id)} className="rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-100">
+                          拒绝
+                        </button>
+                      </>
+                    )}
+                    {u.is_active && u.role !== "admin" && (
+                      <button
+                        onClick={() => void handleUpdate(u.id, { is_active: false })}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        禁用
+                      </button>
+                    )}
+                    {!u.is_active && u.role !== "admin" && statusFilter === "disabled" && (
+                      <button onClick={() => void handleApprove(u.id)} className="text-xs text-green-600 hover:underline">
+                        启用
+                      </button>
+                    )}
+                    <button onClick={() => setEditing(editing === u.id ? null : u.id)} className="text-xs text-blue-600 hover:underline">
+                      {editing === u.id ? "完成" : "编辑"}
+                    </button>
+                    <button onClick={() => setShowPassword(u.id)} className="text-xs text-gray-500 hover:underline">
+                      改密
+                    </button>
+                    {u.role !== "admin" && (
+                      <button onClick={() => void handleDelete(u.id)} className="text-xs text-red-600 hover:underline">
+                        删除
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+        <button
+          disabled={page <= 1}
+          onClick={() => setPage((p) => p - 1)}
+          className="rounded border px-3 py-1 disabled:opacity-40"
+        >
+          上一页
+        </button>
+        <span className="text-gray-500">{page} / {Math.max(totalPages, 1)}</span>
+        <button
+          disabled={page >= totalPages || totalPages === 0}
+          onClick={() => setPage((p) => p + 1)}
+          className="rounded border px-3 py-1 disabled:opacity-40"
+        >
+          下一页
+        </button>
+      </div>
     </div>
   );
 }
 
-// Reusable small components
-function Input({ name, label, type = "text", required = false }: { name: string; label: string; type?: string; required?: boolean }) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs text-gray-500">{label}</label>
-      <input name={name} type={type} required={required}
-        className="w-full rounded-lg border px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" />
-    </div>
-  );
-}
-
-function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
+function Modal({ children, onClose, title }: { children: ReactNode; onClose: () => void; title: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
       >
-        <h3 className="mb-4 text-lg font-bold">{title}</h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">×</button>
+        </div>
         {children}
       </motion.div>
     </motion.div>
+  );
+}
+
+function Input({ label, className, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-gray-500">{label}</label>
+      <input {...props} className={className ?? "w-full rounded border px-3 py-2 text-sm"} />
+    </div>
   );
 }

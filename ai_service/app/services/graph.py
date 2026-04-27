@@ -16,9 +16,14 @@ async def write_entities_and_relations(
     entities: list[dict],
     relations: list[dict],
 ) -> int:
-    """Write extracted entities and relations to Neo4j. Returns count of nodes created."""
+    """Write extracted entities and relations to Neo4j.
+
+    Merges by (name, type) so that the same entity referenced by multiple
+    documents becomes a single shared node — forming inter-experiment links.
+    """
     driver = get_neo4j_driver()
     created = 0
+    id_map: dict[str, str] = {}
 
     async with driver.session() as session:
         for ent in entities:
@@ -27,19 +32,26 @@ async def write_entities_and_relations(
                 logger.warning(f"Invalid entity type '{entity_type}', falling back to 'Concept'")
                 entity_type = "Concept"
 
+            name = ent.get("name", "").strip()
+            if not name:
+                continue
+
             query = f"""
-            MERGE (n:{entity_type} {{id: $id}})
-            SET n.name = $name,
-                n.summary = $summary,
+            MERGE (n:{entity_type} {{name: $name}})
+            ON CREATE SET n.id = $id, n.created_at = datetime()
+            SET n.summary = $summary,
                 n.document_id = $doc_id
+            RETURN n.id AS node_id
             """
-            await session.run(
+            result = await session.run(
                 query,
                 id=ent["id"],
-                name=ent.get("name", ""),
+                name=name,
                 summary=ent.get("summary", ""),
                 doc_id=document_id,
             )
+            async for record in result:
+                id_map[ent["id"]] = record["node_id"]
             created += 1
 
         for rel in relations:
@@ -47,6 +59,11 @@ async def write_entities_and_relations(
             if rel_type not in VALID_REL_TYPES:
                 logger.warning(f"Invalid relation type '{rel_type}', falling back to 'RELATED_TO'")
                 rel_type = "RELATED_TO"
+
+            src_id = id_map.get(rel.get("source_id"))
+            tgt_id = id_map.get(rel.get("target_id"))
+            if not src_id or not tgt_id:
+                continue
 
             query = f"""
             MATCH (a {{id: $source_id}}), (b {{id: $target_id}})
@@ -56,8 +73,8 @@ async def write_entities_and_relations(
             """
             await session.run(
                 query,
-                source_id=rel.get("source_id"),
-                target_id=rel.get("target_id"),
+                source_id=src_id,
+                target_id=tgt_id,
                 confidence=rel.get("confidence", 0.5),
                 doc_id=document_id,
             )
@@ -89,26 +106,26 @@ async def find_similar_experiments(experiment_name: str, top_k: int = 5) -> list
 
 
 async def expand_neighborhood(entity_ids: list[str], max_hops: int = 2, limit: int = 50) -> dict:
-    """Expand 2-hop neighborhood around given entity IDs. Returns nodes and relations."""
+    """Expand neighborhood around given entity IDs. Returns nodes and relations."""
     driver = get_neo4j_driver()
     nodes: dict[str, dict] = {}
     relations: list[dict] = []
+    hops = max(1, min(max_hops, 4))
 
     async with driver.session() as session:
-        query = """
-        MATCH path = (n)-[r*1..2]-(m)
+        query = f"""
+        MATCH path = (n)-[r*1..{hops}]-(m)
         WHERE n.id IN $ids
         UNWIND relationships(path) AS rel
         WITH DISTINCT n, m, rel
-        RETURN n.id AS n_id, n.name AS n_name, labels(n) AS n_labels, n.summary AS n_summary,
-               m.id AS m_id, m.name AS m_name, labels(m) AS m_labels, m.summary AS m_summary,
+        RETURN n.id AS n_id, n.name AS n_name, labels(n) AS n_labels, n.summary AS n_summary, n.document_id AS n_doc_id,
+               m.id AS m_id, m.name AS m_name, labels(m) AS m_labels, m.summary AS m_summary, m.document_id AS m_doc_id,
                startNode(rel).id AS src, endNode(rel).id AS tgt,
                type(rel) AS rel_type, rel.confidence AS confidence
         LIMIT $limit
         """
         records = await session.run(query, ids=entity_ids, limit=limit)
         async for r in records:
-            # Collect nodes
             for prefix in ("n", "m"):
                 nid = r[f"{prefix}_id"]
                 if nid and nid not in nodes:
@@ -119,9 +136,9 @@ async def expand_neighborhood(entity_ids: list[str], max_hops: int = 2, limit: i
                         "name": r[f"{prefix}_name"] or "",
                         "type": ntype,
                         "summary": r[f"{prefix}_summary"] or "",
+                        "document_id": r.get(f"{prefix}_doc_id"),
                     }
 
-            # Collect relations
             rel_type = r["rel_type"]
             if rel_type:
                 relations.append({
@@ -131,15 +148,12 @@ async def expand_neighborhood(entity_ids: list[str], max_hops: int = 2, limit: i
                     "confidence": r["confidence"] or 0.5,
                 })
 
-    # Also include the seed nodes themselves
-    seed_query = """
-    MATCH (n) WHERE n.id IN $ids
-    RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary, n.document_id AS doc_id
-    """
-    records = await driver.session()  # reuse session
-    async with driver.session() as session2:
-        records = await session2.run(seed_query, ids=entity_ids)
-        async for r in records:
+        seed_query = """
+        MATCH (n) WHERE n.id IN $ids
+        RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary, n.document_id AS doc_id
+        """
+        seed_records = await session.run(seed_query, ids=entity_ids)
+        async for r in seed_records:
             nid = r["id"]
             if nid not in nodes:
                 lbls = r["labels"]
@@ -161,7 +175,6 @@ async def delete_document_graph(document_id: str) -> int:
     deleted = 0
 
     async with driver.session() as session:
-        # Delete relations first
         result = await session.run("""
             MATCH ()-[r {document_id: $doc_id}]->()
             DELETE r
@@ -170,7 +183,6 @@ async def delete_document_graph(document_id: str) -> int:
         async for record in result:
             deleted += record["cnt"]
 
-        # Delete nodes that belong to this document and have no other relations
         result = await session.run("""
             MATCH (n {document_id: $doc_id})
             WHERE NOT (n)--()

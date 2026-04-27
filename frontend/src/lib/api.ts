@@ -147,12 +147,17 @@ export function deleteDocument(docId: string) {
 
 // ========== Admin APIs ==========
 
-// Users
-export function adminListUsers(page = 1, pageSize = 50) {
-  return request<UserProfile[]>(`/admin/users?page=${page}&page_size=${pageSize}`);
+export function adminListUsers(page = 1, pageSize = 50, search?: string, role?: string, isActive?: boolean) {
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("page_size", String(pageSize));
+  if (search) params.set("search", search);
+  if (role) params.set("role", role);
+  if (isActive !== undefined) params.set("is_active", String(isActive));
+  return request<{ total: number; items: UserProfile[] }>(`/admin/users?${params}`);
 }
 
-export function adminUpdateUser(userId: string, data: Partial<UserProfile & { role?: string; is_active?: boolean }>) {
+export function adminUpdateUser(userId: string, data: Partial<UserProfile & { role?: string; is_active?: boolean; password?: string }>) {
   return request<UserProfile>(`/admin/users/${userId}`, "PATCH", data);
 }
 
@@ -180,6 +185,10 @@ export function adminUpdateDocument(docId: string, data: Partial<DocumentItem & 
 
 export function adminDeleteDocument(docId: string) {
   return request<void>(`/admin/documents/${docId}`, "DELETE");
+}
+
+export function adminReprocessDocument(docId: string) {
+  return request<DocumentItem>(`/documents/${docId}/reprocess`, "POST");
 }
 
 // Knowledge Graph

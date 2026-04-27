@@ -8,7 +8,7 @@ class DocumentUploadMeta(BaseModel):
     experiment_year: int | None = Field(None, description="实验年份")
     experiment_type: str | None = Field(None, description="课程实验/创新实验/科研项目/竞赛项目")
     subjects: list[str] | None = Field(None, description="学科领域（多选）")
-    privacy: str = Field("public", description="public/team/private")
+    privacy: str = Field("public", pattern="^(public|team|private)$", description="public/team/private")
 
 
 class DocumentResponse(BaseModel):
@@ -46,8 +46,8 @@ class AdminDocumentUpdate(BaseModel):
     experiment_year: int | None = None
     experiment_type: str | None = None
     subjects: list[str] | None = None
-    privacy: str | None = None
-    status: str | None = None
+    privacy: str | None = Field(None, pattern="^(public|team|private)$")
+    status: str | None = Field(None, pattern="^(uploaded|parsing|extracting|completed|failed)$")
     extraction_result: dict | None = None
     error_message: str | None = None
 

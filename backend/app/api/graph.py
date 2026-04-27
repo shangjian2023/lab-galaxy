@@ -5,22 +5,30 @@ import json
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from neo4j import AsyncGraphDatabase
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.models import User
+from app.models.models import Document, User
 from app.services.event_bus import graph_event_bus
 from app.services.ai_client import suggest_relations
 
 router = APIRouter(prefix="/graph", tags=["graph"])
 
+_driver_instance = None
+
 
 def _driver():
-    return AsyncGraphDatabase.driver(settings.NEO4J_URI, auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD))
+    global _driver_instance
+    if _driver_instance is None:
+        _driver_instance = AsyncGraphDatabase.driver(settings.NEO4J_URI, auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD))
+    return _driver_instance
 
 
 VALID_LABELS = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
@@ -52,7 +60,43 @@ def _node_type(labels: list[str]) -> str:
     return "Concept"
 
 
-# ========== Data Views ==========
+def _normalize_rel_type(rel_type: str) -> str:
+    normalized = rel_type.upper().replace(" ", "_")
+    if normalized not in VALID_REL_TYPES:
+        raise HTTPException(status_code=400, detail="不支持的关系类型")
+    return normalized
+
+
+async def _visible_document_ids(db: AsyncSession, current_user: User) -> list[str]:
+    stmt = select(Document.id).where((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
+    rows = (await db.execute(stmt)).scalars().all()
+    return [str(doc_id) for doc_id in rows]
+
+
+async def _visible_node_ids(db: AsyncSession, current_user: User) -> set[str]:
+    visible_doc_ids = await _visible_document_ids(db, current_user)
+    driver = _driver()
+    node_ids: set[str] = set()
+    async with driver.session() as session:
+        if visible_doc_ids:
+            query = """
+            MATCH (n)
+            WHERE n.document_id IS NULL OR n.document_id IN $doc_ids
+            RETURN n.id AS id
+            """
+            records = await session.run(query, doc_ids=visible_doc_ids)
+        else:
+            query = """
+            MATCH (n)
+            WHERE n.document_id IS NULL
+            RETURN n.id AS id
+            """
+            records = await session.run(query)
+        async for record in records:
+            if record["id"]:
+                node_ids.add(record["id"])
+    return node_ids
+
 
 @router.get("/data")
 async def get_graph_data(
@@ -61,16 +105,17 @@ async def get_graph_data(
     limit: int = Query(500, ge=1, le=2000),
     from_date: str | None = Query(None, description="ISO date, e.g. 2024-01-01"),
     to_date: str | None = Query(None, description="ISO date, e.g. 2024-12-31"),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Return graph data in Cytoscape JSON format with optional temporal filter."""
     driver = _driver()
     elements: dict = {"nodes": [], "edges": []}
+    visible_doc_ids = await _visible_document_ids(db, current_user)
 
     async with driver.session() as session:
         node_query = "MATCH (n)"
         conditions = []
-        params: dict = {"limit": limit}
+        params: dict = {"limit": limit, "doc_ids": visible_doc_ids}
 
         if node_type and node_type in VALID_LABELS:
             node_query = f"MATCH (n:{node_type})"
@@ -83,11 +128,15 @@ async def get_graph_data(
         if to_date:
             conditions.append("(n.created_at IS NULL OR n.created_at <= $to_date)")
             params["to_date"] = to_date
+        if visible_doc_ids:
+            conditions.append("(n.document_id IS NULL OR n.document_id IN $doc_ids)")
+        else:
+            conditions.append("n.document_id IS NULL")
 
         if conditions:
             node_query += " WHERE " + " AND ".join(conditions)
 
-        node_query += " RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary, n.document_id AS doc_id, n.created_at AS created_at LIMIT $limit"
+        node_query += " RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary, n.document_id AS doc_id, n.created_at AS created_at ORDER BY n.name LIMIT $limit"
 
         records = await session.run(node_query, **params)
         node_ids = set()
@@ -134,30 +183,39 @@ async def get_graph_data(
             n["size"] = min(base + degree * 4, 80)
             elements["nodes"].append({"data": n})
 
-    await driver.close()
     return elements
 
 
 @router.get("/timeline")
 async def get_timeline_data(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     driver = _driver()
     result: list[dict] = []
+    visible_doc_ids = await _visible_document_ids(db, current_user)
 
     async with driver.session() as session:
-        query = """
-        MATCH (n)-[:DESCRIBES|:INVOLVES]->(d)
-        WHERE d.experiment_year IS NOT NULL
-        RETURN d.experiment_year AS year, n.id AS id, labels(n) AS labels,
-               n.name AS name, n.summary AS summary
-        ORDER BY d.experiment_year
-        """
-        records = await session.run(query)
+        if visible_doc_ids:
+            query = """
+            MATCH (n)
+            WHERE n.name IS NOT NULL AND (n.document_id IS NULL OR n.document_id IN $doc_ids)
+            RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary
+            ORDER BY n.name
+            """
+            records = await session.run(query, doc_ids=visible_doc_ids)
+        else:
+            query = """
+            MATCH (n)
+            WHERE n.name IS NOT NULL AND n.document_id IS NULL
+            RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary
+            ORDER BY n.name
+            """
+            records = await session.run(query)
         async for r in records:
             ntype = _node_type(r["labels"])
             result.append({
-                "year": r["year"],
+                "year": None,
                 "node": {
                     "id": r["id"],
                     "name": r["name"] or "",
@@ -167,44 +225,36 @@ async def get_timeline_data(
                 },
             })
 
-        if not result:
-            fallback = """
-            MATCH (n)
-            RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary
-            LIMIT 100
-            """
-            recs = await session.run(fallback)
-            async for r in recs:
-                ntype = _node_type(r["labels"])
-                result.append({
-                    "year": None,
-                    "node": {
-                        "id": r["id"],
-                        "name": r["name"] or "",
-                        "type": ntype,
-                        "summary": r["summary"] or "",
-                        "color": NODE_COLORS.get(ntype, "#6b7280"),
-                    },
-                })
-
-    await driver.close()
     return result
 
 
 @router.get("/matrix")
 async def get_matrix_data(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     driver = _driver()
     result: list[dict] = []
+    visible_doc_ids = await _visible_document_ids(db, current_user)
 
     async with driver.session() as session:
-        query = """
-        MATCH (a)-[r]->(b)
-        WHERE a.id IS NOT NULL AND b.id IS NOT NULL
-        RETURN labels(a) AS src_labels, labels(b) AS tgt_labels, type(r) AS rel_type, count(*) AS count
-        """
-        records = await session.run(query)
+        if visible_doc_ids:
+            query = """
+            MATCH (a)-[r]->(b)
+            WHERE a.id IS NOT NULL AND b.id IS NOT NULL
+              AND (a.document_id IS NULL OR a.document_id IN $doc_ids)
+              AND (b.document_id IS NULL OR b.document_id IN $doc_ids)
+            RETURN labels(a) AS src_labels, labels(b) AS tgt_labels, type(r) AS rel_type, count(*) AS count
+            """
+            records = await session.run(query, doc_ids=visible_doc_ids)
+        else:
+            query = """
+            MATCH (a)-[r]->(b)
+            WHERE a.id IS NOT NULL AND b.id IS NOT NULL
+              AND a.document_id IS NULL AND b.document_id IS NULL
+            RETURN labels(a) AS src_labels, labels(b) AS tgt_labels, type(r) AS rel_type, count(*) AS count
+            """
+            records = await session.run(query)
         async for r in records:
             src_type = _node_type(r["src_labels"])
             tgt_type = _node_type(r["tgt_labels"])
@@ -215,11 +265,8 @@ async def get_matrix_data(
                 "count": r["count"],
             })
 
-    await driver.close()
     return result
 
-
-# ========== Public CRUD ==========
 
 class NodeCreate(BaseModel):
     type: str
@@ -252,15 +299,16 @@ async def create_node(
     driver = _driver()
     async with driver.session() as session:
         query = f"""
-        CREATE (n:{body.type} {{id: $id, name: $name, summary: $summary, created_by: $user_id, created_at: $now}})
-        RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary
+        MERGE (n:{body.type} {{name: $name}})
+        ON CREATE SET n.id = $id, n.created_by = $user_id, n.created_at = $now
+        SET n.summary = $summary
+        RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary, n.document_id AS document_id
         """
         records = await session.run(query, id=node_id, name=body.name, summary=body.summary, user_id=str(current_user.id), now=now)
         result = None
         async for r in records:
             ntype = _node_type(r["labels"])
-            result = {"id": r["id"], "name": r["name"], "type": ntype, "summary": r["summary"]}
-    await driver.close()
+            result = {"id": r["id"], "name": r["name"], "type": ntype, "summary": r["summary"], "document_id": r.get("document_id")}
 
     graph_event_bus.publish("node_created", result or {"id": node_id})
     return result
@@ -269,11 +317,13 @@ async def create_node(
 @router.post("/relations")
 async def create_relation(
     body: RelationCreate,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    rel_type = body.type.upper().replace(" ", "_")
-    if rel_type not in VALID_REL_TYPES:
-        rel_type = "RELATED_TO"
+    rel_type = _normalize_rel_type(body.type)
+    visible_node_ids = await _visible_node_ids(db, current_user)
+    if body.source_id not in visible_node_ids or body.target_id not in visible_node_ids:
+        raise HTTPException(status_code=403, detail="不能修改不可见节点之间的关系")
 
     driver = _driver()
     async with driver.session() as session:
@@ -287,9 +337,11 @@ async def create_relation(
         result = None
         async for r in records:
             result = {"source_id": r["source"], "target_id": r["target"], "type": r["type"], "confidence": r["confidence"]}
-    await driver.close()
 
-    graph_event_bus.publish("relation_created", result or {})
+    if not result:
+        raise HTTPException(status_code=404, detail="关系两端的节点不存在")
+
+    graph_event_bus.publish("relation_created", result)
     return result
 
 
@@ -297,8 +349,13 @@ async def create_relation(
 async def update_node(
     node_id: str,
     body: NodeUpdate,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    visible_node_ids = await _visible_node_ids(db, current_user)
+    if node_id not in visible_node_ids:
+        raise HTTPException(status_code=403, detail="无权修改此节点")
+
     driver = _driver()
     async with driver.session() as session:
         sets = []
@@ -310,7 +367,7 @@ async def update_node(
             sets.append("n.summary = $summary")
             params["summary"] = body.summary
         if not sets:
-            return {"status": "no changes"}
+            raise HTTPException(status_code=400, detail="没有可更新的字段")
         sets.append("n.updated_by = $user_id")
         query = f"MATCH (n {{id: $id}}) SET {', '.join(sets)} RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary"
         records = await session.run(query, **params)
@@ -318,33 +375,43 @@ async def update_node(
         async for r in records:
             ntype = _node_type(r["labels"])
             result = {"id": r["id"], "name": r["name"], "type": ntype, "summary": r["summary"]}
-    await driver.close()
 
-    graph_event_bus.publish("node_updated", result or {"id": node_id})
+    if not result:
+        raise HTTPException(status_code=404, detail="节点不存在")
+
+    graph_event_bus.publish("node_updated", result)
     return result
 
 
 @router.delete("/nodes/{node_id}")
 async def delete_node(
     node_id: str,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    visible_node_ids = await _visible_node_ids(db, current_user)
+    if node_id not in visible_node_ids:
+        raise HTTPException(status_code=403, detail="无权删除此节点")
+
     driver = _driver()
     async with driver.session() as session:
+        count_records = await session.run("MATCH (n {id: $id}) RETURN count(n) AS cnt", id=node_id)
+        count = 0
+        async for record in count_records:
+            count = record["cnt"]
+            break
+        if count == 0:
+            raise HTTPException(status_code=404, detail="节点不存在")
         await session.run("MATCH (n {id: $id}) DETACH DELETE n", id=node_id)
-    await driver.close()
 
     graph_event_bus.publish("node_deleted", {"id": node_id})
     return {"status": "deleted"}
 
 
-# ========== SSE Stream ==========
-
 @router.get("/stream")
 async def graph_stream(
     current_user: User = Depends(get_current_user),
 ):
-    """SSE endpoint for real-time graph change notifications."""
     q = graph_event_bus.subscribe()
 
     async def event_generator():
@@ -363,15 +430,16 @@ async def graph_stream(
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-# ========== AI Suggestions ==========
-
 @router.post("/suggest-relations")
 async def suggest_node_relations(
     body: dict,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get AI-suggested relationships for a node."""
     node_id = body.get("node_id", "")
     if not node_id:
         return {"suggestions": []}
+    visible_node_ids = await _visible_node_ids(db, current_user)
+    if node_id not in visible_node_ids:
+        raise HTTPException(status_code=403, detail="无权访问此节点")
     return await suggest_relations(node_id)

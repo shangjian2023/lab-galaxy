@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { getDocTree, getCardStream, toggleFavorite, discoverInsights, type DocTreeNode, type CardItem, type InsightEvent } from "@/lib/api";
 import { soundEngine } from "@/lib/audio/SoundEngine";
@@ -10,12 +10,14 @@ import DetailDrawer from "@/components/workbench/DetailDrawer";
 import InsightOverlay from "@/components/insight/InsightOverlay";
 import InsightCard from "@/components/insight/InsightCard";
 import SoundSettings from "@/components/insight/SoundSettings";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
-export default function WorkbenchPage() {
+function WorkbenchPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetDocId = searchParams.get("doc");
 
   const [tree, setTree] = useState<DocTreeNode>({});
   const [cards, setCards] = useState<CardItem[]>([]);
@@ -23,8 +25,8 @@ export default function WorkbenchPage() {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterFavorites, setFilterFavorites] = useState(false);
+  const [isLoadingCards, setIsLoadingCards] = useState(false);
 
-  // Insight state
   const [insights, setInsights] = useState<InsightEvent[]>([]);
   const [activeInsight, setActiveInsight] = useState<InsightEvent | null>(null);
   const [showSoundSettings, setShowSoundSettings] = useState(false);
@@ -32,35 +34,63 @@ export default function WorkbenchPage() {
   const [showInsightPanel, setShowInsightPanel] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const appliedDocParamRef = useRef<string | null>(null);
+  const requestedDocPageRef = useRef<number | null>(null);
 
   const loadTree = useCallback(() => {
     if (!user) return;
     getDocTree().then(setTree);
   }, [user]);
 
-  const loadCards = useCallback((p: number = 1, append = false) => {
+  const loadCards = useCallback(async (p: number = 1, append = false) => {
     if (!user) return;
-    getCardStream({ page: p, favorite_only: filterFavorites || undefined }).then((res) => {
+    setIsLoadingCards(true);
+    try {
+      const res = await getCardStream({ page: p, favorite_only: filterFavorites || undefined });
       if (append) {
         setCards((prev) => [...prev, ...res.cards]);
       } else {
         setCards(res.cards);
       }
       setTotal(res.total);
-    });
+    } finally {
+      setIsLoadingCards(false);
+    }
   }, [user, filterFavorites]);
 
   useEffect(() => { loadTree(); }, [loadTree]);
-  useEffect(() => { loadCards(1, false); setPage(1); }, [filterFavorites]);
-  useEffect(() => { if (page > 1) loadCards(page, true); }, [page]);
+  useEffect(() => { void loadCards(1, false); setPage(1); }, [filterFavorites, loadCards]);
+  useEffect(() => { if (page > 1) void loadCards(page, true); }, [page, loadCards]);
 
-  // Load insights on mount
+  useEffect(() => {
+    if (!targetDocId) {
+      appliedDocParamRef.current = null;
+      requestedDocPageRef.current = null;
+      return;
+    }
+    if (appliedDocParamRef.current === targetDocId) return;
+    if (filterFavorites) {
+      setFilterFavorites(false);
+      return;
+    }
+    const matched = cards.find((card) => card.id === targetDocId);
+    if (matched) {
+      setSelectedId(targetDocId);
+      appliedDocParamRef.current = targetDocId;
+      requestedDocPageRef.current = null;
+      return;
+    }
+    if (!isLoadingCards && cards.length > 0 && cards.length < total && requestedDocPageRef.current !== page + 1) {
+      requestedDocPageRef.current = page + 1;
+      setPage((prev) => prev + 1);
+    }
+  }, [targetDocId, filterFavorites, cards, total, isLoadingCards, page]);
+
   useEffect(() => {
     if (!user) return;
     discoverInsights().then((res) => {
       if (res.insights.length > 0) {
         setInsights(res.insights);
-        // Auto-trigger the most significant insight after a short delay
         const best = res.insights[0];
         if (best.significance >= 0.5) {
           setTimeout(() => {
@@ -122,24 +152,20 @@ export default function WorkbenchPage() {
 
   return (
     <main className="flex h-[calc(100vh-53px)] flex-col">
-      {/* Insight overlay */}
       <InsightOverlay
         insight={activeInsight}
         onDismiss={() => setActiveInsight(null)}
         animationIntensity={animationIntensity}
       />
 
-      {/* Sound settings modal */}
       <SoundSettings open={showSoundSettings} onClose={() => setShowSoundSettings(false)} />
 
-      {/* Header */}
       <div className="flex items-center justify-between border-b px-6 py-3">
         <div>
           <h1 className="text-lg font-bold text-gray-800">工作台</h1>
           <p className="text-xs text-gray-400">文档与知识图谱联动浏览</p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Insight badge */}
           {insights.length > 0 && (
             <button
               onClick={() => setShowInsightPanel(!showInsightPanel)}
@@ -158,7 +184,6 @@ export default function WorkbenchPage() {
             </button>
           )}
 
-          {/* Sound settings button */}
           <button
             onClick={() => setShowSoundSettings(true)}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -176,9 +201,7 @@ export default function WorkbenchPage() {
         </div>
       </div>
 
-      {/* Three-column layout */}
       <div ref={containerRef} className="relative flex flex-1 overflow-hidden">
-        {/* Left: Document Tree */}
         <div className="w-56 flex-shrink-0 border-r bg-gray-50 overflow-hidden">
           <DocTree
             tree={tree}
@@ -189,7 +212,6 @@ export default function WorkbenchPage() {
           />
         </div>
 
-        {/* Center: Card Stream + Insight Panel */}
         <div className="relative flex-1 overflow-hidden bg-gray-50/50">
           {cards.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-400">
@@ -206,7 +228,6 @@ export default function WorkbenchPage() {
             />
           )}
 
-          {/* Insight slide-up panel */}
           <AnimatePresence>
             {showInsightPanel && insights.length > 0 && (
               <motion.div
@@ -237,7 +258,6 @@ export default function WorkbenchPage() {
           </AnimatePresence>
         </div>
 
-        {/* Right: Detail Drawer */}
         <DetailDrawer
           card={selectedCard}
           onClose={() => setSelectedId(null)}
@@ -245,5 +265,13 @@ export default function WorkbenchPage() {
         />
       </div>
     </main>
+  );
+}
+
+export default function WorkbenchPage() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-gray-400">加载中...</p></main>}>
+      <WorkbenchPageContent />
+    </Suspense>
   );
 }

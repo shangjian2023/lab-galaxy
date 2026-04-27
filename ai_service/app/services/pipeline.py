@@ -71,3 +71,4 @@ async def process_document(data: bytes, filename: str, document_id: str) -> dict
         "entities": entities,
         "relations": relations,
     }
+

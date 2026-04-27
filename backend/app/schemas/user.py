@@ -52,6 +52,7 @@ class AdminUserUpdate(BaseModel):
     role: str | None = Field(None, pattern="^(admin|user)$")
     level: int | None = Field(None, ge=1)
     is_active: bool | None = None
+    password: str | None = Field(None, min_length=6, max_length=128)
 
 
 class AdminUserCreate(BaseModel):

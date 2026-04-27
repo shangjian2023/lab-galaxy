@@ -35,9 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     getProfile()
-      .then(setUser)
+      .then((profile) => {
+        // Only set user if account is active (approved by admin)
+        if ((profile as any).is_active === false) {
+          localStorage.removeItem("token");
+          setUser(null);
+        } else {
+          setUser(profile);
+        }
+      })
       .catch(() => {
         localStorage.removeItem("token");
+        setUser(null);
       })
       .finally(() => setLoading(false));
   }, []);

@@ -25,6 +25,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx"}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+VALID_PRIVACY = {"public", "team", "private"}
 
 
 def _validate_file(filename: str, size: int):
@@ -34,6 +35,36 @@ def _validate_file(filename: str, size: int):
     if size > MAX_FILE_SIZE:
         raise ValueError("文件大小超过 50MB 限制")
     return ext.lstrip(".")
+
+
+def _parse_subjects(subjects: str | None) -> list[str] | None:
+    if not subjects:
+        return None
+    try:
+        parsed = json.loads(subjects)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="subjects 必须是 JSON 字符串数组") from exc
+    if parsed is None:
+        return None
+    if not isinstance(parsed, list) or any(not isinstance(item, str) for item in parsed):
+        raise HTTPException(status_code=400, detail="subjects 必须是字符串数组")
+    return parsed
+
+
+def _parse_upload_meta(
+    experiment_year: int | None,
+    experiment_type: str | None,
+    subjects: str | None,
+    privacy: str,
+) -> DocumentUploadMeta:
+    if privacy not in VALID_PRIVACY:
+        raise HTTPException(status_code=400, detail="privacy 必须是 public、team 或 private")
+    return DocumentUploadMeta(
+        experiment_year=experiment_year,
+        experiment_type=experiment_type,
+        subjects=_parse_subjects(subjects),
+        privacy=privacy,
+    )
 
 
 async def _update_status(doc_id: str, status: str, error: str | None = None):
@@ -102,9 +133,8 @@ async def upload_document(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    meta = _parse_upload_meta(experiment_year, experiment_type, subjects, privacy)
     object_key = upload_file(content, filename, file.content_type or "application/octet-stream")
-
-    subjects_list = json.loads(subjects) if subjects else None
 
     doc = Document(
         title=filename,
@@ -112,19 +142,21 @@ async def upload_document(
         file_type=ext,
         file_size=len(content),
         status="uploaded",
-        experiment_year=experiment_year,
-        experiment_type=experiment_type,
-        subjects=subjects_list,
-        privacy=privacy,
+        experiment_year=meta.experiment_year,
+        experiment_type=meta.experiment_type,
+        subjects=meta.subjects,
+        privacy=meta.privacy,
         uploaded_by=current_user.id,
     )
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
 
-    # Trigger AI processing in the background (fire-and-forget)
+    # Trigger AI processing in the background
     import asyncio
-    asyncio.create_task(_process_single(str(doc.id), content, filename))
+    task = asyncio.create_task(_process_single(str(doc.id), content, filename))
+    task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+    logger.info(f"Started background processing for document {doc.id}")
 
     return doc
 
@@ -139,8 +171,9 @@ async def upload_batch(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    subjects_list = json.loads(subjects) if subjects else None
+    meta = _parse_upload_meta(experiment_year, experiment_type, subjects, privacy)
     docs: list[Document] = []
+    pending_processing: list[tuple[Document, bytes, str]] = []
     errors: list[dict] = []
 
     for file in files:
@@ -156,24 +189,27 @@ async def upload_batch(
                 file_type=ext,
                 file_size=len(content),
                 status="uploaded",
-                experiment_year=experiment_year,
-                experiment_type=experiment_type,
-                subjects=subjects_list,
-                privacy=privacy,
+                experiment_year=meta.experiment_year,
+                experiment_type=meta.experiment_type,
+                subjects=meta.subjects,
+                privacy=meta.privacy,
                 uploaded_by=current_user.id,
             )
             db.add(doc)
             docs.append(doc)
-
-            # Trigger AI processing
-            import asyncio
-            asyncio.create_task(_process_single(str(doc.id), content, filename))
+            pending_processing.append((doc, content, filename))
         except ValueError as e:
             errors.append({"filename": filename, "error": str(e)})
 
     await db.commit()
     for doc in docs:
         await db.refresh(doc)
+
+    import asyncio
+    for doc, content, filename in pending_processing:
+        task = asyncio.create_task(_process_single(str(doc.id), content, filename))
+        task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+        logger.info(f"Started background processing for document {doc.id}")
 
     return BatchUploadResponse(
         documents=docs,
@@ -226,8 +262,10 @@ async def document_status(
     current_user: User = Depends(get_current_user),
 ):
     doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
-    if not doc or doc.uploaded_by != current_user.id:
+    if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
+    if doc.uploaded_by != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无权访问此文档")
 
     # Parse extraction_result JSON before validation
     data = {
@@ -261,17 +299,23 @@ async def reprocess_document(
 ):
     """Re-trigger AI processing for a document."""
     doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
-    if not doc or doc.uploaded_by != current_user.id:
+    if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
+    if doc.uploaded_by != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无权操作此文档")
 
     # Download file from MinIO
     from app.services.storage import get_file_url
     import httpx
 
     file_url = get_file_url(doc.file_path)
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.get(file_url)
-        file_data = resp.content
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(file_url)
+            resp.raise_for_status()
+            file_data = resp.content
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="下载原始文档失败，无法重新处理") from exc
 
     doc.status = "parsing"
     doc.error_message = None
@@ -299,8 +343,10 @@ async def delete_document(
 ):
     """Delete a document and all associated data."""
     doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
-    if not doc or doc.uploaded_by != current_user.id:
+    if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
+    if doc.uploaded_by != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无权删除此文档")
 
     # 1. Delete from MinIO
     try:

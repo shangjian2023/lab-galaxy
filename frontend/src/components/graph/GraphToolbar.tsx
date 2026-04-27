@@ -1,6 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import type { ForceSettings } from "./GalaxyView";
 
 const TYPES = [
   { value: "", label: "全部", color: "#6b7280" },
@@ -33,16 +35,23 @@ interface Props {
   fromDate?: string;
   toDate?: string;
   onDateChange?: (from?: string, to?: string) => void;
+  forceSettings: ForceSettings;
+  onForceSettingsChange: (s: ForceSettings) => void;
+  onTimelineAnimate: () => void;
+  isAnimating?: boolean;
 }
 
 export default function GraphToolbar({
   viewType, onViewChange, nodeType, onNodeTypeChange,
   keyword, onKeywordChange, onSearch, nodeCount, edgeCount,
   liveCount, fromDate, toDate, onDateChange,
+  forceSettings, onForceSettingsChange, onTimelineAnimate, isAnimating,
 }: Props) {
+  const [showSettings, setShowSettings] = useState(false);
+
   return (
     <div className="space-y-3">
-      {/* View switcher */}
+      {/* View switcher + stats + settings toggle */}
       <div className="flex items-center justify-between">
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
           {VIEWS.map((v) => (
@@ -63,7 +72,7 @@ export default function GraphToolbar({
           ))}
         </div>
 
-        <div className="flex gap-3 text-xs text-gray-400">
+        <div className="flex items-center gap-3 text-xs text-gray-400">
           <span>{nodeCount} 节点</span>
           <span>{edgeCount} 关系</span>
           {liveCount !== undefined && liveCount > 0 && (
@@ -72,10 +81,39 @@ export default function GraphToolbar({
               {liveCount} 实时更新
             </span>
           )}
+
+          {/* Settings gear button */}
+          {viewType === "galaxy" && (
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`rounded-lg p-1.5 transition-colors ${showSettings ? "bg-orange-100 text-orange-700" : "text-gray-400 hover:text-gray-600"}`}
+              title="力导向参数"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          )}
+
+          {/* Timeline animate button */}
+          {viewType === "galaxy" && (
+            <button
+              onClick={onTimelineAnimate}
+              disabled={isAnimating}
+              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                isAnimating
+                  ? "bg-orange-100 text-orange-700"
+                  : "bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-700"
+              }`}
+            >
+              {isAnimating ? "播放中..." : "时间轴动画"}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters row */}
       {viewType === "galaxy" && (
         <motion.div
           initial={{ opacity: 0, y: -4 }}
@@ -136,6 +174,75 @@ export default function GraphToolbar({
           </div>
         </motion.div>
       )}
+
+      {/* Force settings panel */}
+      <AnimatePresence>
+        {showSettings && viewType === "galaxy" && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="w-16 shrink-0">排斥力</span>
+                  <input
+                    type="range"
+                    min={-500}
+                    max={-50}
+                    step={10}
+                    value={forceSettings.repel}
+                    onChange={(e) => onForceSettingsChange({ ...forceSettings, repel: +e.target.value })}
+                    className="flex-1 accent-orange-500"
+                  />
+                  <span className="w-10 text-right text-gray-400">{forceSettings.repel}</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="w-16 shrink-0">连接距离</span>
+                  <input
+                    type="range"
+                    min={30}
+                    max={200}
+                    step={5}
+                    value={forceSettings.linkDistance}
+                    onChange={(e) => onForceSettingsChange({ ...forceSettings, linkDistance: +e.target.value })}
+                    className="flex-1 accent-orange-500"
+                  />
+                  <span className="w-10 text-right text-gray-400">{forceSettings.linkDistance}px</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="w-16 shrink-0">节点大小</span>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={3}
+                    step={0.1}
+                    value={forceSettings.nodeSize}
+                    onChange={(e) => onForceSettingsChange({ ...forceSettings, nodeSize: +e.target.value })}
+                    className="flex-1 accent-orange-500"
+                  />
+                  <span className="w-10 text-right text-gray-400">{forceSettings.nodeSize.toFixed(1)}x</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="w-16 shrink-0">连接粗细</span>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={3}
+                    step={0.1}
+                    value={forceSettings.linkWidth}
+                    onChange={(e) => onForceSettingsChange({ ...forceSettings, linkWidth: +e.target.value })}
+                    className="flex-1 accent-orange-500"
+                  />
+                  <span className="w-10 text-right text-gray-400">{forceSettings.linkWidth.toFixed(1)}x</span>
+                </label>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,9 +23,8 @@ export default function RegisterPage() {
     }
     setBusy(true);
     try {
-      const res = await registerApi(username, email, password);
-      localStorage.setItem("token", res.access_token);
-      router.push("/documents");
+      await registerApi(username, email, password);
+      setRegistered(true);
     } catch (err: any) {
       setError(err.message || "注册失败");
     } finally {
@@ -40,6 +40,17 @@ export default function RegisterPage() {
       >
         <h1 className="text-2xl font-bold text-center">注册</h1>
 
+        {registered ? (
+          <div className="space-y-3 text-center">
+            <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+              注册成功！<br />请等待管理员审批后登录。
+            </div>
+            <a href="/login" className="inline-block text-sm text-blue-600 hover:underline">
+              去登录
+            </a>
+          </div>
+        ) : (
+        <>
         {error && <p className="rounded bg-red-50 p-2 text-sm text-red-600">{error}</p>}
 
         <input
@@ -87,6 +98,8 @@ export default function RegisterPage() {
           已有账号？
           <a href="/login" className="text-blue-600 hover:underline">登录</a>
         </p>
+        </>
+        )}
       </form>
     </main>
   );

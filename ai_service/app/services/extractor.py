@@ -1,10 +1,12 @@
 """Entity & relationship extraction via LLM."""
 
+import hashlib
 import json
 import logging
 import re
 import uuid
 
+from app.core.exceptions import ExtractionError
 from app.services.llm import call_llm
 from app.registries.extractors import extractor_registry
 
@@ -41,6 +43,16 @@ SYSTEM_PROMPT = """你是一个专业的实验文档分析助手。你的任务�
 - 只输出 JSON，不要有其他文本"""
 
 
+def _validate_result_shape(result: object) -> dict:
+    if not isinstance(result, dict):
+        raise ExtractionError("抽取结果不是合法对象")
+    entities = result.get("entities")
+    relations = result.get("relations")
+    if not isinstance(entities, list) or not isinstance(relations, list):
+        raise ExtractionError("抽取结果缺少 entities/relations 列表")
+    return {"entities": entities, "relations": relations}
+
+
 @extractor_registry.register("default")
 async def extract_entities_llm(text: str) -> dict:
     max_chars = 12000
@@ -55,18 +67,15 @@ async def extract_entities_llm(text: str) -> dict:
     json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", response)
     json_str = json_match.group(1) if json_match else response
 
-    # Strip markdown/code fences
     json_str = json_str.strip()
     if json_str.startswith("```"):
         json_str = re.sub(r"^```\w*\n?", "", json_str)
         json_str = re.sub(r"\n?```$", "", json_str)
 
-    # Extract the outermost JSON object
     brace_match = re.search(r"\{[\s\S]*\}", json_str)
     if brace_match:
         json_str = brace_match.group()
 
-    # Try parsing with increasingly aggressive fixes
     result = None
     for attempt in range(3):
         try:
@@ -74,12 +83,9 @@ async def extract_entities_llm(text: str) -> dict:
             break
         except json.JSONDecodeError:
             if attempt == 0:
-                # Fix trailing commas before } or ]
                 json_str = re.sub(r",\s*([}\]])", r"\1", json_str)
-                # Fix missing commas between key-value pairs
                 json_str = re.sub(r'"\s*\n\s*"', '",\n"', json_str)
             elif attempt == 1:
-                # Try extracting just entities array
                 ent_match = re.search(r'"entities"\s*:\s*\[([\s\S]*?)\]', json_str)
                 if ent_match:
                     try:
@@ -90,14 +96,27 @@ async def extract_entities_llm(text: str) -> dict:
                         pass
 
     if result is None:
-        logger.warning(f"Failed to parse LLM JSON output, returning empty result")
-        result = {"entities": [], "relations": []}
+        logger.warning("Failed to parse LLM JSON output")
+        raise ExtractionError("无法解析模型返回的抽取结果")
 
-    for entity in result.get("entities", []):
-        if not entity.get("id"):
+    validated = _validate_result_shape(result)
+
+    for entity in validated["entities"]:
+        if not isinstance(entity, dict):
+            raise ExtractionError("抽取结果中的实体格式不正确")
+        name = entity.get("name", "").strip()
+        etype = entity.get("type", "Concept")
+        if name:
+            raw = f"{etype}:{name}".encode("utf-8")
+            entity["id"] = str(uuid.UUID(hashlib.md5(raw).hexdigest()))
+        elif not entity.get("id"):
             entity["id"] = str(uuid.uuid4())
 
-    return result
+    for relation in validated["relations"]:
+        if not isinstance(relation, dict):
+            raise ExtractionError("抽取结果中的关系格式不正确")
+
+    return validated
 
 
 async def extract_entities(text: str, strategy: str = "default") -> dict:
