@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { uploadBatch, type DocumentItem } from "@/lib/api";
+import { uploadBatch, getDocumentStatus, type DocumentItem } from "@/lib/api";
 import {
   EXPERIMENT_TYPES,
   SUBJECT_OPTIONS,
@@ -11,10 +11,12 @@ import {
   ALLOWED_EXTENSIONS,
   MAX_FILE_SIZE,
 } from "@/lib/constants";
+import ProcessingChamber from "./ProcessingChamber";
 
 interface FileEntry {
   file: File;
   id: string;
+  docId?: string;
   status: "waiting" | "uploading" | "parsing" | "completed" | "failed";
   progress: number;
   error?: string;
@@ -73,6 +75,46 @@ export default function UploadPanel({ onUploaded }: Props) {
     setFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
+  // --- Poll processing status for a file ---
+  const processFile = useCallback((fileId: string, docId: string) => {
+    const poll = async () => {
+      let shouldContinue = true;
+      try {
+        const doc = await getDocumentStatus(docId);
+        setFiles((prev) => {
+          const entry = prev.find((f) => f.id === fileId);
+          if (!entry || entry.status === "completed" || entry.status === "failed") {
+            shouldContinue = false;
+            return prev;
+          }
+          // Map backend status to FileEntry status
+          const statusMap: Record<string, FileEntry["status"]> = {
+            uploaded: "uploading",
+            parsing: "parsing",
+            extracting: "parsing",
+            completed: "completed",
+            failed: "failed",
+          };
+          const newStatus = statusMap[doc.status] || "parsing";
+          if (doc.status === "completed" || doc.status === "failed") {
+            shouldContinue = false;
+          }
+          return prev.map((f) =>
+            f.id === fileId
+              ? { ...f, status: newStatus, progress: doc.status === "completed" ? 100 : f.progress }
+              : f,
+          );
+        });
+      } catch {
+        // Retry on next poll
+      }
+      if (shouldContinue) {
+        setTimeout(poll, 1500);
+      }
+    };
+    poll();
+  }, []);
+
   // --- Submit batch ---
   const handleSubmit = async () => {
     const validFiles = files.filter((f) => f.status !== "failed");
@@ -97,28 +139,21 @@ export default function UploadPanel({ onUploaded }: Props) {
         },
       );
 
-      // Mark completed
-      const docMap = new Map(result.documents.map((d: DocumentItem) => [d.title, d]));
+      // Match returned docs (by filename) and assign docIds
+      const docMap = new Map(result.documents.map((d: DocumentItem) => [d.title, d.id]));
       setFiles((prev) =>
         prev.map((f) => {
-          const doc = docMap.get(f.file.name);
-          if (doc) return { ...f, status: "parsing" as const, progress: 70 };
+          const docId = docMap.get(f.file.name);
+          if (docId) {
+            // Start polling for real status
+            processFile(f.id, docId);
+            return { ...f, docId, status: "parsing" as const, progress: 30 };
+          }
           const errItem = result.errors.find((e: { filename: string }) => e.filename === f.file.name);
           if (errItem) return { ...f, status: "failed" as const, error: errItem.error };
           return f;
         }),
       );
-
-      // Simulate parsing progress, then mark completed
-      setTimeout(() => {
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.status === "parsing" ? { ...f, status: "completed" as const, progress: 100 } : f,
-          ),
-        );
-      }, 2000);
-
-      onUploaded();
     } catch (e: any) {
       setGlobalError(e.message || "上传失败");
       setFiles((prev) =>
@@ -130,6 +165,17 @@ export default function UploadPanel({ onUploaded }: Props) {
       setSubmitting(false);
     }
   };
+
+  // Notify parent when all files are done
+  const allDone = files.length > 0 && files.every((f) => f.status === "completed" || f.status === "failed");
+  const prevAllDone = useRef(false);
+  useEffect(() => {
+    if (allDone && !prevAllDone.current) {
+      prevAllDone.current = true;
+      onUploaded();
+    }
+    if (!allDone) prevAllDone.current = false;
+  }, [allDone, onUploaded]);
 
   const hasValidFiles = files.some((f) => f.status !== "failed");
 
@@ -268,6 +314,29 @@ export default function UploadPanel({ onUploaded }: Props) {
         />
       </motion.div>
 
+      {/* ---- Processing Chambers (creative progress display) ---- */}
+      <AnimatePresence>
+        {files.some((f) => f.status === "uploading" || f.status === "parsing") && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2"
+          >
+            {files
+              .filter((f) => (f.status === "uploading" || f.status === "parsing") && f.docId)
+              .map((entry) => (
+                <ProcessingChamber
+                  key={entry.id}
+                  docId={entry.docId!}
+                  filename={entry.file.name}
+                  onComplete={() => {}}
+                />
+              ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ---- File List ---- */}
       <AnimatePresence>
         {files.length > 0 && (
@@ -277,9 +346,11 @@ export default function UploadPanel({ onUploaded }: Props) {
             exit={{ opacity: 0, height: 0 }}
             className="mt-4 space-y-2"
           >
-            {files.map((entry) => (
-              <FileRow key={entry.id} entry={entry} onRemove={removeFile} />
-            ))}
+            {files
+              .filter((f) => f.status === "waiting" || f.status === "completed" || f.status === "failed" || (f.status === "uploading" && !f.docId))
+              .map((entry) => (
+                <FileRow key={entry.id} entry={entry} onRemove={removeFile} />
+              ))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -326,9 +397,9 @@ export default function UploadPanel({ onUploaded }: Props) {
 const STATUS_CONFIG: Record<string, { label: string; color: string; barColor: string }> = {
   waiting:   { label: "等待上传", color: "text-gray-500",  barColor: "bg-gray-300" },
   uploading: { label: "上传中",   color: "text-blue-600",  barColor: "bg-blue-500" },
-  parsing:   { label: "AI 解析中", color: "text-yellow-600", barColor: "bg-yellow-400" },
-  completed: { label: "完成",     color: "text-green-600", barColor: "bg-green-500" },
-  failed:    { label: "失败",     color: "text-red-600",   barColor: "bg-red-400" },
+  parsing:   { label: "处理中",   color: "text-purple-600", barColor: "bg-purple-400" },
+  completed: { label: "✅ 萃取完成", color: "text-green-600", barColor: "bg-green-500" },
+  failed:    { label: "处理失败", color: "text-red-600",   barColor: "bg-red-400" },
 };
 
 function formatSize(bytes: number) {
