@@ -12,13 +12,15 @@ from app.monitoring.stats import stats_collector
 logger = logging.getLogger(__name__)
 
 
-async def process_document(data: bytes, filename: str, document_id: str) -> dict:
+async def process_document(
+    data: bytes, filename: str, document_id: str, skip_graph: bool = False
+) -> dict:
     """
     Run the full AI pipeline on a document:
     1. Parse to text
     2. Extract entities & relations
-    3. Write to Neo4j
-    4. Index text in FAISS
+    3. Write to Neo4j (unless skip_graph=True)
+    4. Index text in FAISS (unless skip_graph=True)
 
     Returns the extraction result.
     """
@@ -44,20 +46,21 @@ async def process_document(data: bytes, filename: str, document_id: str) -> dict
     relations = result.get("relations", [])
     extract_time = time.monotonic() - start - parse_time
 
-    # Step 3: Write to Neo4j
-    try:
-        node_count = await write_entities_and_relations(document_id, entities, relations)
-        logger.info(f"Wrote {node_count} nodes to Neo4j for doc {document_id}")
-    except Exception as e:
-        logger.warning(f"Neo4j write failed (non-fatal): {e}")
+    if not skip_graph:
+        # Step 3: Write to Neo4j
+        try:
+            node_count = await write_entities_and_relations(document_id, entities, relations)
+            logger.info(f"Wrote {node_count} nodes to Neo4j for doc {document_id}")
+        except Exception as e:
+            logger.warning(f"Neo4j write failed (non-fatal): {e}")
 
-    # Step 4: Vector index (async, non-blocking)
-    try:
-        texts = [f"{e.get('name', '')} {e.get('summary', '')}" for e in entities]
-        ids = [e["id"] for e in entities]
-        await add_to_index(texts, ids)
-    except Exception as e:
-        logger.warning(f"Vector indexing failed (non-fatal): {e}")
+        # Step 4: Vector index (async, non-blocking)
+        try:
+            texts = [f"{e.get('name', '')} {e.get('summary', '')}" for e in entities]
+            ids = [e["id"] for e in entities]
+            await add_to_index(texts, ids)
+        except Exception as e:
+            logger.warning(f"Vector indexing failed (non-fatal): {e}")
 
     total_time = time.monotonic() - start
     stats_collector.record_pipeline(document_id, filename, parse_time, extract_time,
@@ -71,4 +74,25 @@ async def process_document(data: bytes, filename: str, document_id: str) -> dict
         "entities": entities,
         "relations": relations,
     }
+
+
+async def write_graph_only(
+    document_id: str, entities: list[dict], relations: list[dict]
+) -> dict:
+    """Write pre-extracted entities and relations to Neo4j and FAISS."""
+    node_count = 0
+    try:
+        node_count = await write_entities_and_relations(document_id, entities, relations)
+        logger.info(f"Wrote {node_count} nodes to Neo4j for doc {document_id}")
+    except Exception as e:
+        logger.warning(f"Neo4j write failed (non-fatal): {e}")
+
+    try:
+        texts = [f"{e.get('name', '')} {e.get('summary', '')}" for e in entities]
+        ids = [e["id"] for e in entities]
+        await add_to_index(texts, ids)
+    except Exception as e:
+        logger.warning(f"Vector indexing failed (non-fatal): {e}")
+
+    return {"document_id": document_id, "node_count": node_count}
 

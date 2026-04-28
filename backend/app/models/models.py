@@ -75,7 +75,7 @@ class Document(Base):
     file_type: Mapped[str] = mapped_column(String(20))
     file_size: Mapped[int] = mapped_column(BigInteger, default=0)
     status: Mapped[str] = mapped_column(
-        SAEnum("uploaded", "parsing", "extracting", "completed", "failed", name="doc_status"),
+        SAEnum("uploaded", "parsing", "extracting", "awaiting_confirmation", "completed", "failed", name="doc_status"),
         default="uploaded",
     )
     experiment_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -84,6 +84,7 @@ class Document(Base):
     privacy: Mapped[str] = mapped_column(String(20), default="public")
     extraction_result: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duplicate_info: Mapped[str | None] = mapped_column(Text, nullable=True)
     uploaded_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

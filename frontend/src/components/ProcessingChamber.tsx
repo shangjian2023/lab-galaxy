@@ -26,7 +26,7 @@ const STAGES: StageDef[] = [
 ];
 
 const STAGE_MAP: Record<string, number> = {
-  uploaded: 0, parsing: 1, extracting: 2, completed: 3, failed: -1,
+  uploaded: 0, parsing: 1, extracting: 2, completed: 3, awaiting_confirmation: 3, failed: -1,
 };
 
 /* ------------------------------------------------------------------ */
@@ -37,6 +37,15 @@ interface Props {
   docId: string;
   filename: string;
   onComplete: () => void;
+  onDuplicateDetected?: (duplicates: DuplicateWarning[]) => void;
+}
+
+interface DuplicateWarning {
+  new_name: string;
+  existing_name: string;
+  existing_id: string;
+  similarity: number;
+  is_exact: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -62,7 +71,7 @@ function randomParticle(baseColor: string) {
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
 
-export default function ProcessingChamber({ docId, filename, onComplete }: Props) {
+export default function ProcessingChamber({ docId, filename, onComplete, onDuplicateDetected }: Props) {
   const [status, setStatus] = useState<string>("uploaded");
   const [stageIdx, setStageIdx] = useState(0);
   const [particles] = useState(() => Array.from({ length: 18 }, () => randomParticle("#3b82f6")));
@@ -89,6 +98,15 @@ export default function ProcessingChamber({ docId, filename, onComplete }: Props
           else if (doc.status === "extracting") soundEngine.play("insight");
           else if (doc.status === "completed") soundEngine.play("achievement");
           else if (doc.status === "failed") soundEngine.play("error");
+          else if (doc.status === "awaiting_confirmation") soundEngine.play("insight");
+        }
+
+        if (doc.status === "awaiting_confirmation") {
+          const dups = doc.duplicate_info || doc.extraction_result?.duplicate_warnings || [];
+          if (dups.length > 0 && onDuplicateDetected) {
+            onDuplicateDetected(dups);
+          }
+          return; // stop polling, wait for user action
         }
 
         if (doc.status === "completed" || doc.status === "failed") {

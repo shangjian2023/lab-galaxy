@@ -91,12 +91,16 @@ function WorkbenchPageContent() {
     discoverInsights().then((res) => {
       if (res.insights.length > 0) {
         setInsights(res.insights);
-        const best = res.insights[0];
-        if (best.significance >= 0.5) {
-          setTimeout(() => {
-            setActiveInsight(best);
-            soundEngine.play("insight");
-          }, 1500);
+        const alreadyShown = sessionStorage.getItem("insight_overlay_shown");
+        if (!alreadyShown) {
+          const best = res.insights[0];
+          if (best.significance >= 0.5) {
+            sessionStorage.setItem("insight_overlay_shown", "1");
+            setTimeout(() => {
+              setActiveInsight(best);
+              soundEngine.play("insight");
+            }, 1500);
+          }
         }
       }
     });
@@ -120,6 +124,13 @@ function WorkbenchPageContent() {
     soundEngine.play("hover");
     router.push(`/graph?node=${nodeId}`);
   }, [router]);
+
+  const handleDeleteDoc = useCallback((id: string) => {
+    setCards((prev) => prev.filter((c) => c.id !== id));
+    if (selectedId === id) setSelectedId(null);
+    loadTree();
+    void loadCards(1, false);
+  }, [selectedId, loadTree, loadCards]);
 
   const handleViewInsight = useCallback((insight: InsightEvent) => {
     setActiveInsight(insight);
@@ -262,6 +273,7 @@ function WorkbenchPageContent() {
           card={selectedCard}
           onClose={() => setSelectedId(null)}
           onJumpToGraph={handleJumpToGraph}
+          onDelete={handleDeleteDoc}
         />
       </div>
     </main>

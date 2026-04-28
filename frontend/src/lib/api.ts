@@ -67,7 +67,7 @@ export interface DocumentItem {
   title: string;
   file_type: string;
   file_size: number;
-  status: "uploaded" | "parsing" | "extracting" | "completed" | "failed";
+  status: "uploaded" | "parsing" | "extracting" | "awaiting_confirmation" | "completed" | "failed";
   experiment_year: number | null;
   experiment_type: string | null;
   subjects: string[] | null;
@@ -77,8 +77,22 @@ export interface DocumentItem {
     relation_count?: number;
     entities?: { id: string; type: string; name: string; summary: string }[];
     relations?: { source_id: string; target_id: string; type: string; confidence: number }[];
+    duplicate_warnings?: {
+      new_name: string;
+      existing_name: string;
+      existing_id: string;
+      similarity: number;
+      is_exact: boolean;
+    }[];
   } | null;
   error_message: string | null;
+  duplicate_info: {
+    new_name: string;
+    existing_name: string;
+    existing_id: string;
+    similarity: number;
+    is_exact: boolean;
+  }[] | null;
   uploaded_by: string;
   created_at: string;
 }
@@ -139,6 +153,10 @@ export function getDocumentStatus(docId: string) {
 
 export function reprocessDocument(docId: string) {
   return request<DocumentItem>(`/documents/${docId}/reprocess`, "POST");
+}
+
+export function confirmIngest(docId: string, action: "overwrite" | "cancel" | "coexist") {
+  return request<DocumentItem>(`/documents/${docId}/confirm-ingest`, "POST", { action });
 }
 
 export function deleteDocument(docId: string) {

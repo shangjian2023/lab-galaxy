@@ -1,18 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CardItem } from "@/lib/api";
+import { deleteDocument } from "@/lib/api";
 import { NODE_TYPE_COLORS } from "@/lib/constants";
 
 interface Props {
   card: CardItem | null;
   onClose: () => void;
   onJumpToGraph: (nodeId: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024) return (bytes / 1024).toFixed(1) + " KB";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
@@ -25,7 +28,24 @@ const TYPE_LABELS: Record<string, string> = {
   Concept: "概念",
 };
 
-export default function DetailDrawer({ card, onClose, onJumpToGraph }: Props) {
+export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }: Props) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!card || !onDelete) return;
+    if (!confirm(`确定删除「${card.title}」？此操作不可恢复。`)) return;
+    setDeleting(true);
+    try {
+      await deleteDocument(card.id);
+      onDelete(card.id);
+      onClose();
+    } catch {
+      alert("删除失败，请重试");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {card && (
@@ -39,11 +59,25 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph }: Props) {
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3">
             <h3 className="text-sm font-bold text-gray-800 truncate">{card.title}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-1">
+              {onDelete && (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                  title="删除文档"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+              <button onClick={onClose} className="rounded p-1 text-gray-400 hover:text-gray-600">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Scrollable content */}

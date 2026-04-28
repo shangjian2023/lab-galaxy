@@ -200,13 +200,28 @@ async def admin_list_documents(
 
     items = []
     for row in rows:
-        resp = DocumentResponse.model_validate(row)
+        er = None
         if row.extraction_result:
             try:
-                resp.extraction_result = json.loads(row.extraction_result)
-            except json.JSONDecodeError:
-                resp.extraction_result = None
-        items.append(resp)
+                er = json.loads(row.extraction_result) if isinstance(row.extraction_result, str) else row.extraction_result
+            except (json.JSONDecodeError, TypeError):
+                er = None
+        di = None
+        if row.duplicate_info:
+            try:
+                di = json.loads(row.duplicate_info) if isinstance(row.duplicate_info, str) else row.duplicate_info
+            except (json.JSONDecodeError, TypeError):
+                di = None
+        items.append(DocumentResponse(
+            id=str(row.id), title=row.title, file_type=row.file_type,
+            file_size=row.file_size, status=row.status,
+            experiment_year=row.experiment_year, experiment_type=row.experiment_type,
+            subjects=row.subjects, privacy=row.privacy,
+            extraction_result=er, error_message=row.error_message,
+            duplicate_info=di,
+            uploaded_by=str(row.uploaded_by),
+            created_at=row.created_at.isoformat() if row.created_at else None,
+        ))
     return DocumentListResponse(total=total, items=items)
 
 
@@ -242,13 +257,22 @@ async def admin_update_document(
     await db.commit()
     await db.refresh(doc)
 
-    resp = DocumentResponse.model_validate(doc)
+    er = None
     if doc.extraction_result:
         try:
-            resp.extraction_result = json.loads(doc.extraction_result)
-        except json.JSONDecodeError:
-            resp.extraction_result = None
-    return resp
+            er = json.loads(doc.extraction_result) if isinstance(doc.extraction_result, str) else doc.extraction_result
+        except (json.JSONDecodeError, TypeError):
+            er = None
+    return DocumentResponse(
+        id=str(doc.id), title=doc.title, file_type=doc.file_type,
+        file_size=doc.file_size, status=doc.status,
+        experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
+        subjects=doc.subjects, privacy=doc.privacy,
+        extraction_result=er, error_message=doc.error_message,
+        duplicate_info=None,
+        uploaded_by=str(doc.uploaded_by),
+        created_at=doc.created_at.isoformat() if doc.created_at else None,
+    )
 
 
 @router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -260,6 +284,24 @@ async def admin_delete_document(
     doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
+
+    # Delete from MinIO
+    try:
+        from app.services.storage import _get_client
+        client = _get_client()
+        client.remove_object("documents", doc.file_path)
+    except Exception:
+        pass
+
+    # Delete from Neo4j
+    try:
+        from app.services.ai_client import AI_SERVICE_URL
+        import httpx
+        async with httpx.AsyncClient(timeout=30) as client:
+            await client.delete(f"{AI_SERVICE_URL}/graph/document/{doc_id}")
+    except Exception:
+        pass
+
     await db.delete(doc)
     await db.commit()
 

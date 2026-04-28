@@ -1,5 +1,6 @@
 """Client for calling the AI service."""
 
+import json
 import logging
 
 import httpx
@@ -14,13 +15,18 @@ class AIServiceError(Exception):
     pass
 
 
-async def trigger_processing(document_id: str, filename: str, file_data: bytes) -> dict:
+async def trigger_processing(
+    document_id: str, filename: str, file_data: bytes, skip_graph: bool = False
+) -> dict:
     """Send file to the AI service for processing."""
+    params = {"document_id": document_id, "filename": filename}
+    if skip_graph:
+        params["skip_graph"] = "true"
     async with httpx.AsyncClient(timeout=300) as client:
         try:
             resp = await client.post(
                 f"{AI_SERVICE_URL}/process-sync",
-                params={"document_id": document_id, "filename": filename},
+                params=params,
                 content=file_data,
                 headers={"Content-Type": "application/octet-stream"},
             )
@@ -35,6 +41,21 @@ async def trigger_processing(document_id: str, filename: str, file_data: bytes) 
         except httpx.RequestError as e:
             logger.error(f"AI service connection error for doc {document_id}: {e}")
             raise AIServiceError(f"Cannot reach AI service: {e}")
+
+
+async def write_to_graph(document_id: str, entities: list[dict], relations: list[dict]) -> dict:
+    """Write pre-extracted entities and relations to Neo4j and FAISS via AI service."""
+    async with httpx.AsyncClient(timeout=120) as client:
+        try:
+            resp = await client.post(
+                f"{AI_SERVICE_URL}/write-graph",
+                json={"document_id": document_id, "entities": entities, "relations": relations},
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Write-graph failed for doc {document_id}: {e}")
+            raise AIServiceError(f"Write-graph failed: {e}")
 
 
 async def trigger_insight_discovery() -> dict:

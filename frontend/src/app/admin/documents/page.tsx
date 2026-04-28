@@ -10,7 +10,7 @@ import {
 } from "@/lib/api";
 import { EXPERIMENT_TYPES, SUBJECT_OPTIONS } from "@/lib/constants";
 
-const STATUS_OPTIONS = ["uploaded", "parsing", "extracting", "completed", "failed"];
+const STATUS_OPTIONS = ["uploaded", "parsing", "extracting", "awaiting_confirmation", "completed", "failed"];
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return bytes + " B";
@@ -147,8 +147,9 @@ export default function AdminDocumentsPage() {
                     <span className={`rounded px-2 py-0.5 text-xs font-medium ${
                       doc.status === "completed" ? "bg-green-100 text-green-700"
                       : doc.status === "failed" ? "bg-red-100 text-red-600"
+                      : doc.status === "awaiting_confirmation" ? "bg-amber-100 text-amber-700"
                       : "bg-yellow-100 text-yellow-700"
-                    }`}>{doc.status}</span>
+                    }`}>{doc.status === "awaiting_confirmation" ? "待确认" : doc.status}</span>
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-500">
                     {entityCount > 0 ? `${entityCount}E / ${relCount}R` : "-"}

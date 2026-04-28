@@ -12,12 +12,13 @@ import {
   MAX_FILE_SIZE,
 } from "@/lib/constants";
 import ProcessingChamber from "./ProcessingChamber";
+import DuplicateDialog from "./DuplicateDialog";
 
 interface FileEntry {
   file: File;
   id: string;
   docId?: string;
-  status: "waiting" | "uploading" | "parsing" | "completed" | "failed";
+  status: "waiting" | "uploading" | "parsing" | "awaiting_confirmation" | "completed" | "failed";
   progress: number;
   error?: string;
 }
@@ -40,6 +41,13 @@ export default function UploadPanel({ onUploaded }: Props) {
   const [globalError, setGlobalError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Duplicate dialog state
+  const [duplicateDialog, setDuplicateDialog] = useState<{
+    docId: string;
+    filename: string;
+    duplicates: { new_name: string; existing_name: string; existing_id: string; similarity: number; is_exact: boolean }[];
+  } | null>(null);
+
   // --- Subject multi-select toggle ---
   const toggleSubject = (val: string) => {
     setSelectedSubjects((prev) =>
@@ -55,20 +63,26 @@ export default function UploadPanel({ onUploaded }: Props) {
     return null;
   };
 
-  // --- Add files ---
+  // --- Add files (dedup by filename+size) ---
   const addFiles = useCallback((incoming: FileList | File[]) => {
-    const newEntries: FileEntry[] = [];
-    for (const file of Array.from(incoming)) {
-      const err = validateFile(file);
-      newEntries.push({
-        file,
-        id: crypto.randomUUID(),
-        status: err ? "failed" : "waiting",
-        progress: 0,
-        error: err || undefined,
-      });
-    }
-    setFiles((prev) => [...prev, ...newEntries]);
+    setFiles((prev) => {
+      const existingKeys = new Set(prev.map((f) => `${f.file.name}|${f.file.size}`));
+      const newEntries: FileEntry[] = [];
+      for (const file of Array.from(incoming)) {
+        const key = `${file.name}|${file.size}`;
+        if (existingKeys.has(key)) continue;
+        existingKeys.add(key);
+        const err = validateFile(file);
+        newEntries.push({
+          file,
+          id: crypto.randomUUID(),
+          status: err ? "failed" : "waiting",
+          progress: 0,
+          error: err || undefined,
+        });
+      }
+      return [...prev, ...newEntries];
+    });
   }, []);
 
   const removeFile = (id: string) => {
@@ -92,11 +106,15 @@ export default function UploadPanel({ onUploaded }: Props) {
             uploaded: "uploading",
             parsing: "parsing",
             extracting: "parsing",
+            awaiting_confirmation: "awaiting_confirmation",
             completed: "completed",
             failed: "failed",
           };
           const newStatus = statusMap[doc.status] || "parsing";
           if (doc.status === "completed" || doc.status === "failed") {
+            shouldContinue = false;
+          }
+          if (doc.status === "awaiting_confirmation") {
             shouldContinue = false;
           }
           return prev.map((f) =>
@@ -105,6 +123,19 @@ export default function UploadPanel({ onUploaded }: Props) {
               : f,
           );
         });
+
+        // Show duplicate dialog if awaiting confirmation
+        if (doc.status === "awaiting_confirmation") {
+          const dups = doc.duplicate_info || doc.extraction_result?.duplicate_warnings || [];
+          if (dups.length > 0) {
+            const entry = files.find((f) => f.id === fileId);
+            setDuplicateDialog({
+              docId,
+              filename: entry?.file.name || doc.title,
+              duplicates: dups,
+            });
+          }
+        }
       } catch {
         // Retry on next poll
       }
@@ -113,11 +144,11 @@ export default function UploadPanel({ onUploaded }: Props) {
       }
     };
     poll();
-  }, []);
+  }, [files]);
 
   // --- Submit batch ---
   const handleSubmit = async () => {
-    const validFiles = files.filter((f) => f.status !== "failed");
+    const validFiles = files.filter((f) => f.status === "waiting");
     if (validFiles.length === 0) return;
 
     setGlobalError("");
@@ -167,7 +198,9 @@ export default function UploadPanel({ onUploaded }: Props) {
   };
 
   // Notify parent when all files are done
-  const allDone = files.length > 0 && files.every((f) => f.status === "completed" || f.status === "failed");
+  const allDone = files.length > 0 && files.every(
+    (f) => f.status === "completed" || f.status === "failed",
+  );
   const prevAllDone = useRef(false);
   useEffect(() => {
     if (allDone && !prevAllDone.current) {
@@ -177,11 +210,33 @@ export default function UploadPanel({ onUploaded }: Props) {
     if (!allDone) prevAllDone.current = false;
   }, [allDone, onUploaded]);
 
+  // Handle duplicate dialog resolution
+  const handleDuplicateResolved = useCallback(() => {
+    if (!duplicateDialog) return;
+    const docId = duplicateDialog.docId;
+    setDuplicateDialog(null);
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.docId === docId ? { ...f, status: "completed" as const, progress: 100 } : f,
+      ),
+    );
+  }, [duplicateDialog]);
+
   const hasValidFiles = files.some((f) => f.status !== "failed");
 
   return (
     <section className="rounded-xl bg-white p-6 shadow-sm">
       <h1 className="mb-5 text-xl font-bold">上传实验文档</h1>
+
+      {/* Duplicate Dialog */}
+      {duplicateDialog && (
+        <DuplicateDialog
+          docId={duplicateDialog.docId}
+          filename={duplicateDialog.filename}
+          duplicates={duplicateDialog.duplicates}
+          onResolved={handleDuplicateResolved}
+        />
+      )}
 
       {/* ---- Metadata Form ---- */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -316,7 +371,7 @@ export default function UploadPanel({ onUploaded }: Props) {
 
       {/* ---- Processing Chambers (creative progress display) ---- */}
       <AnimatePresence>
-        {files.some((f) => f.status === "uploading" || f.status === "parsing") && (
+        {files.some((f) => f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation") && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -324,13 +379,20 @@ export default function UploadPanel({ onUploaded }: Props) {
             className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2"
           >
             {files
-              .filter((f) => (f.status === "uploading" || f.status === "parsing") && f.docId)
+              .filter((f) => (f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation") && f.docId)
               .map((entry) => (
                 <ProcessingChamber
                   key={entry.id}
                   docId={entry.docId!}
                   filename={entry.file.name}
                   onComplete={() => {}}
+                  onDuplicateDetected={(dups) => {
+                    setDuplicateDialog({
+                      docId: entry.docId!,
+                      filename: entry.file.name,
+                      duplicates: dups,
+                    });
+                  }}
                 />
               ))}
           </motion.div>
@@ -347,7 +409,7 @@ export default function UploadPanel({ onUploaded }: Props) {
             className="mt-4 space-y-2"
           >
             {files
-              .filter((f) => f.status === "waiting" || f.status === "completed" || f.status === "failed" || (f.status === "uploading" && !f.docId))
+              .filter((f) => f.status === "waiting" || f.status === "completed" || f.status === "failed" || f.status === "awaiting_confirmation" || (f.status === "uploading" && !f.docId))
               .map((entry) => (
                 <FileRow key={entry.id} entry={entry} onRemove={removeFile} />
               ))}
@@ -398,6 +460,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; barColor: st
   waiting:   { label: "等待上传", color: "text-gray-500",  barColor: "bg-gray-300" },
   uploading: { label: "上传中",   color: "text-blue-600",  barColor: "bg-blue-500" },
   parsing:   { label: "处理中",   color: "text-purple-600", barColor: "bg-purple-400" },
+  awaiting_confirmation: { label: "⚠️ 待确认", color: "text-amber-600", barColor: "bg-amber-400" },
   completed: { label: "✅ 萃取完成", color: "text-green-600", barColor: "bg-green-500" },
   failed:    { label: "处理失败", color: "text-red-600",   barColor: "bg-red-400" },
 };

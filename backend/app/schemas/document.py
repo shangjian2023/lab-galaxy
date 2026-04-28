@@ -23,6 +23,7 @@ class DocumentResponse(BaseModel):
     privacy: str = "public"
     extraction_result: dict | None = None
     error_message: str | None = None
+    duplicate_info: list[dict] | None = None
     uploaded_by: uuid.UUID
     created_at: datetime
 
@@ -39,6 +40,10 @@ class BatchUploadResponse(BaseModel):
     errors: list[dict]
 
 
+class IngestConfirmRequest(BaseModel):
+    action: str = Field(..., pattern="^(overwrite|cancel|coexist)$", description="覆盖入库/取消入库/并存入库")
+
+
 # ---------- Admin document edit ----------
 
 class AdminDocumentUpdate(BaseModel):
@@ -47,7 +52,7 @@ class AdminDocumentUpdate(BaseModel):
     experiment_type: str | None = None
     subjects: list[str] | None = None
     privacy: str | None = Field(None, pattern="^(public|team|private)$")
-    status: str | None = Field(None, pattern="^(uploaded|parsing|extracting|completed|failed)$")
+    status: str | None = Field(None, pattern="^(uploaded|parsing|extracting|awaiting_confirmation|completed|failed)$")
     extraction_result: dict | None = None
     error_message: str | None = None
 

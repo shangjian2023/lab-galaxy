@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from difflib import SequenceMatcher
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from sqlalchemy import func, select, update
@@ -16,6 +17,7 @@ from app.schemas.document import (
     DocumentListResponse,
     DocumentResponse,
     DocumentUploadMeta,
+    IngestConfirmRequest,
 )
 from app.services.storage import upload_file
 
@@ -26,6 +28,8 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx"}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 VALID_PRIVACY = {"public", "team", "private"}
+
+SIMILARITY_THRESHOLD = 0.78
 
 
 def _validate_file(filename: str, size: int):
@@ -86,30 +90,115 @@ async def _update_status(doc_id: str, status: str, error: str | None = None):
             await asyncio.sleep(1 * (attempt + 1))
 
 
+def _is_similar_name(a: str, b: str) -> bool:
+    """Check if two experiment names are similar enough to be considered duplicates."""
+    a = a.strip()
+    b = b.strip()
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    al, bl = a.lower(), b.lower()
+    if al == bl:
+        return True
+    return SequenceMatcher(None, al, bl).ratio() >= SIMILARITY_THRESHOLD
+
+
+async def _check_duplicate_experiments(
+    entities: list[dict], user_id: str
+) -> list[dict]:
+    """Check extracted Experiment entities against existing Neo4j nodes.
+    Returns list of duplicate warnings: [{name, existing_name, existing_id, similarity}]
+    """
+    experiment_names = [
+        e.get("name", "").strip()
+        for e in entities
+        if isinstance(e, dict) and e.get("type") == "Experiment"
+    ]
+    if not experiment_names:
+        return []
+
+    from app.api.graph import _driver
+
+    driver = _driver()
+    existing_experiments: list[dict] = []
+    try:
+        async with driver.session() as session:
+            result = await session.run("MATCH (e:Experiment) RETURN e.id AS id, e.name AS name")
+            async for record in result:
+                existing_experiments.append({"id": record["id"], "name": record["name"] or ""})
+    except Exception as e:
+        logger.warning(f"Failed to query existing experiments for duplicate check: {e}")
+        return []
+
+    warnings = []
+    for name in experiment_names:
+        for existing in existing_experiments:
+            if _is_similar_name(name, existing["name"]):
+                ratio = SequenceMatcher(None, name.lower(), existing["name"].lower()).ratio()
+                exact = name.strip() == existing["name"].strip()
+                warnings.append({
+                    "new_name": name,
+                    "existing_name": existing["name"],
+                    "existing_id": existing["id"],
+                    "similarity": round(ratio, 3),
+                    "is_exact": exact,
+                })
+    return warnings
+
+
+async def _write_graph_for_doc(doc_id: str, entities: list[dict], relations: list[dict]):
+    """Write entities/relations to Neo4j + FAISS via AI service."""
+    from app.services.ai_client import write_to_graph
+    await write_to_graph(doc_id, entities, relations)
+
+
 async def _process_single(doc_id: str, file_data: bytes, filename: str):
-    """Run AI processing with real-time status updates."""
+    """Run AI processing with real-time status updates and duplicate detection."""
     from app.services.ai_client import trigger_processing
 
     try:
-        # Phase 1: Parsing
+        # Phase 1: Parsing + Extraction (skip graph write for duplicate check)
         await _update_status(doc_id, "parsing")
 
-        # Phase 2: Call AI service (handles parsing + extraction + graph write)
-        result = await trigger_processing(doc_id, filename, file_data)
+        result = await trigger_processing(doc_id, filename, file_data, skip_graph=True)
 
-        # Phase 3: Extraction done, writing results
         await _update_status(doc_id, "extracting")
 
-        # Save extraction result
+        entities = result.get("entities", [])
+        relations = result.get("relations", [])
+
+        # Check for duplicate experiments
+        warnings = await _check_duplicate_experiments(entities, "")
+
         from app.core.database import async_session
 
-        async with async_session() as db:
-            doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
-            if doc:
-                doc.status = "completed"
-                doc.extraction_result = json.dumps(result, ensure_ascii=False)
-                doc.error_message = None
-                await db.commit()
+        if warnings:
+            # Store result and wait for user confirmation
+            async with async_session() as db:
+                doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
+                if doc:
+                    result["duplicate_warnings"] = warnings
+                    doc.extraction_result = json.dumps(result, ensure_ascii=False)
+                    doc.duplicate_info = json.dumps(warnings, ensure_ascii=False)
+                    doc.status = "awaiting_confirmation"
+                    doc.error_message = None
+                    await db.commit()
+            logger.info(f"Doc {doc_id} awaiting confirmation for {len(warnings)} duplicate(s)")
+        else:
+            # No duplicates — write graph and mark completed
+            try:
+                await _write_graph_for_doc(doc_id, entities, relations)
+            except Exception as e:
+                logger.warning(f"Graph write failed for doc {doc_id} (non-fatal): {e}")
+
+            async with async_session() as db:
+                doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
+                if doc:
+                    doc.status = "completed"
+                    doc.extraction_result = json.dumps(result, ensure_ascii=False)
+                    doc.error_message = None
+                    await db.commit()
 
     except Exception as e:
         logger.error(f"Processing failed for doc {doc_id}: {e}")
@@ -242,12 +331,19 @@ async def list_documents(
                 er = json.loads(row.extraction_result) if isinstance(row.extraction_result, str) else row.extraction_result
             except (json.JSONDecodeError, TypeError):
                 er = None
+        di = None
+        if row.duplicate_info:
+            try:
+                di = json.loads(row.duplicate_info) if isinstance(row.duplicate_info, str) else row.duplicate_info
+            except (json.JSONDecodeError, TypeError):
+                di = None
         items.append(DocumentResponse(
             id=str(row.id), title=row.title, file_type=row.file_type,
             file_size=row.file_size, status=row.status,
             experiment_year=row.experiment_year, experiment_type=row.experiment_type,
             subjects=row.subjects, privacy=row.privacy,
             extraction_result=er, error_message=row.error_message,
+            duplicate_info=di,
             uploaded_by=str(row.uploaded_by),
             created_at=row.created_at.isoformat() if row.created_at else None,
         ))
@@ -288,7 +384,107 @@ async def document_status(
             data["extraction_result"] = json.loads(doc.extraction_result) if isinstance(doc.extraction_result, str) else doc.extraction_result
         except (json.JSONDecodeError, TypeError):
             data["extraction_result"] = None
+    # Include duplicate_info for frontend
+    if doc.duplicate_info:
+        try:
+            data["duplicate_info"] = json.loads(doc.duplicate_info) if isinstance(doc.duplicate_info, str) else doc.duplicate_info
+        except (json.JSONDecodeError, TypeError):
+            data["duplicate_info"] = None
     return DocumentResponse(**data)
+
+
+@router.post("/{doc_id}/confirm-ingest", response_model=DocumentResponse)
+async def confirm_ingest(
+    doc_id: uuid.UUID,
+    body: IngestConfirmRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Confirm how to handle duplicate experiment detection: overwrite, coexist, or cancel."""
+    doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    if doc.uploaded_by != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无权操作此文档")
+    if doc.status != "awaiting_confirmation":
+        raise HTTPException(status_code=400, detail="该文档不处于待确认状态")
+
+    extraction = None
+    if doc.extraction_result:
+        try:
+            extraction = json.loads(doc.extraction_result) if isinstance(doc.extraction_result, str) else doc.extraction_result
+        except (json.JSONDecodeError, TypeError):
+            extraction = None
+
+    if not extraction or "entities" not in extraction:
+        doc.status = "failed"
+        doc.error_message = "无法读取抽取结果"
+        await db.commit()
+        raise HTTPException(status_code=500, detail="无法读取抽取结果")
+
+    entities = extraction.get("entities", [])
+    relations = extraction.get("relations", [])
+
+    if body.action == "cancel":
+        doc.status = "completed"
+        doc.duplicate_info = None
+        doc.error_message = None
+        # Remove duplicate_warnings from extraction_result
+        extraction.pop("duplicate_warnings", None)
+        doc.extraction_result = json.dumps(extraction, ensure_ascii=False)
+        await db.commit()
+        return DocumentResponse(
+            id=str(doc.id), title=doc.title, file_type=doc.file_type,
+            file_size=doc.file_size, status="completed",
+            experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
+            subjects=doc.subjects, privacy=doc.privacy,
+            extraction_result=extraction, error_message=None,
+            uploaded_by=str(doc.uploaded_by),
+            created_at=doc.created_at.isoformat() if doc.created_at else None,
+        )
+
+    if body.action == "overwrite":
+        # Delete existing duplicate experiment nodes from Neo4j
+        duplicate_info = []
+        if doc.duplicate_info:
+            try:
+                duplicate_info = json.loads(doc.duplicate_info) if isinstance(doc.duplicate_info, str) else doc.duplicate_info
+            except (json.JSONDecodeError, TypeError):
+                pass
+        for dup in duplicate_info:
+            existing_id = dup.get("existing_id")
+            if existing_id:
+                try:
+                    from app.api.graph import _driver
+                    driver = _driver()
+                    async with driver.session() as session:
+                        await session.run("MATCH (n {id: $id}) DETACH DELETE n", id=existing_id)
+                except Exception as e:
+                    logger.warning(f"Failed to delete existing node {existing_id}: {e}")
+
+    # For both "overwrite" and "coexist": write to graph
+    if body.action in ("overwrite", "coexist"):
+        try:
+            await _write_graph_for_doc(str(doc.id), entities, relations)
+        except Exception as e:
+            logger.warning(f"Graph write failed for doc {doc_id} during confirm: {e}")
+
+    doc.status = "completed"
+    doc.duplicate_info = None
+    doc.error_message = None
+    extraction.pop("duplicate_warnings", None)
+    doc.extraction_result = json.dumps(extraction, ensure_ascii=False)
+    await db.commit()
+
+    return DocumentResponse(
+        id=str(doc.id), title=doc.title, file_type=doc.file_type,
+        file_size=doc.file_size, status="completed",
+        experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
+        subjects=doc.subjects, privacy=doc.privacy,
+        extraction_result=extraction, error_message=None,
+        uploaded_by=str(doc.uploaded_by),
+        created_at=doc.created_at.isoformat() if doc.created_at else None,
+    )
 
 
 @router.post("/{doc_id}/reprocess", response_model=DocumentResponse)
@@ -319,6 +515,7 @@ async def reprocess_document(
 
     doc.status = "parsing"
     doc.error_message = None
+    doc.duplicate_info = None
     await db.commit()
 
     import asyncio
@@ -329,7 +526,7 @@ async def reprocess_document(
         file_size=doc.file_size, status="parsing",
         experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
         subjects=doc.subjects, privacy=doc.privacy,
-        extraction_result=None, error_message=None,
+        extraction_result=None, error_message=None, duplicate_info=None,
         uploaded_by=str(doc.uploaded_by),
         created_at=doc.created_at.isoformat() if doc.created_at else None,
     )
