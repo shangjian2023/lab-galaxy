@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <AdminGuard>
       <div className="flex min-h-[calc(100vh-53px)]">
         {/* Sidebar */}
-        <aside className="w-56 flex-shrink-0 border-r bg-gray-50 p-4">
+        <aside className="w-56 flex-shrink-0 glass-warm border-r-0 p-4">
           <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-400">管理后台</h2>
           <nav className="space-y-1">
             {NAV_ITEMS.map((item) => {
@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                     active
                       ? "bg-orange-50 text-orange-700 font-medium"
-                      : "text-gray-600 hover:bg-gray-100"
+                      : "text-gray-600 hover:bg-[rgba(255,248,240,0.5)]"
                   }`}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto bg-white p-6">
+        <main className="flex-1 overflow-y-auto bg-transparent p-6">
           {children}
         </main>
       </div>

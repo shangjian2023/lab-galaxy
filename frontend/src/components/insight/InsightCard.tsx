@@ -24,7 +24,7 @@ export default function InsightCard({ insight, onView, onDismiss }: Props) {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-4 shadow-sm"
+      className="glass-warm rounded-xl p-4"
     >
       <div className="flex items-start gap-3">
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
@@ -65,7 +65,7 @@ export default function InsightCard({ insight, onView, onDismiss }: Props) {
         <div className="flex flex-shrink-0 flex-col gap-1">
           <button
             onClick={() => onView(insight)}
-            className="rounded-lg bg-orange-600 px-3 py-1 text-[10px] font-medium text-white hover:bg-orange-700"
+            className="btn-primary rounded-lg px-3 py-1 text-[10px] font-medium"
           >
             查看
           </button>

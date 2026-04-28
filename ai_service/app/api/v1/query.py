@@ -19,7 +19,13 @@ class SuggestRequest(BaseModel):
 @router.post("/query")
 async def query(body: QueryRequest):
     """Natural language query over the knowledge graph (RAG pipeline)."""
-    return await natural_language_query(body.question)
+    try:
+        return await natural_language_query(body.question)
+    except Exception as e:
+        import logging, traceback
+        logging.getLogger(__name__).error(f"Query error: {e}\n{traceback.format_exc()}")
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.post("/suggest-relations")

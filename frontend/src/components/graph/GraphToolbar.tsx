@@ -53,7 +53,7 @@ export default function GraphToolbar({
     <div className="space-y-3">
       {/* View switcher + stats + settings toggle */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+        <div className="flex gap-1 glass-button rounded-xl p-1">
           {VIEWS.map((v) => (
             <button
               key={v.value}
@@ -104,7 +104,7 @@ export default function GraphToolbar({
               className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                 isAnimating
                   ? "bg-orange-100 text-orange-700"
-                  : "bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-700"
+                  : "glass-button text-gray-500 hover:text-orange-700"
               }`}
             >
               {isAnimating ? "播放中..." : "时间轴动画"}
@@ -124,10 +124,10 @@ export default function GraphToolbar({
             <button
               key={t.value}
               onClick={() => onNodeTypeChange(t.value)}
-              className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+              className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-all ${
                 nodeType === t.value
                   ? "border-orange-400 bg-orange-50 text-orange-700"
-                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                  : "glass-button text-gray-500"
               }`}
             >
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
@@ -144,7 +144,7 @@ export default function GraphToolbar({
                   type="date"
                   value={fromDate || ""}
                   onChange={(e) => onDateChange(e.target.value || undefined, toDate)}
-                  className="rounded border border-gray-200 px-2 py-1 text-[10px] focus:border-orange-400 focus:outline-none"
+                  className="glass-input rounded px-2 py-1 text-[10px]"
                   placeholder="起始日期"
                 />
                 <span className="text-[10px] text-gray-400">—</span>
@@ -152,7 +152,7 @@ export default function GraphToolbar({
                   type="date"
                   value={toDate || ""}
                   onChange={(e) => onDateChange(fromDate, e.target.value || undefined)}
-                  className="rounded border border-gray-200 px-2 py-1 text-[10px] focus:border-orange-400 focus:outline-none"
+                  className="glass-input rounded px-2 py-1 text-[10px]"
                   placeholder="结束日期"
                 />
               </div>
@@ -163,11 +163,11 @@ export default function GraphToolbar({
               onChange={(e) => onKeywordChange(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onSearch()}
               placeholder="搜索节点..."
-              className="w-40 rounded-lg border border-gray-200 px-3 py-1.5 text-xs focus:border-orange-400 focus:outline-none"
+              className="glass-input w-40 rounded-lg px-3 py-1.5 text-xs"
             />
             <button
               onClick={onSearch}
-              className="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700"
+              className="btn-primary rounded-lg px-3 py-1.5 text-xs font-medium"
             >
               搜索
             </button>
@@ -184,7 +184,7 @@ export default function GraphToolbar({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="glass-card rounded-xl p-4">
               <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="w-16 shrink-0">排斥力</span>

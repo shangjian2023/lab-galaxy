@@ -124,7 +124,7 @@ export default function AdminUsersPage() {
         </h1>
         <button
           onClick={() => setShowCreate(true)}
-          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+          className="btn-primary px-4 py-2 text-sm"
         >
           + 创建用户
         </button>
@@ -138,9 +138,9 @@ export default function AdminUsersPage() {
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="搜索用户名/邮箱..."
-            className="w-48 rounded-lg border px-3 py-1.5 text-sm focus:border-orange-400 focus:outline-none"
+            className="glass-input w-48 px-3 py-1.5 text-sm"
           />
-          <button onClick={handleSearch} className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm hover:bg-gray-200">搜索</button>
+          <button onClick={handleSearch} className="glass-button px-3 py-1.5 text-sm">搜索</button>
         </div>
         <select
           value={roleFilter}
@@ -148,7 +148,7 @@ export default function AdminUsersPage() {
             setRoleFilter(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border px-3 py-1.5 text-sm"
+          className="glass-input px-3 py-1.5 text-sm"
         >
           <option value="">全部角色</option>
           <option value="user">普通用户</option>
@@ -160,7 +160,7 @@ export default function AdminUsersPage() {
             setStatusFilter(e.target.value as typeof statusFilter);
             setPage(1);
           }}
-          className="rounded-lg border px-3 py-1.5 text-sm"
+          className="glass-input px-3 py-1.5 text-sm"
         >
           <option value="all">全部状态</option>
           <option value="active">已激活</option>
@@ -180,12 +180,12 @@ export default function AdminUsersPage() {
               <Input name="nickname" label="昵称" />
               <div>
                 <label className="mb-1 block text-xs text-gray-500">角色</label>
-                <select name="role" className="w-full rounded border px-3 py-2 text-sm">
+                <select name="role" className="glass-input w-full px-3 py-2 text-sm">
                   <option value="user">普通用户</option>
                   <option value="admin">管理员</option>
                 </select>
               </div>
-              <button type="submit" className="w-full rounded-lg bg-orange-600 py-2 text-sm font-medium text-white">
+              <button type="submit" className="btn-primary w-full py-2 text-sm">
                 创建
               </button>
             </form>
@@ -199,7 +199,7 @@ export default function AdminUsersPage() {
             <form onSubmit={(e) => handlePassword(showPassword, e)} className="space-y-3">
               <Input name="password" label="新密码" type="password" required />
               <Input name="password2" label="确认密码" type="password" required />
-              <button type="submit" className="w-full rounded-lg bg-orange-600 py-2 text-sm font-medium text-white">
+              <button type="submit" className="btn-primary w-full py-2 text-sm">
                 确认重置
               </button>
             </form>
@@ -213,7 +213,7 @@ export default function AdminUsersPage() {
             <form onSubmit={(e) => handlePoints(showPoints, e)} className="space-y-3">
               <Input name="change" label="积分变动（正数增加，负数减少）" type="number" required />
               <Input name="reason" label="原因" required />
-              <button type="submit" className="w-full rounded-lg bg-orange-600 py-2 text-sm font-medium text-white">
+              <button type="submit" className="btn-primary w-full py-2 text-sm">
                 确认
               </button>
             </form>
@@ -221,9 +221,9 @@ export default function AdminUsersPage() {
         )}
       </AnimatePresence>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="glass-card overflow-hidden rounded-xl">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="glass-table-header">
             <tr className="text-left text-gray-500">
               <th className="px-4 py-2 font-medium">用户名</th>
               <th className="px-4 py-2 font-medium">邮箱</th>
@@ -239,7 +239,7 @@ export default function AdminUsersPage() {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-t hover:bg-gray-50">
+              <tr key={u.id} className="glass-table-row border-t">
                 <td className="px-4 py-2 font-medium">{u.username}</td>
                 <td className="px-4 py-2 text-gray-500">{u.email}</td>
                 <td className="px-4 py-2 text-gray-500">
@@ -248,7 +248,7 @@ export default function AdminUsersPage() {
                       type="text"
                       defaultValue={u.nickname || ""}
                       onBlur={(e) => void handleUpdate(u.id, { nickname: e.target.value })}
-                      className="w-24 rounded border px-2 py-1 text-xs"
+                      className="glass-input w-24 px-2 py-1 text-xs"
                       placeholder="昵称"
                     />
                   ) : (u.nickname || "-")}
@@ -259,11 +259,11 @@ export default function AdminUsersPage() {
                       type="text"
                       defaultValue={u.avatar || ""}
                       onBlur={(e) => void handleUpdate(u.id, { avatar: e.target.value })}
-                      className="w-32 rounded border px-2 py-1 text-xs"
+                      className="glass-input w-32 px-2 py-1 text-xs"
                       placeholder="头像URL"
                     />
                   ) : u.avatar ? (
-                    <span className="text-xs text-blue-500 truncate max-w-[100px] inline-block" title={u.avatar}>
+                    <span className="text-xs text-brand-500 truncate max-w-[100px] inline-block" title={u.avatar}>
                       {u.avatar.slice(0, 20)}…
                     </span>
                   ) : "-"}
@@ -273,13 +273,13 @@ export default function AdminUsersPage() {
                     <select
                       defaultValue={u.role}
                       onChange={(e) => void handleUpdate(u.id, { role: e.target.value })}
-                      className="rounded border px-2 py-1 text-xs"
+                      className="glass-input px-2 py-1 text-xs"
                     >
                       <option value="user">user</option>
                       <option value="admin">admin</option>
                     </select>
                   ) : (
-                    <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                    <span className={`rounded-xl px-1.5 py-0.5 text-xs font-medium ${
                       u.role === "admin" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-600"
                     }`}>{u.role}</span>
                   )}
@@ -291,29 +291,29 @@ export default function AdminUsersPage() {
                       defaultValue={u.level}
                       min={1}
                       onBlur={(e) => void handleUpdate(u.id, { level: Number(e.target.value) })}
-                      className="w-16 rounded border px-2 py-1 text-xs"
+                      className="glass-input w-16 px-2 py-1 text-xs"
                     />
                   ) : u.level}
                 </td>
                 <td className="px-4 py-2">
-                  <button onClick={() => setShowPoints(u.id)} className="text-blue-600 hover:underline">
+                  <button onClick={() => setShowPoints(u.id)} className="text-brand-600 hover:underline">
                     {u.points}
                   </button>
                 </td>
                 <td className="px-4 py-2">
                   {!u.is_active && u.role !== "admin" ? (
-                    <span className="rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
+                    <span className="rounded-xl bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
                       待审批
                     </span>
                   ) : u.is_active ? (
                     <button
                       onClick={() => void handleUpdate(u.id, { is_active: false })}
-                      className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
+                      className="rounded-xl bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
                     >
                       正常
                     </button>
                   ) : (
-                    <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                    <span className="rounded-xl bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
                       已禁用
                     </span>
                   )}
@@ -325,10 +325,10 @@ export default function AdminUsersPage() {
                   <div className="flex items-center gap-1.5">
                     {!u.is_active && u.role !== "admin" && (
                       <>
-                        <button onClick={() => void handleApprove(u.id)} className="rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-100">
+                        <button onClick={() => void handleApprove(u.id)} className="rounded-xl bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-100">
                           通过
                         </button>
-                        <button onClick={() => void handleReject(u.id)} className="rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-100">
+                        <button onClick={() => void handleReject(u.id)} className="rounded-xl bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-100">
                           拒绝
                         </button>
                       </>
@@ -346,7 +346,7 @@ export default function AdminUsersPage() {
                         启用
                       </button>
                     )}
-                    <button onClick={() => setEditing(editing === u.id ? null : u.id)} className="text-xs text-blue-600 hover:underline">
+                    <button onClick={() => setEditing(editing === u.id ? null : u.id)} className="text-xs text-brand-600 hover:underline">
                       {editing === u.id ? "完成" : "编辑"}
                     </button>
                     <button onClick={() => setShowPassword(u.id)} className="text-xs text-gray-500 hover:underline">
@@ -369,7 +369,7 @@ export default function AdminUsersPage() {
         <button
           disabled={page <= 1}
           onClick={() => setPage((p) => p - 1)}
-          className="rounded border px-3 py-1 disabled:opacity-40"
+          className="btn-secondary px-3 py-1 disabled:opacity-40"
         >
           上一页
         </button>
@@ -377,7 +377,7 @@ export default function AdminUsersPage() {
         <button
           disabled={page >= totalPages || totalPages === 0}
           onClick={() => setPage((p) => p + 1)}
-          className="rounded border px-3 py-1 disabled:opacity-40"
+          className="btn-secondary px-3 py-1 disabled:opacity-40"
         >
           下一页
         </button>
@@ -392,7 +392,7 @@ function Modal({ children, onClose, title }: { children: ReactNode; onClose: () 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      className="glass-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <motion.div
@@ -400,7 +400,7 @@ function Modal({ children, onClose, title }: { children: ReactNode; onClose: () 
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.96, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
+        className="glass-card w-full max-w-md rounded-2xl p-5"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
@@ -416,7 +416,7 @@ function Input({ label, className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <div>
       <label className="mb-1 block text-xs text-gray-500">{label}</label>
-      <input {...props} className={className ?? "w-full rounded border px-3 py-2 text-sm"} />
+      <input {...props} className={className ?? "glass-input w-full px-3 py-2 text-sm"} />
     </div>
   );
 }

@@ -1,3 +1,159 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --bg-page: #faf7f5;
+  --bg-warm: #f5f0eb;
+  --text-primary: #1a1612;
+  --text-secondary: #6b5e50;
+  --text-muted: #9a8b7a;
+  --border-warm: rgba(139,109,80,0.1);
+  --accent-orange: #f97316;
+  --accent-orange-hover: #ea580c;
+  --glass-blur: 20px;
+  --glass-saturate: 180%;
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-modal: 24px;
+  --transition-smooth: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  /* ── Glass Card ── */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-card);
+    box-shadow: 0 4px 24px rgba(139,109,80,0.08);
+    transition: box-shadow var(--transition-smooth), transform var(--transition-smooth);
+  }
+  .glass-card:hover {
+    box-shadow: 0 8px 32px rgba(139,109,80,0.12);
+  }
+
+  /* ── Glass Dark ── */
+  .glass-dark {
+    background: rgba(20, 20, 30, 0.55);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  /* ── Glass Warm ── */
+  .glass-warm {
+    background: rgba(255, 248, 240, 0.5);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(249, 115, 22, 0.12);
+    box-shadow: 0 4px 16px rgba(249,115,22,0.06);
+  }
+
+  /* ── Glass Light (navbar, toolbars) ── */
+  .glass-light {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  }
+
+  /* ── Glass Button ── */
+  .glass-button {
+    background: rgba(249, 115, 22, 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(249, 115, 22, 0.1);
+    transition: all var(--transition-smooth);
+  }
+  .glass-button:hover {
+    background: rgba(249, 115, 22, 0.12);
+    border-color: rgba(249, 115, 22, 0.2);
+    box-shadow: 0 2px 8px rgba(249,115,22,0.08);
+  }
+
+  /* ── Glass Input ── */
+  .glass-input {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-button);
+    transition: all var(--transition-smooth);
+  }
+  .glass-input:focus {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(249, 115, 22, 0.4);
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.08);
+    outline: none;
+  }
+
+  /* ── Modal Overlay ── */
+  .glass-modal-overlay {
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* ── Table ── */
+  .glass-table-header {
+    background: rgba(255, 248, 240, 0.5);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border-warm);
+  }
+  .glass-table-row {
+    border-bottom: 1px solid rgba(139,109,80,0.06);
+    transition: background var(--transition-smooth);
+  }
+  .glass-table-row:hover {
+    background: rgba(255, 248, 240, 0.3);
+  }
+
+  /* ── Primary Button ── */
+  .btn-primary {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: white;
+    border: none;
+    border-radius: var(--radius-button);
+    font-weight: 500;
+    transition: all var(--transition-smooth);
+    box-shadow: 0 2px 8px rgba(249,115,22,0.25);
+    cursor: pointer;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #ea580c, #c2410c);
+    box-shadow: 0 4px 12px rgba(249,115,22,0.35);
+    transform: translateY(-1px);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  /* ── Secondary Button ── */
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: var(--radius-button);
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all var(--transition-smooth);
+    cursor: pointer;
+  }
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.65);
+    border-color: rgba(0,0,0,0.12);
+  }
+}

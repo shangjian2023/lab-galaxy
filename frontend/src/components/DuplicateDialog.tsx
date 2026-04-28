@@ -41,14 +41,14 @@ export default function DuplicateDialog({ docId, filename, duplicates, onResolve
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        className="glass-modal-overlay fixed inset-0 z-50 flex items-center justify-center"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.92, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 20 }}
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className="mx-4 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+          className="glass-card mx-4 w-full max-w-lg rounded-2xl p-6"
         >
           {/* Header */}
           <div className="mb-4 flex items-center gap-3">
@@ -106,7 +106,7 @@ export default function DuplicateDialog({ docId, filename, duplicates, onResolve
             <button
               onClick={() => handleAction("coexist")}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-blue-600 disabled:opacity-50"
+              className="btn-primary flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
             >
               <span>并存入库</span>
               <span className="text-xs opacity-75">保留新旧两份实验节点</span>
@@ -114,7 +114,7 @@ export default function DuplicateDialog({ docId, filename, duplicates, onResolve
             <button
               onClick={() => handleAction("cancel")}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-gray-50 disabled:opacity-50"
+              className="btn-secondary flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium disabled:opacity-50"
             >
               <span>取消入库</span>
               <span className="text-xs opacity-75">不写入图谱，仅保留抽取结果</span>

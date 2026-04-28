@@ -43,9 +43,19 @@ def _from_int_id(int_id: int) -> str:
     return _int_to_uuid.get(int_id, str(int_id))
 
 
+_cached_model = None
+
+
 def _get_embedding_model():
+    global _cached_model
+    if _cached_model is not None:
+        return _cached_model
+    os.environ.setdefault("HF_ENDPOINT", settings.HF_ENDPOINT)
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
     from sentence_transformers import SentenceTransformer
-    return SentenceTransformer(settings.EMBEDDING_MODEL)
+    _cached_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+    return _cached_model
 
 
 def _ensure_dir():

@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # Redis / Celery
     REDIS_URL: str = "redis://localhost:6379/1"
 
+    # HuggingFace
+    HF_ENDPOINT: str = "https://hf-mirror.com"
+
     class Config:
         env_file = ".env"
 

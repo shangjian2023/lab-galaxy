@@ -33,25 +33,25 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
+    <main className="flex min-h-screen items-center justify-center bg-[#faf7f5]">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-md"
+        className="w-full max-w-sm space-y-4 glass-card rounded-2xl p-8"
       >
         <h1 className="text-2xl font-bold text-center">注册</h1>
 
         {registered ? (
           <div className="space-y-3 text-center">
-            <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+            <div className="rounded-xl bg-green-50 p-4 text-sm text-green-700">
               注册成功！<br />请等待管理员审批后登录。
             </div>
-            <a href="/login" className="inline-block text-sm text-blue-600 hover:underline">
+            <a href="/login" className="inline-block text-sm text-brand-600 hover:text-brand-700">
               去登录
             </a>
           </div>
         ) : (
         <>
-        {error && <p className="rounded bg-red-50 p-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="rounded-xl bg-orange-50 p-3 text-sm text-orange-700">{error}</p>}
 
         <input
           type="text"
@@ -59,7 +59,7 @@ export default function RegisterPage() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
-          className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="glass-input w-full px-4 py-2.5 text-sm"
         />
         <input
           type="email"
@@ -67,7 +67,7 @@ export default function RegisterPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="glass-input w-full px-4 py-2.5 text-sm"
         />
         <input
           type="password"
@@ -75,7 +75,7 @@ export default function RegisterPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="glass-input w-full px-4 py-2.5 text-sm"
         />
         <input
           type="password"
@@ -83,20 +83,20 @@ export default function RegisterPage() {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           required
-          className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="glass-input w-full px-4 py-2.5 text-sm"
         />
 
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="btn-primary w-full py-2.5 text-sm"
         >
           {busy ? "注册中..." : "注册"}
         </button>
 
         <p className="text-center text-sm text-gray-500">
           已有账号？
-          <a href="/login" className="text-blue-600 hover:underline">登录</a>
+          <a href="/login" className="text-brand-600 hover:text-brand-700">登录</a>
         </p>
         </>
         )}

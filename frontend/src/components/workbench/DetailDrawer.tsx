@@ -54,7 +54,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
           transition={{ type: "spring", damping: 25, stiffness: 250 }}
-          className="flex h-full w-80 flex-shrink-0 flex-col border-l bg-white shadow-lg"
+          className="flex h-full w-80 flex-shrink-0 flex-col border-l border-white/60 bg-white/45 shadow-lg backdrop-blur-[20px]"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3">
@@ -72,7 +72,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                   </svg>
                 </button>
               )}
-              <button onClick={onClose} className="rounded p-1 text-gray-400 hover:text-gray-600">
+              <button onClick={onClose} className="btn-secondary rounded p-1 text-gray-400 hover:text-gray-600">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -98,7 +98,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                 <h4 className="mb-1 text-xs font-medium text-gray-400">学科领域</h4>
                 <div className="flex flex-wrap gap-1">
                   {card.subjects.map((s) => (
-                    <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{s}</span>
+                    <span key={s} className="glass-button rounded-full px-2 py-0.5 text-xs text-gray-600">{s}</span>
                   ))}
                 </div>
               </div>
@@ -106,7 +106,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
 
             {/* AI Summary */}
             {card.ai_summary && (
-              <div className="rounded-lg bg-blue-50 p-3">
+              <div className="glass-warm rounded-lg p-3">
                 <h4 className="mb-1 text-xs font-medium text-blue-600">AI 解析摘要</h4>
                 <p className="text-xs leading-relaxed text-blue-800">{card.ai_summary}</p>
               </div>
@@ -122,7 +122,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                   {card.entities.map((e) => (
                     <div
                       key={e.id}
-                      className="flex items-start gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2"
+                      className="flex items-start gap-2 glass-button rounded-lg p-2"
                     >
                       <span
                         className="mt-0.5 flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
@@ -138,7 +138,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                       </div>
                       <button
                         onClick={() => onJumpToGraph(e.id)}
-                        className="flex-shrink-0 text-[10px] text-blue-600 hover:underline"
+                        className="flex-shrink-0 text-[10px] text-brand-600 hover:underline"
                       >
                         图谱 &rarr;
                       </button>

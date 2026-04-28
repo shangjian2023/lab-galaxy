@@ -69,7 +69,7 @@ export default function AdminDocumentsPage() {
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="rounded-lg border px-3 py-1.5 text-sm"
+            className="glass-input px-3 py-1.5 text-sm"
           >
             <option value="">全部状态</option>
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -78,9 +78,9 @@ export default function AdminDocumentsPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="glass-card overflow-hidden rounded-xl">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="glass-table-header">
             <tr className="text-left text-gray-500">
               <th className="px-3 py-2 font-medium">文件名</th>
               <th className="px-3 py-2 font-medium">类型</th>
@@ -100,7 +100,7 @@ export default function AdminDocumentsPage() {
               const entityCount = doc.extraction_result?.entities?.length ?? 0;
               const relCount = doc.extraction_result?.relations?.length ?? 0;
               return (
-                <tr key={doc.id} className="border-t hover:bg-gray-50">
+                <tr key={doc.id} className="glass-table-row border-t">
                   <td className="max-w-[200px] truncate px-3 py-2 font-medium">{doc.title}</td>
                   <td className="px-3 py-2 uppercase text-gray-500">{doc.file_type}</td>
                   <td className="px-3 py-2 text-gray-500">{formatSize(doc.file_size)}</td>
@@ -108,14 +108,14 @@ export default function AdminDocumentsPage() {
                     {isEditing ? (
                       <input type="number" defaultValue={doc.experiment_year ?? ""} min={2000} max={2030}
                         onBlur={(e) => handleUpdate(doc.id, "experiment_year", Number(e.target.value) || null)}
-                        className="w-20 rounded border px-2 py-1 text-xs" />
+                        className="glass-input w-20 px-2 py-1 text-xs" />
                     ) : doc.experiment_year ?? "-"}
                   </td>
                   <td className="px-3 py-2">
                     {isEditing ? (
                       <select defaultValue={doc.experiment_type ?? ""}
                         onChange={(e) => handleUpdate(doc.id, "experiment_type", e.target.value || null)}
-                        className="rounded border px-2 py-1 text-xs">
+                        className="glass-input px-2 py-1 text-xs">
                         <option value="">-</option>
                         {EXPERIMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
@@ -136,7 +136,7 @@ export default function AdminDocumentsPage() {
                     {isEditing ? (
                       <select defaultValue={doc.privacy}
                         onChange={(e) => handleUpdate(doc.id, "privacy", e.target.value)}
-                        className="rounded border px-2 py-1 text-xs">
+                        className="glass-input px-2 py-1 text-xs">
                         <option value="public">公开</option>
                         <option value="team">团队</option>
                         <option value="private">私有</option>
@@ -144,7 +144,7 @@ export default function AdminDocumentsPage() {
                     ) : doc.privacy}
                   </td>
                   <td className="px-3 py-2">
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${
+                    <span className={`rounded-xl px-2 py-0.5 text-xs font-medium ${
                       doc.status === "completed" ? "bg-green-100 text-green-700"
                       : doc.status === "failed" ? "bg-red-100 text-red-600"
                       : doc.status === "awaiting_confirmation" ? "bg-amber-100 text-amber-700"
@@ -156,7 +156,7 @@ export default function AdminDocumentsPage() {
                   </td>
                   <td className="px-3 py-2 space-x-2">
                     <button onClick={() => setEditing(isEditing ? null : doc.id)}
-                      className="text-xs text-blue-600 hover:underline">
+                      className="text-xs text-brand-600 hover:underline">
                       {isEditing ? "完成" : "编辑"}
                     </button>
                     {(doc.status === "failed" || doc.status === "completed") && (
@@ -176,10 +176,10 @@ export default function AdminDocumentsPage() {
       {/* Pagination */}
       <div className="mt-4 flex justify-center gap-2">
         <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-          className="rounded border px-3 py-1 text-sm disabled:opacity-40">上一页</button>
+          className="btn-secondary px-3 py-1 text-sm disabled:opacity-40">上一页</button>
         <span className="px-3 py-1 text-sm text-gray-500">{page}</span>
         <button disabled={docs.length < 50} onClick={() => setPage((p) => p + 1)}
-          className="rounded border px-3 py-1 text-sm disabled:opacity-40">下一页</button>
+          className="btn-secondary px-3 py-1 text-sm disabled:opacity-40">下一页</button>
       </div>
     </div>
   );
@@ -197,7 +197,7 @@ function MultiSelect({ options, selected, onChange }: {
     <div className="flex flex-wrap gap-1">
       {options.map((o) => (
         <button key={o.value} type="button" onClick={() => toggle(o.value)}
-          className={`rounded px-1.5 py-0.5 text-[10px] ${
+          className={`rounded-xl px-1.5 py-0.5 text-[10px] ${
             selected.includes(o.value) ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"
           }`}>{o.label}</button>
       ))}

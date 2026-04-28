@@ -35,11 +35,29 @@ interface SelectedNode {
 }
 
 const DEFAULT_FORCE: ForceSettings = {
+  centerStrength: 0.08,
   repel: -200,
-  linkDistance: 80,
+  linkStrength: 0.8,
+  linkDistance: 70,
+  experimentCluster: 0.15,
   nodeSize: 1,
   linkWidth: 1,
 };
+
+const FORCE_SETTINGS_KEY = "graph-force-settings";
+
+function loadForceSettings(): ForceSettings {
+  if (typeof window === "undefined") return DEFAULT_FORCE;
+  try {
+    const raw = localStorage.getItem(FORCE_SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_FORCE, ...JSON.parse(raw) };
+  } catch {}
+  return DEFAULT_FORCE;
+}
+
+function saveForceSettings(s: ForceSettings) {
+  try { localStorage.setItem(FORCE_SETTINGS_KEY, JSON.stringify(s)); } catch {}
+}
 
 const POLL_INTERVAL_MS = 15000;
 
@@ -80,12 +98,15 @@ function GraphPageContent() {
   const [toDate, setToDate] = useState<string | undefined>();
   const [liveCount, setLiveCount] = useState(0);
   const [activeInsight, setActiveInsight] = useState<InsightEvent | null>(null);
-  const [forceSettings, setForceSettings] = useState<ForceSettings>(DEFAULT_FORCE);
+  const [forceSettings, setForceSettings] = useState<ForceSettings>(loadForceSettings);
   const [timelineMode, setTimelineMode] = useState(false);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const graphSignatureRef = useRef("");
   const appliedNodeParamRef = useRef<string | null>(null);
+
+  // Persist force settings to localStorage
+  useEffect(() => { saveForceSettings(forceSettings); }, [forceSettings]);
 
   useEffect(() => {
     if (galaxyData.nodes.length > 3 && user) {
@@ -113,6 +134,7 @@ function GraphPageContent() {
 
   const applyGalaxyData = useCallback((data: CytoscapeData, fromPolling = false) => {
     const nextSignature = graphSignature(data);
+    if (fromPolling && graphSignatureRef.current === nextSignature) return;
     if (fromPolling && graphSignatureRef.current && graphSignatureRef.current !== nextSignature) {
       setLiveCount((prev) => prev + 1);
     }
@@ -261,7 +283,7 @@ function GraphPageContent() {
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-6">
+    <main className="mx-auto max-w-7xl px-6 py-10">
       <InsightOverlay insight={activeInsight} onDismiss={() => setActiveInsight(null)} animationIntensity={0.7} />
 
       <div className="mb-4">
@@ -283,10 +305,10 @@ function GraphPageContent() {
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={selectAllYears}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+              className={`glass-button rounded-full px-3 py-1 text-xs font-medium transition-all ${
                 selectedYears.length === availableYears.length
                   ? "border-orange-400 bg-orange-50 text-orange-700"
-                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                  : ""
               }`}
             >
               全部
@@ -295,10 +317,10 @@ function GraphPageContent() {
               <button
                 key={year}
                 onClick={() => toggleYear(year)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                className={`glass-button rounded-full px-3 py-1 text-xs font-medium transition-all ${
                   selectedYears.includes(year)
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                    ? "border-orange-400 bg-orange-50 text-orange-700"
+                    : ""
                 }`}
               >
                 {year}
@@ -370,7 +392,7 @@ function GraphPageContent() {
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="glass-card mt-3 flex items-center justify-between">
         <div className="flex items-center gap-4 text-xs text-gray-400">
           <span>图例:</span>
           {[
@@ -394,7 +416,7 @@ function GraphPageContent() {
               setHighlightedNodeId(null);
               setQueryHighlightedNodes([]);
             }}
-            className="text-xs text-gray-400 hover:text-gray-600"
+            className="btn-secondary text-xs"
           >
             清除选中
           </button>

@@ -46,7 +46,7 @@ export default function ProfilePage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
       {/* Profile header */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-6">
           {/* Avatar placeholder */}
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100 text-2xl font-bold text-brand-700">
@@ -59,13 +59,13 @@ export default function ProfilePage() {
                   <input
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    className="rounded-lg border px-3 py-1.5 text-lg font-bold focus:border-brand-400 focus:outline-none"
+                    className="glass-input"
                     placeholder="输入昵称"
                   />
-                  <button onClick={handleSave} disabled={saving} className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">
+                  <button onClick={handleSave} disabled={saving} className="btn-primary">
                     {saving ? "保存中..." : "保存"}
                   </button>
-                  <button onClick={() => { setEditing(false); setNickname(displayUser.nickname || ""); }} className="rounded-lg border px-4 py-1.5 text-sm text-gray-500 hover:bg-gray-50">
+                  <button onClick={() => { setEditing(false); setNickname(displayUser.nickname || ""); }} className="btn-secondary">
                     取消
                   </button>
                 </div>
@@ -106,7 +106,7 @@ export default function ProfilePage() {
           { label: "文档", value: "—", href: "/documents" },
           { label: "模板", value: "—", href: "/templates" },
         ].map((s) => (
-          <Link key={s.label} href={s.href} className="rounded-xl border bg-white p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+          <Link key={s.label} href={s.href} className="glass-card p-4 text-center hover:shadow-md transition-shadow">
             <p className="text-2xl font-bold text-gray-800">{s.value}</p>
             <p className="mt-1 text-xs text-gray-500">{s.label}</p>
           </Link>
@@ -115,7 +115,7 @@ export default function ProfilePage() {
 
       {/* Quick links */}
       <div className="grid grid-cols-2 gap-4">
-        <Link href="/growth" className="flex items-center gap-3 rounded-xl border bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+        <Link href="/growth" className="flex items-center gap-3 glass-card p-5 hover:shadow-md transition-shadow">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -126,8 +126,8 @@ export default function ProfilePage() {
             <p className="text-xs text-gray-500">查看等级路线图和积分记录</p>
           </div>
         </Link>
-        <Link href="/documents" className="flex items-center gap-3 rounded-xl border bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+        <Link href="/documents" className="flex items-center gap-3 glass-card p-5 hover:shadow-md transition-shadow">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -140,7 +140,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Account info */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="glass-card p-6">
         <h2 className="mb-4 text-lg font-bold text-gray-800">账号信息</h2>
         <div className="space-y-3 text-sm">
           <div className="flex justify-between border-b pb-2">

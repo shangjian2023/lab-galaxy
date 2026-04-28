@@ -225,7 +225,7 @@ export default function UploadPanel({ onUploaded }: Props) {
   const hasValidFiles = files.some((f) => f.status !== "failed");
 
   return (
-    <section className="rounded-xl bg-white p-6 shadow-sm">
+    <section className="glass-card rounded-2xl p-6">
       <h1 className="mb-5 text-xl font-bold">上传实验文档</h1>
 
       {/* Duplicate Dialog */}
@@ -246,7 +246,7 @@ export default function UploadPanel({ onUploaded }: Props) {
           <select
             value={experimentYear}
             onChange={(e) => setExperimentYear(Number(e.target.value))}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="glass-input w-full px-3 py-2 text-sm"
           >
             {getYearOptions(20).map((y) => (
               <option key={y} value={y}>
@@ -262,7 +262,7 @@ export default function UploadPanel({ onUploaded }: Props) {
           <select
             value={experimentType}
             onChange={(e) => setExperimentType(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="glass-input w-full px-3 py-2 text-sm"
           >
             <option value="">请选择</option>
             {EXPERIMENT_TYPES.map((t) => (
@@ -284,10 +284,10 @@ export default function UploadPanel({ onUploaded }: Props) {
                   key={s.value}
                   type="button"
                   onClick={() => toggleSubject(s.value)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`${
                     active
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-300 bg-white text-gray-600 hover:border-blue-300"
+                      ? "glass-warm rounded-full px-3 py-1 text-xs font-medium text-orange-700"
+                      : "glass-button rounded-full px-3 py-1 text-xs font-medium text-gray-600"
                   }`}
                 >
                   {s.label}
@@ -307,10 +307,10 @@ export default function UploadPanel({ onUploaded }: Props) {
               key={p.value}
               type="button"
               onClick={() => setPrivacy(p.value)}
-              className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm transition-all ${
+              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm transition-all ${
                 privacy === p.value
-                  ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  ? "glass-warm text-orange-700 shadow-sm"
+                  : "glass-button text-gray-600"
               }`}
             >
               <span>{p.icon}</span>
@@ -339,7 +339,7 @@ export default function UploadPanel({ onUploaded }: Props) {
           scale: dragActive ? 1.01 : 1,
         }}
         transition={{ duration: 0.2 }}
-        className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10"
+        className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white/30 backdrop-blur-sm p-10"
       >
         <motion.svg
           animate={{ y: dragActive ? -4 : 0 }}
@@ -351,7 +351,7 @@ export default function UploadPanel({ onUploaded }: Props) {
             d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16" />
         </motion.svg>
         <p className="text-sm text-gray-500">
-          拖拽文件到此处，或<span className="text-blue-600">点击选择</span>
+          拖拽文件到此处，或<span className="text-brand-600">点击选择</span>
         </p>
         <p className="mt-1 text-xs text-gray-400">
           支持 PDF / Word / PPT | 最大 50MB | 可多选
@@ -444,7 +444,7 @@ export default function UploadPanel({ onUploaded }: Props) {
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-50"
+            className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50"
           >
             {submitting ? "上传中..." : "开始上传并解析"}
           </button>
@@ -458,7 +458,7 @@ export default function UploadPanel({ onUploaded }: Props) {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; barColor: string }> = {
   waiting:   { label: "等待上传", color: "text-gray-500",  barColor: "bg-gray-300" },
-  uploading: { label: "上传中",   color: "text-blue-600",  barColor: "bg-blue-500" },
+  uploading: { label: "上传中",   color: "text-brand-600",  barColor: "bg-blue-500" },
   parsing:   { label: "处理中",   color: "text-purple-600", barColor: "bg-purple-400" },
   awaiting_confirmation: { label: "⚠️ 待确认", color: "text-amber-600", barColor: "bg-amber-400" },
   completed: { label: "✅ 萃取完成", color: "text-green-600", barColor: "bg-green-500" },
@@ -480,7 +480,7 @@ function FileRow({ entry, onRemove }: { entry: FileEntry; onRemove: (id: string)
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20, height: 0 }}
-      className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
+      className="flex items-center gap-3 glass-card rounded-lg px-4 py-3"
     >
       {/* File icon */}
       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-white text-xs font-bold uppercase text-gray-400">

@@ -155,7 +155,7 @@ function WorkbenchPageContent() {
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="mb-4 text-gray-500">请先登录后使用工作台</p>
-          <a href="/login" className="text-blue-600 hover:underline">去登录</a>
+          <a href="/login" className="text-brand-600 hover:underline">去登录</a>
         </div>
       </main>
     );
@@ -171,7 +171,7 @@ function WorkbenchPageContent() {
 
       <SoundSettings open={showSoundSettings} onClose={() => setShowSoundSettings(false)} />
 
-      <div className="flex items-center justify-between border-b px-6 py-3">
+      <div className="flex items-center justify-between glass-light px-6 py-3">
         <div>
           <h1 className="text-lg font-bold text-gray-800">工作台</h1>
           <p className="text-xs text-gray-400">文档与知识图谱联动浏览</p>
@@ -180,7 +180,7 @@ function WorkbenchPageContent() {
           {insights.length > 0 && (
             <button
               onClick={() => setShowInsightPanel(!showInsightPanel)}
-              className="flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 hover:bg-orange-200 transition-colors"
+              className="glass-button flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-orange-700"
             >
               <motion.span
                 animate={{ scale: [1, 1.2, 1] }}
@@ -197,7 +197,7 @@ function WorkbenchPageContent() {
 
           <button
             onClick={() => setShowSoundSettings(true)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="glass-button rounded-lg p-1.5 text-gray-400"
             title="音效设置"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -213,7 +213,7 @@ function WorkbenchPageContent() {
       </div>
 
       <div ref={containerRef} className="relative flex flex-1 overflow-hidden">
-        <div className="w-56 flex-shrink-0 border-r bg-gray-50 overflow-hidden">
+        <div className="w-56 flex-shrink-0 glass-warm overflow-hidden">
           <DocTree
             tree={tree}
             selectedId={selectedId}
@@ -223,7 +223,7 @@ function WorkbenchPageContent() {
           />
         </div>
 
-        <div className="relative flex-1 overflow-hidden bg-gray-50/50">
+        <div className="relative flex-1 overflow-hidden bg-transparent">
           {cards.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-gray-400">
               暂无文档，上传后开始浏览
@@ -246,7 +246,7 @@ function WorkbenchPageContent() {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="absolute bottom-0 left-0 right-0 max-h-[40vh] overflow-y-auto border-t bg-white/95 backdrop-blur p-4"
+                className="glass-card rounded-t-2xl absolute bottom-0 left-0 right-0 max-h-[40vh] overflow-y-auto p-4"
               >
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-orange-700">AI 洞察</h3>

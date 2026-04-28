@@ -21,7 +21,7 @@ export default function GrowthPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-8 space-y-8">
       {/* Profile card */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between">
           <LevelBadge
             level={level.level}
@@ -58,7 +58,7 @@ export default function GrowthPage() {
       </div>
 
       {/* Level roadmap */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="glass-card p-6">
         <h2 className="mb-4 text-lg font-bold">等级路线图</h2>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
           {level_config.map((l) => {
@@ -68,7 +68,7 @@ export default function GrowthPage() {
               <div
                 key={l.level}
                 className={`flex flex-col items-center rounded-lg border p-3 text-center transition-colors ${
-                  isCurrent ? "border-orange-400 bg-orange-50" : isUnlocked ? "border-green-200 bg-green-50" : "border-gray-100"
+                  isCurrent ? "border-orange-400 bg-orange-50/60" : isUnlocked ? "border-green-200 bg-green-50/60" : "border-gray-100 bg-white/40"
                 }`}
               >
                 <span className="text-lg">{l.icon}</span>
@@ -82,11 +82,11 @@ export default function GrowthPage() {
       </div>
 
       {/* Points rules */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="glass-card p-6">
         <h2 className="mb-4 text-lg font-bold">成长值获取</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {Object.entries(points_rules).map(([key, val]) => (
-            <div key={key} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
+            <div key={key} className="glass-button flex items-center justify-between px-3 py-2">
               <span className="text-xs text-gray-600">{RULE_LABELS[key] || key}</span>
               <span className="text-sm font-bold text-orange-600">+{val}</span>
             </div>
@@ -95,14 +95,14 @@ export default function GrowthPage() {
       </div>
 
       {/* Recent points */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="glass-card p-6">
         <h2 className="mb-4 text-lg font-bold">最近积分变动</h2>
         {recent_points.length === 0 ? (
           <p className="text-sm text-gray-400">暂无记录</p>
         ) : (
           <div className="space-y-2">
             {recent_points.map((p, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+              <div key={i} className="glass-table-row flex items-center justify-between px-3 py-2 text-sm">
                 <span className="text-gray-600">{p.reason}</span>
                 <span className="font-bold text-orange-600">+{p.change}</span>
                 <span className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString("zh-CN")}</span>

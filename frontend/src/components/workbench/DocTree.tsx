@@ -34,16 +34,16 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b px-3 py-2">
+      <div className="border-b border-[rgba(139,109,80,0.08)] px-3 py-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">文档树</h3>
       </div>
 
       {/* Favorite filter */}
-      <div className="border-b px-3 py-2">
+      <div className="border-b border-[rgba(139,109,80,0.08)] px-3 py-2">
         <button
           onClick={() => onFilterFavorites(!filterFavorites)}
           className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors ${
-            filterFavorites ? "bg-yellow-50 text-yellow-700" : "text-gray-500 hover:bg-gray-100"
+            filterFavorites ? "bg-yellow-50 text-yellow-700" : "glass-button text-gray-500"
           }`}
         >
           <svg className="h-3.5 w-3.5" fill={filterFavorites ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
@@ -63,7 +63,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
           <div key={year} className="mb-1">
             <button
               onClick={() => toggle(`y-${year}`)}
-              className="flex w-full items-center gap-1 rounded px-2 py-1 text-xs font-bold text-gray-600 hover:bg-gray-100"
+              className="flex w-full items-center gap-1 rounded px-2 py-1 text-xs font-bold text-gray-600 hover:bg-[rgba(255,248,240,0.5)]"
             >
               <svg className={`h-3 w-3 transition-transform ${expanded.has(`y-${year}`) ? "rotate-90" : ""}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,7 +79,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
                     <div key={`${year}-${expType}`} className="ml-2">
                       <button
                         onClick={() => toggle(`t-${year}-${expType}`)}
-                        className="flex w-full items-center gap-1 rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50"
+                        className="flex w-full items-center gap-1 rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-[rgba(255,248,240,0.5)]"
                       >
                         <svg className={`h-2.5 w-2.5 transition-transform ${expanded.has(`t-${year}-${expType}`) ? "rotate-90" : ""}`}
                           fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,7 +96,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
                                 key={doc.id}
                                 onClick={() => onSelect(doc.id)}
                                 className={`flex w-full items-center gap-2 rounded px-3 py-1 text-xs transition-colors ${
-                                  selectedId === doc.id ? "bg-orange-50 text-orange-700 font-medium" : "text-gray-700 hover:bg-gray-50"
+                                  selectedId === doc.id ? "bg-orange-50 text-orange-700 font-medium" : "text-gray-700 hover:bg-[rgba(255,248,240,0.5)]"
                                 }`}
                               >
                                 <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[doc.status] || "bg-gray-300"}`} />

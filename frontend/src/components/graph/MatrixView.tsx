@@ -70,7 +70,7 @@ export default function MatrixView({ data, highlightedNodeId }: Props) {
   const highlightRow = highlightedNodeId ? null : null; // Matrix is type-level, not node-level
 
   return (
-    <div className="h-full overflow-auto rounded-xl border bg-white p-6">
+    <div className="glass-card h-full overflow-auto rounded-xl p-6">
       <div className="inline-block">
         {/* Column headers */}
         <div className="flex">

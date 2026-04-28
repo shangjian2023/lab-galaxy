@@ -61,7 +61,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <section className="rounded-xl bg-white p-6 shadow-sm">
+    <section className="glass-card rounded-xl p-6">
       <h2 className="mb-4 text-lg font-bold">我的文档</h2>
 
       {docs.length === 0 ? (
@@ -90,7 +90,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                     <motion.tr
                       key={doc.id}
                       layout
-                      className="cursor-pointer border-b last:border-0 hover:bg-gray-50"
+                      className="glass-table-row cursor-pointer last:border-0"
                       onClick={() => setExpanded(isExpanded ? null : doc.id)}
                     >
                       <td className="py-2.5 pr-3 font-medium text-gray-800">{doc.title}</td>
@@ -102,7 +102,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                       <td className="py-2.5 pr-3 text-gray-500">{doc.experiment_year ?? "-"}</td>
                       <td className="py-2.5 pr-3">
                         <div className="flex flex-col gap-1">
-                          <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${s.color}`}>
+                          <span className={`inline-flex w-fit items-center gap-1.5 rounded-xl px-2.5 py-0.5 text-xs font-medium ${s.color}`}>
                             {(doc.status === "parsing" || doc.status === "extracting") && (
                               <span className="flex h-2 w-2">
                                 <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-current opacity-60" />
@@ -179,7 +179,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-3 rounded-lg border bg-gray-50 p-4 text-sm"
+              className="mt-3 glass-card rounded-lg p-4 text-sm"
             >
               <h3 className="mb-2 font-semibold">解析结果</h3>
               <div className="mb-2 flex gap-4 text-gray-600">
@@ -226,7 +226,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
           <button
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
-            className="rounded-lg border px-3 py-1 text-sm disabled:opacity-40"
+            className="btn-secondary px-3 py-1 text-sm disabled:opacity-40"
           >
             上一页
           </button>
@@ -236,7 +236,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
-            className="rounded-lg border px-3 py-1 text-sm disabled:opacity-40"
+            className="btn-secondary px-3 py-1 text-sm disabled:opacity-40"
           >
             下一页
           </button>

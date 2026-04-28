@@ -46,8 +46,8 @@ export default function CardStream({ cards, selectedId, onSelect, onToggleFavori
           layout
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`cursor-pointer rounded-xl border bg-white p-4 transition-shadow hover:shadow-md ${
-            isSelected ? "border-orange-400 ring-2 ring-orange-100" : "border-gray-100"
+          className={`cursor-pointer glass-card p-4 transition-shadow hover:shadow-md ${
+            isSelected ? "border-orange-400 ring-2 ring-orange-100" : ""
           }`}
           onClick={() => onSelect(card.id)}
         >
@@ -83,7 +83,7 @@ export default function CardStream({ cards, selectedId, onSelect, onToggleFavori
 
           {/* AI Summary */}
           {card.ai_summary && (
-            <div className="mb-2 rounded-lg bg-blue-50 px-3 py-2">
+            <div className="mb-2 glass-warm rounded-lg px-3 py-2">
               <p className="text-xs text-blue-700">
                 <span className="font-medium">AI 摘要:</span> {card.ai_summary}
               </p>

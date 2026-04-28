@@ -71,17 +71,17 @@ export default function TemplateEditorPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>
+        <div className="rounded-xl bg-orange-50 p-3 text-sm text-orange-700">{error}</div>
       )}
 
       {/* Basic info */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm space-y-4">
+      <div className="glass-card p-6 space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">模板名称 *</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+            className="glass-input w-full px-3 py-2 text-sm"
             placeholder="例如：标准化学实验报告模板"
           />
         </div>
@@ -92,7 +92,7 @@ export default function TemplateEditorPage() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+              className="glass-input w-full px-3 py-2 text-sm"
             >
               <option value="">选择分类</option>
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -103,7 +103,7 @@ export default function TemplateEditorPage() {
             <input
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+              className="glass-input w-full px-3 py-2 text-sm"
               placeholder="逗号分隔，如：化学, 报告"
             />
           </div>
@@ -115,25 +115,25 @@ export default function TemplateEditorPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+            className="glass-input w-full px-3 py-2 text-sm"
             placeholder="简短描述模板用途..."
           />
         </div>
       </div>
 
       {/* Content editor */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="glass-card p-6">
         <label className="mb-2 block text-sm font-medium text-gray-700">模板内容 * (支持 Markdown)</label>
         <div className="grid grid-cols-2 gap-4" style={{ minHeight: 320 }}>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full rounded-lg border bg-gray-50 px-3 py-2 font-mono text-sm focus:border-brand-400 focus:outline-none resize-none"
+            className="glass-input w-full bg-[rgba(255,248,240,0.3)] px-3 py-2 font-mono text-sm resize-none"
             style={{ minHeight: 300 }}
             placeholder="# 模板标题&#10;&#10;在这里编写模板内容...&#10;&#10;## 一、实验目的&#10;&#10;## 二、实验步骤&#10;&#10;## 三、结果分析"
           />
           <div
-            className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm overflow-auto prose prose-sm max-w-none"
+            className="w-full rounded-lg border bg-[rgba(255,248,240,0.3)] px-3 py-2 text-sm overflow-auto prose prose-sm max-w-none"
             style={{ minHeight: 300 }}
             dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }}
           />
@@ -145,14 +145,14 @@ export default function TemplateEditorPage() {
         <button
           onClick={() => handleSave(false)}
           disabled={saving}
-          className="rounded-lg border px-6 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          className="btn-secondary rounded-lg px-6 py-2 text-sm font-medium text-gray-600 disabled:opacity-50"
         >
           {saving ? "保存中..." : "保存草稿"}
         </button>
         <button
           onClick={() => handleSave(true)}
           disabled={saving}
-          className="rounded-lg bg-brand-600 px-6 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+          className="btn-primary rounded-lg px-6 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {saving ? "发布中..." : "保存并发布"}
         </button>

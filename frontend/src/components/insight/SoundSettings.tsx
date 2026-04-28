@@ -32,12 +32,12 @@ export default function SoundSettings({ open, onClose }: Props) {
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+        className="glass-modal-overlay fixed inset-0 z-50 flex items-center justify-center"
         onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-          className="w-80 rounded-xl bg-white p-5 shadow-xl"
+          className="glass-card w-80 rounded-2xl p-5"
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="mb-4 text-sm font-bold text-gray-800">音效与动画设置</h3>
@@ -96,7 +96,7 @@ export default function SoundSettings({ open, onClose }: Props) {
 
           <button
             onClick={onClose}
-            className="w-full rounded-lg bg-gray-100 py-2 text-xs font-medium text-gray-600 hover:bg-gray-200"
+            className="btn-secondary w-full rounded-lg py-2 text-xs font-medium"
           >
             关闭
           </button>
@@ -110,7 +110,7 @@ function TestBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="rounded-lg border border-gray-200 px-3 py-1.5 text-[10px] font-medium text-gray-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
+      className="glass-button rounded-lg px-3 py-1.5 text-[10px] font-medium text-gray-600 hover:text-orange-600"
     >
       {label}
     </button>

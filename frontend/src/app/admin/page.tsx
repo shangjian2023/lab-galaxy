@@ -36,20 +36,20 @@ export default function AdminDashboard() {
   }, []);
 
   const cards = [
-    { label: "用户总数", value: stats.users, color: "bg-blue-50 text-blue-700" },
-    { label: "待审批", value: stats.pendingUsers, color: "bg-red-50 text-red-700" },
-    { label: "文档总数", value: stats.documents, color: "bg-green-50 text-green-700" },
-    { label: "处理中", value: stats.processing, color: "bg-yellow-50 text-yellow-700" },
-    { label: "图谱节点", value: stats.nodes, color: "bg-purple-50 text-purple-700" },
-    { label: "图谱关系", value: stats.relations, color: "bg-orange-50 text-orange-700" },
+    { label: "用户总数", value: stats.users, color: "border-l-4 border-l-blue-400 text-blue-700" },
+    { label: "待审批", value: stats.pendingUsers, color: "border-l-4 border-l-red-400 text-red-700" },
+    { label: "文档总数", value: stats.documents, color: "border-l-4 border-l-green-400 text-green-700" },
+    { label: "处理中", value: stats.processing, color: "border-l-4 border-l-yellow-400 text-yellow-700" },
+    { label: "图谱节点", value: stats.nodes, color: "border-l-4 border-l-purple-400 text-purple-700" },
+    { label: "图谱关系", value: stats.relations, color: "border-l-4 border-l-orange-400 text-orange-700" },
   ];
 
   return (
     <div>
       <h1 className="mb-6 text-xl font-bold">管理概览</h1>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-6 lg:grid-cols-3 xl:grid-cols-6">
         {cards.map((c) => (
-          <div key={c.label} className={`rounded-xl p-4 ${c.color}`}>
+          <div key={c.label} className={`glass-card rounded-xl p-4 ${c.color}`}>
             <p className="text-xs font-medium opacity-75">{c.label}</p>
             <p className="mt-1 text-2xl font-bold">{c.value}</p>
           </div>

@@ -44,12 +44,12 @@ NODE_COLORS = {
 }
 
 NODE_BASE_SIZES = {
-    "Experiment": 40,
-    "Equipment": 30,
-    "Theory": 30,
-    "Consumable": 24,
-    "Tool": 26,
-    "Concept": 22,
+    "Experiment": 28,
+    "Equipment": 26,
+    "Theory": 26,
+    "Consumable": 22,
+    "Tool": 24,
+    "Concept": 20,
 }
 
 
@@ -189,7 +189,7 @@ async def get_graph_data(
         for n in nodes_raw:
             base = NODE_BASE_SIZES.get(n["type"], 22)
             degree = degree_map.get(n["id"], 0)
-            n["size"] = min(base + degree * 4, 80)
+            n["size"] = min(base + degree * 3, 55)
             elements["nodes"].append({"data": n})
 
     return elements

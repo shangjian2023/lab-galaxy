@@ -64,7 +64,7 @@ export default function TemplatesPage() {
           <p className="text-sm text-gray-500">发现、使用、分享实验模板</p>
         </div>
         <span className="text-sm text-gray-400">{total} 个模板</span>
-        <a href="/templates/new" className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+        <a href="/templates/new" className="btn-primary px-4 py-1.5 text-sm font-medium text-white">
           创建模板
         </a>
       </div>
@@ -74,7 +74,7 @@ export default function TemplatesPage() {
         {CATEGORIES.map((c) => (
           <button key={c.value} onClick={() => setCategory(c.value)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              category === c.value ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              category === c.value ? "bg-orange-100 text-orange-700" : "glass-button text-gray-600"
             }`}>{c.label}</button>
         ))}
         <div className="ml-auto flex items-center gap-2">
@@ -84,7 +84,7 @@ export default function TemplatesPage() {
           ))}
           <input value={keyword} onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
-            placeholder="搜索模板..." className="ml-2 w-40 rounded-lg border px-3 py-1.5 text-sm focus:border-orange-400 focus:outline-none" />
+            placeholder="搜索模板..." className="glass-input ml-2 w-40 px-3 py-1.5 text-sm" />
         </div>
       </div>
 
@@ -92,7 +92,7 @@ export default function TemplatesPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((tpl, i) => (
           <motion.div key={tpl.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-            className="group rounded-xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+            className="glass-card group p-5 transition-shadow hover:shadow-md">
             {/* Badge */}
             <div className="mb-3 flex items-center gap-2">
               {tpl.is_official && <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">官方</span>}
@@ -120,7 +120,7 @@ export default function TemplatesPage() {
             {/* Stats */}
             <div className="flex items-center justify-between text-xs text-gray-400">
               <div className="flex gap-3">
-                <button onClick={() => handleLike(tpl.id)} className={`flex items-center gap-1 hover:text-red-500 ${tpl.is_liked ? "text-red-500" : ""}`}>
+                <button onClick={() => handleLike(tpl.id)} className={`flex items-center gap-1 hover:text-red-500 transition-colors ${tpl.is_liked ? "text-red-500" : "text-gray-400"}`}>
                   <svg className="h-3.5 w-3.5" fill={tpl.is_liked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
@@ -130,7 +130,7 @@ export default function TemplatesPage() {
                 <span>{tpl.adoptions} 采纳</span>
               </div>
               <button onClick={() => handleAdopt(tpl.id)}
-                className="rounded-lg bg-orange-600 px-3 py-1 text-xs font-medium text-white hover:bg-orange-700">
+                className="btn-primary rounded-lg px-3 py-1 text-xs font-medium text-white">
                 采纳
               </button>
             </div>

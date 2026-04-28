@@ -34,7 +34,7 @@ export default function TimelineView({ data, highlightedNodeId, onNodeClick }: P
   }
 
   return (
-    <div className="h-full overflow-y-auto rounded-xl border bg-white p-6">
+    <div className="glass-card h-full overflow-y-auto rounded-xl p-6">
       <div className="relative ml-4 border-l-2 border-gray-200 pl-8">
         {grouped.map(([year, entries]) => (
           <div key={year} className="relative mb-8">
@@ -55,10 +55,10 @@ export default function TimelineView({ data, highlightedNodeId, onNodeClick }: P
                     }}
                     transition={{ scale: { duration: 0.3 } }}
                     onClick={() => onNodeClick(entry.node)}
-                    className={`group flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all hover:shadow-md ${
+                    className={`group flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all hover:shadow-md ${
                       isHighlighted
                         ? "border-purple-400 bg-purple-50 shadow-md ring-2 ring-purple-300"
-                        : "border-gray-200"
+                        : "glass-button"
                     }`}
                   >
                     <span

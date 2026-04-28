@@ -16,12 +16,30 @@ module.exports = {
           800: "#9a3412",
           900: "#7c2d12",
         },
+        warm: {
+          50: "#faf7f5",
+          100: "#f5f0eb",
+          200: "#ede5db",
+          300: "#e0d4c6",
+          400: "#c9b8a4",
+        },
+      },
+      fontFamily: {
+        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
       },
       spacing: {
         sidebar: "260px",
       },
       borderRadius: {
         card: "12px",
+        modal: "24px",
+        button: "12px",
+        glass: "16px",
+      },
+      boxShadow: {
+        "warm-sm": "0 1px 3px rgba(139,109,80,0.08), 0 1px 2px rgba(139,109,80,0.04)",
+        "warm-md": "0 4px 12px rgba(139,109,80,0.1), 0 2px 4px rgba(139,109,80,0.06)",
+        "warm-lg": "0 8px 24px rgba(139,109,80,0.12), 0 4px 8px rgba(139,109,80,0.06)",
       },
       keyframes: {
         "fade-in": {

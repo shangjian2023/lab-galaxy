@@ -138,7 +138,7 @@ export default function ProcessingChamber({ docId, filename, onComplete, onDupli
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ type: "spring", stiffness: 200, damping: 24 }}
-      className="relative overflow-hidden rounded-2xl border bg-gray-900 p-5 shadow-2xl"
+      className="glass-dark relative overflow-hidden rounded-2xl p-5"
       style={{ minHeight: 240 }}
     >
       {/* ---- Ambient glow ---- */}
