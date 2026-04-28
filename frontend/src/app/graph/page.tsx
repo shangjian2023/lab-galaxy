@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import {
   getGraphData,
+  getGraphYears,
   getTimelineData,
   getMatrixData,
   discoverInsights,
@@ -81,6 +82,8 @@ function GraphPageContent() {
   const [activeInsight, setActiveInsight] = useState<InsightEvent | null>(null);
   const [forceSettings, setForceSettings] = useState<ForceSettings>(DEFAULT_FORCE);
   const [timelineMode, setTimelineMode] = useState(false);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const graphSignatureRef = useRef("");
   const appliedNodeParamRef = useRef<string | null>(null);
 
@@ -97,6 +100,17 @@ function GraphPageContent() {
     }
   }, [galaxyData.nodes.length, user]);
 
+  // Load available years and default to latest
+  useEffect(() => {
+    if (!user) return;
+    getGraphYears().then((res) => {
+      setAvailableYears(res.years);
+      if (res.years.length > 0) {
+        setSelectedYears([res.years[0]]);
+      }
+    });
+  }, [user]);
+
   const applyGalaxyData = useCallback((data: CytoscapeData, fromPolling = false) => {
     const nextSignature = graphSignature(data);
     if (fromPolling && graphSignatureRef.current && graphSignatureRef.current !== nextSignature) {
@@ -107,9 +121,9 @@ function GraphPageContent() {
   }, []);
 
   const loadGalaxy = useCallback(async (fromPolling = false) => {
-    const data = await getGraphData(nodeType || undefined, keyword || undefined, undefined, fromDate, toDate);
+    const data = await getGraphData(nodeType || undefined, keyword || undefined, undefined, fromDate, toDate, selectedYears.length > 0 ? selectedYears : undefined);
     applyGalaxyData(data, fromPolling);
-  }, [nodeType, keyword, fromDate, toDate, applyGalaxyData]);
+  }, [nodeType, keyword, fromDate, toDate, selectedYears, applyGalaxyData]);
 
   const loadTimeline = useCallback(async () => {
     const data = await getTimelineData();
@@ -233,6 +247,19 @@ function GraphPageContent() {
     setTimelineMode(true);
   };
 
+  const toggleYear = (year: number) => {
+    setSelectedYears((prev) => {
+      if (prev.includes(year)) {
+        return prev.filter((y) => y !== year);
+      }
+      return [...prev, year].sort((a, b) => b - a);
+    });
+  };
+
+  const selectAllYears = () => {
+    setSelectedYears([...availableYears]);
+  };
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-6">
       <InsightOverlay insight={activeInsight} onDismiss={() => setActiveInsight(null)} animationIntensity={0.7} />
@@ -248,6 +275,41 @@ function GraphPageContent() {
           onSourceClick={(docId) => handleJumpToWorkbench(docId)}
         />
       </div>
+
+      {/* Year filter */}
+      {availableYears.length > 0 && (
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500">年份:</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={selectAllYears}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                selectedYears.length === availableYears.length
+                  ? "border-orange-400 bg-orange-50 text-orange-700"
+                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+              }`}
+            >
+              全部
+            </button>
+            {availableYears.map((year) => (
+              <button
+                key={year}
+                onClick={() => toggleYear(year)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                  selectedYears.includes(year)
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+          <span className="ml-auto text-xs text-gray-400">
+            已选 {selectedYears.length}/{availableYears.length} 个年份
+          </span>
+        </div>
+      )}
 
       <GraphToolbar
         viewType={viewType}

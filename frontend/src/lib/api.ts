@@ -290,14 +290,19 @@ export interface CytoscapeData {
   edges: CytoscapeEdge[];
 }
 
-export function getGraphData(nodeType?: string, keyword?: string, limit = 500, fromDate?: string, toDate?: string) {
+export function getGraphData(nodeType?: string, keyword?: string, limit = 500, fromDate?: string, toDate?: string, years?: number[]) {
   const params = new URLSearchParams();
   if (nodeType) params.set("node_type", nodeType);
   if (keyword) params.set("keyword", keyword);
   params.set("limit", String(limit));
   if (fromDate) params.set("from_date", fromDate);
   if (toDate) params.set("to_date", toDate);
+  if (years && years.length > 0) params.set("years", years.join(","));
   return request<CytoscapeData>(`/graph/data?${params}`);
+}
+
+export function getGraphYears() {
+  return request<{ years: number[] }>("/graph/years");
 }
 
 export interface TimelineEntry {

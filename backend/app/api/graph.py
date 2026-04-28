@@ -67,8 +67,10 @@ def _normalize_rel_type(rel_type: str) -> str:
     return normalized
 
 
-async def _visible_document_ids(db: AsyncSession, current_user: User) -> list[str]:
+async def _visible_document_ids(db: AsyncSession, current_user: User, years: list[int] | None = None) -> list[str]:
     stmt = select(Document.id).where((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
+    if years:
+        stmt = stmt.where(Document.experiment_year.in_(years))
     rows = (await db.execute(stmt)).scalars().all()
     return [str(doc_id) for doc_id in rows]
 
@@ -105,12 +107,19 @@ async def get_graph_data(
     limit: int = Query(500, ge=1, le=2000),
     from_date: str | None = Query(None, description="ISO date, e.g. 2024-01-01"),
     to_date: str | None = Query(None, description="ISO date, e.g. 2024-12-31"),
+    years: str | None = Query(None, description="Comma-separated years, e.g. 2024,2025"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     driver = _driver()
     elements: dict = {"nodes": [], "edges": []}
-    visible_doc_ids = await _visible_document_ids(db, current_user)
+    parsed_years: list[int] | None = None
+    if years:
+        try:
+            parsed_years = [int(y.strip()) for y in years.split(",") if y.strip()]
+        except ValueError:
+            parsed_years = None
+    visible_doc_ids = await _visible_document_ids(db, current_user, years=parsed_years)
 
     async with driver.session() as session:
         node_query = "MATCH (n)"
@@ -184,6 +193,26 @@ async def get_graph_data(
             elements["nodes"].append({"data": n})
 
     return elements
+
+
+@router.get("/years")
+async def get_available_years(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return distinct experiment years that have documents with graph data."""
+    stmt = (
+        select(Document.experiment_year)
+        .where(
+            ((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
+            & Document.experiment_year.isnot(None)
+            & (Document.status == "completed")
+        )
+        .distinct()
+        .order_by(Document.experiment_year.desc())
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return {"years": [r for r in rows if r is not None]}
 
 
 @router.get("/timeline")
