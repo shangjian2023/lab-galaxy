@@ -89,9 +89,9 @@ function hashStr(s: string): number {
   return h;
 }
 
-function floatOffset(nodeId: string): [number, number] {
+function floatOffset(nodeId: string, now: number): [number, number] {
   const h = hashStr(nodeId);
-  const t = Date.now() / 1000;
+  const t = now / 1000;
   return [
     Math.sin(t * 0.4 + h * 0.1) * 1.8,
     Math.cos(t * 0.3 + h * 0.13) * 1.8,
@@ -130,8 +130,6 @@ export default function GalaxyView({
   onNodeClickRef.current = onNodeClick;
   const fsRef = useRef({ ...DEFAULT_SETTINGS, ...forceSettings });
   fsRef.current = { ...DEFAULT_SETTINGS, ...forceSettings };
-
-  const fs = fsRef.current;
 
   // ── Resize observer ──
   useEffect(() => {
@@ -269,13 +267,13 @@ export default function GalaxyView({
     const chargeF = sim.force("charge") as ReturnType<typeof forceManyBody<SimNode>>;
     const centerF = sim.force("center") as ReturnType<typeof forceCenter>;
     if (linkF) {
-      linkF.distance(fs.linkDistance);
-      linkF.strength(fs.linkStrength);
+      linkF.distance(fsRef.current.linkDistance);
+      linkF.strength(fsRef.current.linkStrength);
     }
-    if (chargeF) chargeF.strength(fs.repel);
-    if (centerF) centerF.strength(fs.centerStrength);
+    if (chargeF) chargeF.strength(fsRef.current.repel);
+    if (centerF) centerF.strength(fsRef.current.centerStrength);
     sim.alpha(0.3).restart();
-  }, [fs.centerStrength, fs.repel, fs.linkStrength, fs.linkDistance, fs.experimentCluster]);
+  }, [forceSettings.centerStrength, forceSettings.repel, forceSettings.linkStrength, forceSettings.linkDistance, forceSettings.experimentCluster]);
 
   // ── Pan to highlighted node ──
   useEffect(() => {
@@ -300,6 +298,8 @@ export default function GalaxyView({
       const expNode = nodesRef.current.find((n) => n.type === "Experiment" && n.x != null);
       if (!expNode || !zoomBehaviorRef.current || !canvasRef.current) return;
 
+      const canvas = canvasRef.current;
+      const zb = zoomBehaviorRef.current;
       const scale = transformRef.current.k;
       const endX = dims.w / 2 - expNode.x! * scale;
       const endY = dims.h / 2 - expNode.y! * scale;
@@ -307,6 +307,7 @@ export default function GalaxyView({
       const startY = transformRef.current.y;
       const duration = 800;
       const startTime = Date.now();
+      let animRaf = 0;
 
       function animatePan() {
         const elapsed = Date.now() - startTime;
@@ -314,12 +315,19 @@ export default function GalaxyView({
         const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
         const x = startX + (endX - startX) * ease;
         const y = startY + (endY - startY) * ease;
-        transformRef.current = zoomIdentity.translate(x, y).scale(scale);
-        if (t < 1) requestAnimationFrame(animatePan);
+        const newTransform = zoomIdentity.translate(x, y).scale(scale);
+        // Update both d3-zoom state and our ref
+        zb.transform(select(canvas), newTransform);
+        transformRef.current = newTransform;
+        if (t < 1) {
+          animRaf = requestAnimationFrame(animatePan);
+        }
       }
 
-      requestAnimationFrame(animatePan);
+      animRaf = requestAnimationFrame(animatePan);
       initialCenterDoneRef.current = true;
+
+      return () => cancelAnimationFrame(animRaf);
     }, 1200);
 
     return () => clearTimeout(timer);
@@ -440,29 +448,33 @@ export default function GalaxyView({
     };
     canvas.addEventListener("click", onClick);
 
-    // ── Render loop ──
-    function render() {
-      const t = transformRef.current;
-      const currentFS = fsRef.current;
+    // ── Cached highlight sets (rebuilt only when data changes) ──
+    let cachedQueryHL: string[] = [];
+    let cachedHLId: string | null = null;
+    let querySet = new Set<string>();
+    let highlightSet = new Set<string>();
+    let dimmed: Set<string> | null = null;
+
+    function rebuildHighlightSets() {
       const currentHL = highlightedRef.current;
       const currentQHL = queryHLRef.current;
+      const qhlKey = currentQHL.join(",");
+      const cacheKey = `${currentHL}|${qhlKey}`;
+      const prevKey = `${cachedHLId}|${cachedQueryHL.join(",")}`;
+      if (cacheKey === prevKey) return;
 
-      ctx.clearRect(0, 0, dims.w, dims.h);
-
-      ctx.save();
-      ctx.translate(t.x, t.y);
-      ctx.scale(t.k, t.k);
-
-      const querySet = new Set(currentQHL);
-      const hasHighlight = !!currentHL || querySet.size > 0;
-      const highlightSet = new Set<string>();
+      cachedQueryHL = currentQHL;
+      cachedHLId = currentHL;
+      querySet = new Set(currentQHL);
+      highlightSet = new Set<string>();
       if (currentHL) highlightSet.add(currentHL);
       for (const id of currentQHL) highlightSet.add(id);
 
-      const dimmed = hasHighlight ? new Set<string>() : null;
+      const hasHighlight = highlightSet.size > 0;
+      dimmed = null;
       if (hasHighlight) {
-        const connected = new Set<string>();
-        for (const id of highlightSet) connected.add(id);
+        dimmed = new Set<string>();
+        const connected = new Set<string>(highlightSet);
         for (const l of linksRef.current) {
           const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
           const tg = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
@@ -470,9 +482,24 @@ export default function GalaxyView({
           if (highlightSet.has(tg)) connected.add(s);
         }
         for (const n of nodesRef.current) {
-          if (!connected.has(n.id)) dimmed!.add(n.id);
+          if (!connected.has(n.id)) dimmed.add(n.id);
         }
       }
+    }
+
+    // ── Render loop ──
+    function render() {
+      const now = Date.now();
+      const t = transformRef.current;
+      const currentFS = fsRef.current;
+
+      rebuildHighlightSets();
+
+      ctx.clearRect(0, 0, dims.w, dims.h);
+
+      ctx.save();
+      ctx.translate(t.x, t.y);
+      ctx.scale(t.k, t.k);
 
       // ── Draw edges ──
       for (const l of linksRef.current) {
@@ -480,8 +507,8 @@ export default function GalaxyView({
         const tg = l.target as SimNode;
         if (s.x == null || s.y == null || tg.x == null || tg.y == null) continue;
 
-        const sOff = s === dragNode ? [0, 0] : floatOffset(s.id);
-        const tOff = tg === dragNode ? [0, 0] : floatOffset(tg.id);
+        const sOff = s === dragNode ? [0, 0] : floatOffset(s.id, now);
+        const tOff = tg === dragNode ? [0, 0] : floatOffset(tg.id, now);
         const sx = s.x + sOff[0], sy = s.y + sOff[1];
         const tx = tg.x + tOff[0], ty2 = tg.y + tOff[1];
 
@@ -523,7 +550,7 @@ export default function GalaxyView({
       // ── Draw nodes ──
       for (const n of nodesRef.current) {
         if (n.x == null || n.y == null) continue;
-        const off = n === dragNode ? [0, 0] : floatOffset(n.id);
+        const off = n === dragNode ? [0, 0] : floatOffset(n.id, now);
         const px = n.x + off[0], py = n.y + off[1];
         const r = radius(n);
         const isDimmed = dimmed?.has(n.id);
@@ -560,7 +587,7 @@ export default function GalaxyView({
         ctx.stroke();
 
         if (isHighlighted || isQueryHL) {
-          const pulse = 1 + Math.sin(Date.now() / 300) * 0.15;
+          const pulse = 1 + Math.sin(now / 300) * 0.15;
           ctx.beginPath();
           ctx.arc(px, py, r * pulse + 4, 0, Math.PI * 2);
           ctx.strokeStyle = isHighlighted ? "rgba(249,115,22,0.5)" : "rgba(245,158,11,0.5)";
@@ -583,18 +610,18 @@ export default function GalaxyView({
 
         for (const n of nodesRef.current) {
           if (n.x == null || n.y == null) continue;
-          const off = n === dragNode ? [0, 0] : floatOffset(n.id);
+          const off = n === dragNode ? [0, 0] : floatOffset(n.id, now);
           const lx = n.x + off[0], ly = n.y + off[1];
           const isDimmedN = dimmed?.has(n.id);
           const isHoveredN = hoveredRef.current?.id === n.id;
           const isImportant = n.type === "Experiment" || n.degree > 2;
 
-          const shouldShow = isHoveredN || currentHL === n.id || querySet.has(n.id) || (isImportant && zoomLevel > 0.9) || zoomLevel > 1.5;
+          const shouldShow = isHoveredN || highlightedRef.current === n.id || querySet.has(n.id) || (isImportant && zoomLevel > 0.9) || zoomLevel > 1.5;
           if (!shouldShow && !isDimmedN) continue;
           if (isDimmedN && !shouldShow) continue;
 
           const r = radius(n);
-          const labelAlpha = isDimmedN ? 0.15 : isHoveredN || currentHL === n.id ? 1 : Math.min(1, (zoomLevel - 0.8) * 2);
+          const labelAlpha = isDimmedN ? 0.15 : isHoveredN || highlightedRef.current === n.id ? 1 : Math.min(1, (zoomLevel - 0.8) * 2);
           ctx.globalAlpha = labelAlpha;
 
           ctx.fillStyle = isDimmedN ? "rgba(156,163,175,0.6)" : "rgba(255,255,255,0.9)";
@@ -606,7 +633,7 @@ export default function GalaxyView({
       // ── Tooltip ──
       const hov = hoveredRef.current;
       if (hov && hov.x != null && hov.y != null) {
-        const off = hov === dragNode ? [0, 0] : floatOffset(hov.id);
+        const off = hov === dragNode ? [0, 0] : floatOffset(hov.id, now);
         const r = radius(hov);
         const htx = hov.x + off[0];
         const hty = hov.y + off[1] - r - 10;
@@ -615,8 +642,22 @@ export default function GalaxyView({
         const tw = ctx.measureText(text).width;
         ctx.fillStyle = "rgba(0,0,0,0.8)";
         const pad = 8, pady = 4;
+        const rx = htx - tw / 2 - pad, ry = hty - 14 - pady, rw = tw + pad * 2, rh = 20 + pady * 2, rr = 6;
         ctx.beginPath();
-        ctx.roundRect(htx - tw / 2 - pad, hty - 14 - pady, tw + pad * 2, 20 + pady * 2, 6);
+        if (ctx.roundRect) {
+          ctx.roundRect(rx, ry, rw, rh, rr);
+        } else {
+          ctx.moveTo(rx + rr, ry);
+          ctx.lineTo(rx + rw - rr, ry);
+          ctx.arcTo(rx + rw, ry, rx + rw, ry + rr, rr);
+          ctx.lineTo(rx + rw, ry + rh - rr);
+          ctx.arcTo(rx + rw, ry + rh, rx + rw - rr, ry + rh, rr);
+          ctx.lineTo(rx + rr, ry + rh);
+          ctx.arcTo(rx, ry + rh, rx, ry + rh - rr, rr);
+          ctx.lineTo(rx, ry + rr);
+          ctx.arcTo(rx, ry, rx + rr, ry, rr);
+          ctx.closePath();
+        }
         ctx.fill();
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
@@ -666,6 +707,7 @@ export default function GalaxyView({
 
     const allNodes: SimNode[] = [];
     const allLinks: SimLink[] = [];
+    const allNodeIds = new Set<string>();
 
     const nodeMap = new Map<string, CytoscapeData["nodes"][number]["data"]>();
     for (const n of data.nodes) nodeMap.set(n.data.id, n.data);
@@ -709,11 +751,12 @@ export default function GalaxyView({
         setTimeout(() => { newNode.opacity = 1; }, 50);
 
         allNodes.push(newNode);
+        allNodeIds.add(nd.id);
 
         const edges = edgeMap.get(nd.id) || [];
         for (const e of edges) {
           const otherId = e.data.source === nd.id ? e.data.target : e.data.source;
-          if (allNodes.some((n) => n.id === otherId)) {
+          if (allNodeIds.has(otherId)) {
             allLinks.push({
               source: e.data.source,
               target: e.data.target,

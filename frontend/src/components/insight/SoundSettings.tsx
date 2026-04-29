@@ -26,20 +26,19 @@ export default function SoundSettings({ open, onClose }: Props) {
     soundEngine.play(type);
   };
 
-  if (!open) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="glass-modal-overlay fixed inset-0 z-50 flex items-center justify-center"
-        onClick={onClose}
-      >
+      {open && (
         <motion.div
-          initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-          className="glass-card w-80 rounded-2xl p-5"
-          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="glass-modal-overlay fixed inset-0 z-50 flex items-center justify-center"
+          onClick={onClose}
         >
+          <motion.div
+            initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+            className="glass-card w-80 rounded-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
           <h3 className="mb-4 text-sm font-bold text-gray-800">音效与动画设置</h3>
 
           {/* Sound toggle */}
@@ -100,8 +99,9 @@ export default function SoundSettings({ open, onClose }: Props) {
           >
             关闭
           </button>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </AnimatePresence>
   );
 }

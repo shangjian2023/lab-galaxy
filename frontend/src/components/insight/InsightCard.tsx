@@ -70,7 +70,7 @@ export default function InsightCard({ insight, onView, onDismiss }: Props) {
             查看
           </button>
           <button
-            onClick={() => onDismiss(insight.type)}
+            onClick={() => onDismiss(insight.id)}
             className="rounded-lg px-3 py-1 text-[10px] text-orange-400 hover:bg-orange-100"
           >
             忽略

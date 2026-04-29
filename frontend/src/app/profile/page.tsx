@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { getProfile, updateProfile } from "@/lib/api";
 import LevelBadge from "@/components/growth/LevelBadge";
@@ -9,9 +9,13 @@ import Link from "next/link";
 export default function ProfilePage() {
   const { user, loading } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [nickname, setNickname] = useState(user?.nickname || "");
+  const [nickname, setNickname] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedUser, setSavedUser] = useState<typeof user>(null);
+
+  useEffect(() => {
+    if (user) setNickname(user.nickname || "");
+  }, [user]);
 
   if (loading) {
     return <main className="flex min-h-screen items-center justify-center text-gray-400">加载中...</main>;
@@ -37,7 +41,7 @@ export default function ProfilePage() {
       setSavedUser(updated);
       setEditing(false);
     } catch {
-      // silent
+      alert("保存失败，请重试");
     } finally {
       setSaving(false);
     }

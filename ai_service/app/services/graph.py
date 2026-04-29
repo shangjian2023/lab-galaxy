@@ -22,64 +22,80 @@ async def write_entities_and_relations(
     documents becomes a single shared node — forming inter-experiment links.
     """
     driver = get_neo4j_driver()
-    created = 0
     id_map: dict[str, str] = {}
 
+    # Pre-validate and group entities by type for batch UNWIND
+    valid_entities: list[dict] = []
+    for ent in entities:
+        entity_type = ent.get("type", "Concept")
+        if entity_type not in VALID_LABELS:
+            logger.warning(f"Invalid entity type '{entity_type}', falling back to 'Concept'")
+            entity_type = "Concept"
+        name = ent.get("name", "").strip()
+        if not name:
+            continue
+        valid_entities.append({
+            "id": ent["id"],
+            "name": name,
+            "type": entity_type,
+            "summary": ent.get("summary", ""),
+        })
+
     async with driver.session() as session:
-        for ent in entities:
-            entity_type = ent.get("type", "Concept")
-            if entity_type not in VALID_LABELS:
-                logger.warning(f"Invalid entity type '{entity_type}', falling back to 'Concept'")
-                entity_type = "Concept"
+        # Batch write entities grouped by label (Neo4j doesn't support parameterized labels)
+        by_type: dict[str, list[dict]] = {}
+        for e in valid_entities:
+            by_type.setdefault(e["type"], []).append(e)
 
-            name = ent.get("name", "").strip()
-            if not name:
-                continue
-
+        for entity_type, batch in by_type.items():
             query = f"""
-            MERGE (n:{entity_type} {{name: $name}})
-            ON CREATE SET n.id = $id, n.created_at = datetime()
-            SET n.summary = $summary,
-                n.document_id = $doc_id
-            RETURN n.id AS node_id
+            UNWIND $batch AS ent
+            MERGE (n:{entity_type} {{name: ent.name}})
+            ON CREATE SET n.id = ent.id, n.created_at = datetime(), n.summary = ent.summary
+            ON MATCH SET n.summary = CASE
+                WHEN n.summary IS NULL OR n.summary = '' THEN ent.summary
+                ELSE n.summary
+            END
+            SET n.document_id = $doc_id
+            RETURN ent.id AS input_id, n.id AS node_id
             """
-            result = await session.run(
-                query,
-                id=ent["id"],
-                name=name,
-                summary=ent.get("summary", ""),
-                doc_id=document_id,
-            )
+            result = await session.run(query, batch=batch, doc_id=document_id)
             async for record in result:
-                id_map[ent["id"]] = record["node_id"]
-            created += 1
+                id_map[record["input_id"]] = record["node_id"]
 
+        # Batch write relations grouped by type
+        valid_rels: list[dict] = []
         for rel in relations:
             rel_type = rel.get("type", "RELATED_TO").replace(" ", "_").upper()
             if rel_type not in VALID_REL_TYPES:
                 logger.warning(f"Invalid relation type '{rel_type}', falling back to 'RELATED_TO'")
                 rel_type = "RELATED_TO"
-
             src_id = id_map.get(rel.get("source_id"))
             tgt_id = id_map.get(rel.get("target_id"))
             if not src_id or not tgt_id:
                 continue
+            valid_rels.append({
+                "source_id": src_id,
+                "target_id": tgt_id,
+                "type": rel_type,
+                "confidence": rel.get("confidence", 0.5),
+            })
 
+        rel_by_type: dict[str, list[dict]] = {}
+        for r in valid_rels:
+            rel_by_type.setdefault(r["type"], []).append(r)
+
+        for rel_type, batch in rel_by_type.items():
             query = f"""
-            MATCH (a {{id: $source_id}}), (b {{id: $target_id}})
+            UNWIND $batch AS rel
+            MATCH (a {{id: rel.source_id}}), (b {{id: rel.target_id}})
             MERGE (a)-[r:{rel_type}]->(b)
-            SET r.confidence = $confidence,
+            SET r.confidence = rel.confidence,
                 r.document_id = $doc_id
             """
-            await session.run(
-                query,
-                source_id=src_id,
-                target_id=tgt_id,
-                confidence=rel.get("confidence", 0.5),
-                doc_id=document_id,
-            )
+            await session.run(query, batch=batch, doc_id=document_id)
 
-    return created
+    return len(valid_entities)
 
 
 async def find_similar_experiments(experiment_name: str, top_k: int = 5) -> list[dict]:
@@ -110,6 +126,7 @@ async def expand_neighborhood(entity_ids: list[str], max_hops: int = 2, limit: i
     driver = get_neo4j_driver()
     nodes: dict[str, dict] = {}
     relations: list[dict] = []
+    seen_rels: set[str] = set()
     hops = max(1, min(max_hops, 4))
 
     async with driver.session() as session:
@@ -141,12 +158,15 @@ async def expand_neighborhood(entity_ids: list[str], max_hops: int = 2, limit: i
 
             rel_type = r["rel_type"]
             if rel_type:
-                relations.append({
-                    "source_id": r["src"],
-                    "target_id": r["tgt"],
-                    "type": rel_type,
-                    "confidence": r["confidence"] or 0.5,
-                })
+                rel_key = f"{r['src']}->{r['tgt']}:{rel_type}"
+                if rel_key not in seen_rels:
+                    seen_rels.add(rel_key)
+                    relations.append({
+                        "source_id": r["src"],
+                        "target_id": r["tgt"],
+                        "type": rel_type,
+                        "confidence": r["confidence"] or 0.5,
+                    })
 
         seed_query = """
         MATCH (n) WHERE n.id IN $ids

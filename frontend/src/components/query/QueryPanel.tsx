@@ -15,11 +15,13 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [open, setOpen] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!query.trim()) return;
+  const handleSubmit = async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? query).trim();
+    if (!q) return;
+    if (overrideQuery) setQuery(overrideQuery);
     setLoading(true);
     try {
-      const res = await naturalLanguageQuery(query);
+      const res = await naturalLanguageQuery(q);
       setResult(res);
       setOpen(true);
       if (res.highlighted_nodes.length > 0) {
@@ -52,7 +54,7 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
           className="glass-input flex-1 rounded-lg px-4 py-2.5 text-sm"
         />
         <button
-          onClick={handleSubmit}
+          onClick={() => handleSubmit()}
           disabled={loading || !query.trim()}
           className="btn-primary flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium"
         >
@@ -140,8 +142,8 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
                     <div className="flex flex-wrap gap-2">
                       {result.suggestions.map((s, i) => (
                         <button
-                          key={i}
-                          onClick={() => { setQuery(s); }}
+                          key={s}
+                          onClick={() => handleSubmit(s)}
                           className="glass-button rounded-full px-3 py-1 text-xs text-gray-600"
                         >
                           {s}
@@ -156,10 +158,10 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
                   <div>
                     <p className="mb-2 text-xs font-medium text-gray-500">相关问题</p>
                     <div className="space-y-1">
-                      {result.related_queries.map((q, i) => (
+                      {result.related_queries.map((q) => (
                         <button
-                          key={i}
-                          onClick={() => { setQuery(q); }}
+                          key={q}
+                          onClick={() => handleSubmit(q)}
                           className="block text-xs text-orange-600 hover:underline"
                         >
                           {q}

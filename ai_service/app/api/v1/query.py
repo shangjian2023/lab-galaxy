@@ -1,19 +1,21 @@
 """Natural language query and AI suggestion endpoints."""
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services.query import natural_language_query, suggest_relations
 
 router = APIRouter()
 
+MAX_QUESTION_LEN = 500
+
 
 class QueryRequest(BaseModel):
-    question: str
+    question: str = Field(..., max_length=MAX_QUESTION_LEN)
 
 
 class SuggestRequest(BaseModel):
-    node_id: str
+    node_id: str = Field(..., max_length=128)
 
 
 @router.post("/query")
@@ -25,7 +27,7 @@ async def query(body: QueryRequest):
         import logging, traceback
         logging.getLogger(__name__).error(f"Query error: {e}\n{traceback.format_exc()}")
         from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "查询处理失败，请稍后重试"})
 
 
 @router.post("/suggest-relations")

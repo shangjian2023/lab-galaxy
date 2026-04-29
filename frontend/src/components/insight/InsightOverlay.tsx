@@ -3,16 +3,9 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ParticleCanvas from "./ParticleCanvas";
+import type { InsightEvent } from "@/lib/api";
 
-export interface InsightEvent {
-  type: string;
-  significance: number;
-  title: string;
-  description: string;
-  message: string;
-  nodes: string[];
-  experiments: { id: string; name: string }[];
-}
+export type { InsightEvent };
 
 interface Props {
   insight: InsightEvent | null;

@@ -378,6 +378,7 @@ export function toggleFavorite(docId: string) {
 
 export interface InsightEvent {
   type: string;
+  id: string;
   significance: number;
   title: string;
   description: string;

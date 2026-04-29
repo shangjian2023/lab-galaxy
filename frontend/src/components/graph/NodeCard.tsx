@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { suggestRelations } from "@/lib/api";
 
 interface Props {
@@ -41,6 +41,12 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench, onAcceptSug
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setLoadingSuggestions(false);
+  }, [node?.id]);
 
   const handleSuggest = async () => {
     if (!node) return;
@@ -150,8 +156,8 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench, onAcceptSug
                     {suggestions.length === 0 && !loadingSuggestions && (
                       <p className="text-xs text-white/40 py-2">暂无建议</p>
                     )}
-                    {suggestions.map((s, i) => (
-                      <div key={i} className="rounded-lg border border-dashed border-white/10 bg-white/5 p-2">
+                    {suggestions.map((s) => (
+                      <div key={`${s.target_id}-${s.type}`} className="rounded-lg border border-dashed border-white/10 bg-white/5 p-2">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-[10px] font-medium text-purple-300">{s.type}</span>
                           <span className="text-[10px] text-purple-400">{(s.confidence * 100).toFixed(0)}%</span>

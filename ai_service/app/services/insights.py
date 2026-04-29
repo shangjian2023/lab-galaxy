@@ -135,6 +135,11 @@ async def discover_insights() -> dict:
                 "shared_entity": {"id": r["id"], "name": r["name"], "type": entity_type},
             })
 
+    # Assign stable IDs to each insight
+    for i, ins in enumerate(insights):
+        nodes_key = "-".join(sorted(ins.get("nodes", [])))
+        ins["id"] = f"{ins['type']}_{nodes_key}"
+
     insights.sort(key=lambda x: x["significance"], reverse=True)
     high_value = [i for i in insights if i["significance"] >= 0.3]
     logger.info(f"Discovered {len(high_value)} insights (from {len(insights)} total)")

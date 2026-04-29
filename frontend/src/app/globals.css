@@ -30,8 +30,8 @@ body {
   /* ── Glass Card ── */
   .glass-card {
     background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: var(--radius-card);
     box-shadow: 0 4px 24px rgba(139,109,80,0.08);
@@ -44,8 +44,8 @@ body {
   /* ── Glass Dark ── */
   .glass-dark {
     background: rgba(20, 20, 30, 0.55);
-    backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   }
@@ -53,8 +53,8 @@ body {
   /* ── Glass Warm ── */
   .glass-warm {
     background: rgba(255, 248, 240, 0.5);
-    backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
     border: 1px solid rgba(249, 115, 22, 0.12);
     box-shadow: 0 4px 16px rgba(249,115,22,0.06);
   }
@@ -62,16 +62,16 @@ body {
   /* ── Glass Light (navbar, toolbars) ── */
   .glass-light {
     background: rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.6);
   }
 
   /* ── Glass Button ── */
   .glass-button {
     background: rgba(249, 115, 22, 0.06);
-    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
     border: 1px solid rgba(249, 115, 22, 0.1);
     transition: all var(--transition-smooth);
   }
@@ -84,8 +84,8 @@ body {
   /* ── Glass Input ── */
   .glass-input {
     background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: var(--radius-button);
     transition: all var(--transition-smooth);
@@ -100,13 +100,14 @@ body {
   /* ── Modal Overlay ── */
   .glass-modal-overlay {
     background: rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 
   /* ── Table ── */
   .glass-table-header {
     background: rgba(255, 248, 240, 0.5);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--border-warm);
   }
@@ -144,6 +145,7 @@ body {
   /* ── Secondary Button ── */
   .btn-secondary {
     background: rgba(255, 255, 255, 0.45);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(0,0,0,0.08);
     border-radius: var(--radius-button);
