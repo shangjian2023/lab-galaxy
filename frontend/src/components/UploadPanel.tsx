@@ -222,7 +222,10 @@ export default function UploadPanel({ onUploaded }: Props) {
     );
   }, [duplicateDialog]);
 
-  const hasValidFiles = files.some((f) => f.status !== "failed");
+  const waitingCount = files.filter((f) => f.status === "waiting").length;
+  const activeCount = files.filter((f) => f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation").length;
+  const completedCount = files.filter((f) => f.status === "completed").length;
+  const failedOnly = files.length > 0 && files.every((f) => f.status === "failed");
 
   return (
     <section className="glass-card rounded-2xl p-6">
@@ -431,25 +434,31 @@ export default function UploadPanel({ onUploaded }: Props) {
         )}
       </AnimatePresence>
 
-      {/* ---- Submit ---- */}
-      {hasValidFiles && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-4 flex items-center justify-between"
-        >
-          <span className="text-sm text-gray-500">
-            {files.filter((f) => f.status !== "failed").length} 个文件待上传
+      {/* ---- Submit (always visible) ---- */}
+      <div className="mt-4 flex items-center justify-between rounded-xl bg-white/40 p-3 ring-1 ring-white/50">
+        {files.length === 0 ? (
+          <span className="text-sm text-gray-400">选择文件后开始上传与解析</span>
+        ) : failedOnly ? (
+          <span className="text-sm text-red-500">所有文件验证失败，请检查文件格式与大小</span>
+        ) : activeCount > 0 ? (
+          <span className="text-sm text-blue-600">
+            正在处理 {activeCount} 个文件...
           </span>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50"
-          >
-            {submitting ? "上传中..." : "开始上传并解析"}
-          </button>
-        </motion.div>
-      )}
+        ) : completedCount > 0 && waitingCount === 0 ? (
+          <span className="text-sm text-green-600">全部处理完成，可继续选择文件上传</span>
+        ) : (
+          <span className="text-sm text-gray-500">
+            {waitingCount} 个文件待上传
+          </span>
+        )}
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || waitingCount === 0 || activeCount > 0}
+          className="btn-primary rounded-lg px-6 py-2.5 text-sm font-medium disabled:opacity-40"
+        >
+          {submitting ? "上传中..." : activeCount > 0 ? "处理中..." : `开始上传并解析${waitingCount > 0 ? ` (${waitingCount})` : ""}`}
+        </button>
+      </div>
     </section>
   );
 }

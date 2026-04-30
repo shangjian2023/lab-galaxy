@@ -16,18 +16,18 @@ export function useGraphData(
   });
 }
 
-export function useTimelineData() {
+export function useTimelineData(scope?: string) {
   return useQuery({
-    queryKey: ["graph", "timeline"],
-    queryFn: getTimelineData,
+    queryKey: ["graph", "timeline", scope],
+    queryFn: () => getTimelineData(scope),
     enabled: typeof window !== "undefined" && !!localStorage.getItem("token"),
   });
 }
 
-export function useMatrixData() {
+export function useMatrixData(scope?: string) {
   return useQuery({
-    queryKey: ["graph", "matrix"],
-    queryFn: getMatrixData,
+    queryKey: ["graph", "matrix", scope],
+    queryFn: () => getMatrixData(scope),
     enabled: typeof window !== "undefined" && !!localStorage.getItem("token"),
   });
 }

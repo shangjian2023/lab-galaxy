@@ -3,14 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --bg-page: #faf7f5;
-  --bg-warm: #f5f0eb;
-  --text-primary: #1a1612;
-  --text-secondary: #6b5e50;
-  --text-muted: #9a8b7a;
-  --border-warm: rgba(139,109,80,0.1);
-  --accent-orange: #f97316;
-  --accent-orange-hover: #ea580c;
+  /* ── Brand Colors ── */
+  --brand-primary: #da7756;
+  --brand-secondary: #d97757;
+  --brand-dark: #141413;
+
+  /* ── Parchment Background ── */
+  --bg-page: #e8d5a3;
+  --bg-page-dark: #e8dfc8;
+  --bg-warm: #ede4cc;
+
+  /* ── Text Colors ── */
+  --text-primary: #0d0a08;
+  --text-secondary: #4a3e34;
+  --text-muted: #6b5e50;
+
+  /* ── UI Tokens ── */
+  --border-warm: rgba(139,109,80,0.12);
   --glass-blur: 20px;
   --glass-saturate: 180%;
   --radius-card: 16px;
@@ -20,13 +29,190 @@
 }
 
 body {
-  background-color: var(--bg-page);
+  background-color: #c9a86c;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: "KaiTi", "楷体", "STKaiti", "楷体_GB2312", "AR PL UKai CN", serif;
+}
+
+/* ── 旧报纸 / 泛黄报纸纹理全局背景 ── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    /* 四角严重暗角 — 旧纸边缘发黑 */
+    radial-gradient(ellipse at 0% 0%, rgba(25,15,5,0.9) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 0%, rgba(25,15,5,0.9) 0%, transparent 50%),
+    radial-gradient(ellipse at 0% 100%, rgba(25,15,5,0.9) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(25,15,5,0.9) 0%, transparent 50%),
+    /* 大面积深色水渍/油渍斑块 */
+    radial-gradient(ellipse at 10% 15%, rgba(45,28,8,0.65) 0%, transparent 35%),
+    radial-gradient(ellipse at 80% 10%, rgba(40,25,6,0.6) 0%, transparent 30%),
+    radial-gradient(ellipse at 90% 75%, rgba(48,30,10,0.55) 0%, transparent 38%),
+    radial-gradient(ellipse at 15% 80%, rgba(52,34,10,0.5) 0%, transparent 25%),
+    radial-gradient(ellipse at 40% 50%, rgba(70,48,15,0.4) 0%, transparent 45%),
+    radial-gradient(ellipse at 65% 25%, rgba(38,24,6,0.35) 0%, transparent 22%),
+    radial-gradient(ellipse at 28% 8%, rgba(35,22,5,0.5) 0%, transparent 18%),
+    radial-gradient(ellipse at 55% 92%, rgba(45,28,8,0.4) 0%, transparent 28%),
+    radial-gradient(ellipse at 92% 45%, rgba(35,22,6,0.35) 0%, transparent 20%),
+    radial-gradient(ellipse at 5% 55%, rgba(55,36,12,0.4) 0%, transparent 16%),
+    /* 横向折痕线 — 明显的纸张折叠痕迹 */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 85px,
+      rgba(30,18,4,0.2) 85px,
+      rgba(30,18,4,0.2) 88px
+    ),
+    /* 纵向印刷条纹 — 旧报纸印刷滚筒痕 */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 55px,
+      rgba(25,15,3,0.18) 55px,
+      rgba(25,15,3,0.18) 57px
+    ),
+    /* 深黄泛底色 */
+    linear-gradient(165deg, #a88030 0%, #8a6218 30%, #7a5510 60%, #987828 100%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.9;
+  mix-blend-mode: multiply;
+  background-image:
+    /* 大尺度低频噪声 — 大面积水渍泛黄 */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004' numOctaves='6' seed='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='3' exponent='0.25'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='500' height='500' filter='url(%23a)'/%3E%3C/svg%3E"),
+    /* 中尺度噪声 — 纸张纤维纹理 */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02' numOctaves='5' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='2.5' exponent='0.3'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23b)'/%3E%3C/svg%3E"),
+    /* 小尺度高频噪声 — 粗糙颗粒感 */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='35' height='35'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' amplitude='2.5' exponent='0.2'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='35' height='35' filter='url(%23c)'/%3E%3C/svg%3E");
+  background-size: 500px 500px, 120px 120px, 35px 35px;
+  background-blend-mode: overlay;
 }
 
 @layer components {
+  /* ── Liquid Glass Card (with light refraction + hover 3D) ── */
+  .liquid-glass-card {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.45) 40%,
+      rgba(255, 248, 240, 0.55) 100%
+    );
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-top: 1px solid rgba(255, 255, 255, 0.85);
+    border-left: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: var(--radius-card);
+    box-shadow:
+      0 4px 16px rgba(139, 109, 80, 0.06),
+      0 1px 3px rgba(255, 255, 255, 0.5) inset,
+      0 -1px 2px rgba(139, 109, 80, 0.03) inset;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .liquid-glass-card::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.15) 45%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0.15) 55%,
+      transparent 60%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .liquid-glass-card:hover::before {
+    transform: translateX(20%);
+  }
+  .liquid-glass-card:hover {
+    transform: scale(1.02) translateY(-2px) perspective(800px) rotateX(0.5deg);
+    box-shadow:
+      0 12px 40px rgba(139, 109, 80, 0.12),
+      0 4px 12px rgba(218, 119, 86, 0.08),
+      0 1px 3px rgba(255, 255, 255, 0.6) inset;
+    border-color: rgba(255, 255, 255, 0.85);
+  }
+  .liquid-glass-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Liquid Glass Compact (smaller padding variant) ── */
+  .liquid-glass-compact {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.4) 50%,
+      rgba(255, 248, 240, 0.5) 100%
+    );
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-top: 1px solid rgba(255, 255, 255, 0.8);
+    border-left: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 12px;
+    box-shadow:
+      0 2px 8px rgba(139, 109, 80, 0.05),
+      0 1px 2px rgba(255, 255, 255, 0.4) inset;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .liquid-glass-compact::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.12) 45%,
+      rgba(255, 255, 255, 0.25) 50%,
+      rgba(255, 255, 255, 0.12) 55%,
+      transparent 60%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .liquid-glass-compact:hover::before {
+    transform: translateX(20%);
+  }
+  .liquid-glass-compact:hover {
+    transform: scale(1.015) translateY(-1px);
+    box-shadow:
+      0 8px 24px rgba(139, 109, 80, 0.1),
+      0 1px 2px rgba(255, 255, 255, 0.5) inset;
+  }
+  .liquid-glass-compact > * {
+    position: relative;
+    z-index: 1;
+  }
+
   /* ── Glass Card ── */
   .glass-card {
     background: rgba(255, 255, 255, 0.45);
@@ -55,8 +241,8 @@ body {
     background: rgba(255, 248, 240, 0.5);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
     backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid rgba(249, 115, 22, 0.12);
-    box-shadow: 0 4px 16px rgba(249,115,22,0.06);
+    border: 1px solid rgba(218, 119, 86, 0.12);
+    box-shadow: 0 4px 16px rgba(218,119,86,0.06);
   }
 
   /* ── Glass Light (navbar, toolbars) ── */
@@ -69,16 +255,16 @@ body {
 
   /* ── Glass Button ── */
   .glass-button {
-    background: rgba(249, 115, 22, 0.06);
+    background: rgba(218, 119, 86, 0.06);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(249, 115, 22, 0.1);
+    border: 1px solid rgba(218, 119, 86, 0.1);
     transition: all var(--transition-smooth);
   }
   .glass-button:hover {
-    background: rgba(249, 115, 22, 0.12);
-    border-color: rgba(249, 115, 22, 0.2);
-    box-shadow: 0 2px 8px rgba(249,115,22,0.08);
+    background: rgba(218, 119, 86, 0.12);
+    border-color: rgba(218, 119, 86, 0.2);
+    box-shadow: 0 2px 8px rgba(218,119,86,0.08);
   }
 
   /* ── Glass Input ── */
@@ -92,8 +278,8 @@ body {
   }
   .glass-input:focus {
     background: rgba(255, 255, 255, 0.7);
-    border-color: rgba(249, 115, 22, 0.4);
-    box-shadow: 0 0 0 3px rgba(249,115,22,0.08);
+    border-color: rgba(218, 119, 86, 0.4);
+    box-shadow: 0 0 0 3px rgba(218,119,86,0.08);
     outline: none;
   }
 
@@ -119,20 +305,20 @@ body {
     background: rgba(255, 248, 240, 0.3);
   }
 
-  /* ── Primary Button ── */
+  /* ── Primary Button (Terracotta Brand) ── */
   .btn-primary {
-    background: linear-gradient(135deg, #f97316, #ea580c);
+    background: linear-gradient(135deg, #da7756, #c46545);
     color: white;
     border: none;
     border-radius: var(--radius-button);
     font-weight: 500;
     transition: all var(--transition-smooth);
-    box-shadow: 0 2px 8px rgba(249,115,22,0.25);
+    box-shadow: 0 2px 8px rgba(218,119,86,0.25);
     cursor: pointer;
   }
   .btn-primary:hover {
-    background: linear-gradient(135deg, #ea580c, #c2410c);
-    box-shadow: 0 4px 12px rgba(249,115,22,0.35);
+    background: linear-gradient(135deg, #c46545, #a85235);
+    box-shadow: 0 4px 12px rgba(218,119,86,0.35);
     transform: translateY(-1px);
   }
   .btn-primary:disabled {
@@ -158,4 +344,12 @@ body {
     background: rgba(255, 255, 255, 0.65);
     border-color: rgba(0,0,0,0.12);
   }
+}
+
+/* ── Pixel Character Shake (scared animation) ── */
+@keyframes pixel-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, -1px); }
+  50% { transform: translate(1px, 0); }
+  75% { transform: translate(0, 1px); }
 }

@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 RAG_SYSTEM_PROMPT = """你是一个实验知识图谱的智能助手。用户会用自然语言提问，你需要基于提供的知识图谱上下文来回答问题。
 
+这是一个多轮对话，你可以结合之前的对话历史来理解上下文。例如：
+- 如果用户问"上次提到的那个实验呢"，你需要回顾历史中的实验名称
+- 如果用户问"它用了什么设备"，你需要理解"它"指的是之前讨论的实体
+- 回答时可以自然引用之前讨论过的内容
+
 你必须严格按照以下 JSON 格式输出：
 {
   "answer": "文字回答，详细且有条理",
@@ -48,8 +53,8 @@ SUGGEST_SYSTEM_PROMPT = """你是一个知识图谱分析助手。根据给定�
 只输出 JSON，不要有其他文本。"""
 
 
-async def natural_language_query(question: str) -> dict:
-    """RAG pipeline: vector search → graph expansion → LLM synthesis."""
+async def natural_language_query(question: str, history: list[dict] | None = None) -> dict:
+    """RAG pipeline: vector search → graph expansion → multi-turn LLM synthesis."""
     # Step 1: Vector search
     vector_results = await vector_search(question, top_k=10)
     if not vector_results:
@@ -59,14 +64,22 @@ async def natural_language_query(question: str) -> dict:
     entity_ids = [eid for eid, score in vector_results]
     graph_context = await expand_neighborhood(entity_ids, max_hops=2, limit=50)
 
-    # Step 3: Build context for LLM
+    # Step 3: Build RAG context for current turn
     context = _build_context(vector_results, graph_context)
 
-    # Step 4: LLM synthesis
-    prompt = f"用户问题：{question}\n\n知识图谱上下文：\n{context}"
-    response = await call_llm(prompt, system=RAG_SYSTEM_PROMPT, max_tokens=2048)
+    # Step 4: Build structured messages for multi-turn conversation
+    current_message = f"用户问题：{question}\n\n知识图谱上下文：\n{context}"
+    messages = _build_messages(history, current_message)
 
-    # Step 5: Parse response
+    # Step 5: LLM synthesis with structured multi-turn messages
+    response = await call_llm(
+        prompt=current_message,
+        system=RAG_SYSTEM_PROMPT,
+        max_tokens=2048,
+        messages=messages,
+    )
+
+    # Step 6: Parse response
     return _parse_response(response, vector_results, graph_context)
 
 
@@ -105,6 +118,40 @@ async def suggest_relations(node_id: str) -> dict:
 
     response = await call_llm(prompt, system=SUGGEST_SYSTEM_PROMPT, max_tokens=1024)
     return _parse_suggestions(response)
+
+
+def _build_messages(history: list[dict] | None, current_message: str) -> list[dict]:
+    """Build structured message array for multi-turn LLM conversation.
+
+    Returns a list of {"role": "user"|"assistant", "content": "..."} dicts
+    suitable for both Anthropic and OpenAI providers.
+    """
+    messages: list[dict] = []
+
+    if history:
+        # Keep last 10 turns and ensure valid role alternation
+        prev_role = None
+        for msg in history[-10:]:
+            # Handle both Pydantic models (attribute access) and plain dicts
+            role = getattr(msg, "role", None) or (msg.get("role", "") if isinstance(msg, dict) else "")
+            content = getattr(msg, "content", None) or (msg.get("content", "") if isinstance(msg, dict) else "")
+            if role not in ("user", "assistant") or not content:
+                continue
+            # Anthropic requires alternating roles — merge consecutive same-role messages
+            if role == prev_role and messages:
+                messages[-1]["content"] += "\n" + content
+            else:
+                messages.append({"role": role, "content": content})
+            prev_role = role
+
+        # Ensure first message is from user (Anthropic requirement)
+        if messages and messages[0]["role"] != "user":
+            messages.insert(0, {"role": "user", "content": "（对话开始）"})
+
+    # Append current user message with RAG context
+    messages.append({"role": "user", "content": current_message})
+
+    return messages
 
 
 def _build_context(vector_results: list, graph_context: dict) -> str:

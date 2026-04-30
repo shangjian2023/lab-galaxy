@@ -1,8 +1,6 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
-import { suggestRelations } from "@/lib/api";
 
 interface Props {
   node: {
@@ -16,7 +14,6 @@ interface Props {
   } | null;
   onClose: () => void;
   onJumpToWorkbench?: (documentId: string) => void;
-  onAcceptSuggestion?: (suggestion: { source_id: string; target_id: string; type: string; confidence: number }) => void;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -28,40 +25,7 @@ const TYPE_LABELS: Record<string, string> = {
   Concept: "概念",
 };
 
-interface Suggestion {
-  source_id: string;
-  target_id: string;
-  target_name?: string;
-  type: string;
-  confidence: number;
-  reason: string;
-}
-
-export default function NodeCard({ node, onClose, onJumpToWorkbench, onAcceptSuggestion }: Props) {
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  useEffect(() => {
-    setSuggestions([]);
-    setShowSuggestions(false);
-    setLoadingSuggestions(false);
-  }, [node?.id]);
-
-  const handleSuggest = async () => {
-    if (!node) return;
-    setLoadingSuggestions(true);
-    setShowSuggestions(true);
-    try {
-      const res = await suggestRelations(node.id);
-      setSuggestions(res.suggestions);
-    } catch {
-      setSuggestions([]);
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  };
-
+export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
   return (
     <AnimatePresence>
       {node && (
@@ -108,7 +72,7 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench, onAcceptSug
             )}
 
             {/* Meta */}
-            <div className="space-y-1 text-xs text-white/50 mb-3">
+            <div className="space-y-1 text-xs text-white/50">
               <p>ID: {node.id.slice(0, 12)}...</p>
               {node.document_id && (
                 <div className="flex items-center justify-between">
@@ -123,61 +87,6 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench, onAcceptSug
                   )}
                 </div>
               )}
-            </div>
-
-            {/* AI Suggestions */}
-            <div className="border-t border-white/10 pt-3">
-              <button
-                onClick={handleSuggest}
-                disabled={loadingSuggestions}
-                className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-purple-300 hover:bg-white/20 transition-colors disabled:opacity-50"
-              >
-                {loadingSuggestions ? (
-                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                )}
-                AI 关系建议
-              </button>
-
-              <AnimatePresence>
-                {showSuggestions && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-2 space-y-2 overflow-hidden"
-                  >
-                    {suggestions.length === 0 && !loadingSuggestions && (
-                      <p className="text-xs text-white/40 py-2">暂无建议</p>
-                    )}
-                    {suggestions.map((s) => (
-                      <div key={`${s.target_id}-${s.type}`} className="rounded-lg border border-dashed border-white/10 bg-white/5 p-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-medium text-purple-300">{s.type}</span>
-                          <span className="text-[10px] text-purple-400">{(s.confidence * 100).toFixed(0)}%</span>
-                        </div>
-                        <p className="text-[10px] text-white/50 mb-1.5">
-                          {s.target_name || s.target_id.slice(0, 8)}: {s.reason}
-                        </p>
-                        {onAcceptSuggestion && (
-                          <button
-                            onClick={() => onAcceptSuggestion(s)}
-                            className="text-[10px] font-medium text-purple-300 hover:text-purple-200"
-                          >
-                            采纳建议
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
         </motion.div>

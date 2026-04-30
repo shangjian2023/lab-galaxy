@@ -48,3 +48,17 @@ async def delete_doc_graph(document_id: str):
     """Delete all graph data for a document."""
     deleted = await delete_document_graph(document_id)
     return {"deleted": deleted}
+
+
+@router.post("/graph/cleanup/orphans")
+async def cleanup_orphaned_nodes():
+    """Remove experiment nodes not referenced by any relation, and all isolated nodes."""
+    from app.services.graph import cleanup_orphaned_experiments, cleanup_isolated_nodes
+
+    removed_experiments = await cleanup_orphaned_experiments()
+    removed_isolated = await cleanup_isolated_nodes()
+    return {
+        "removed_experiments": removed_experiments,
+        "removed_isolated": removed_isolated,
+        "total": removed_experiments + removed_isolated,
+    }

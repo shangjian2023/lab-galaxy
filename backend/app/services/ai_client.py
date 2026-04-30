@@ -70,11 +70,18 @@ async def trigger_insight_discovery() -> dict:
             return {"insights": [], "total": 0}
 
 
-async def query_natural_language(question: str) -> dict:
+async def query_natural_language(question: str, history: list[dict] | None = None) -> dict:
     """Send a natural language query to the AI service RAG pipeline."""
     async with httpx.AsyncClient(timeout=120) as client:
         try:
-            resp = await client.post(f"{AI_SERVICE_URL}/query", json={"question": question})
+            payload: dict = {"question": question}
+            if history:
+                # Convert Pydantic models to plain dicts for JSON serialization
+                payload["history"] = [
+                    h.model_dump() if hasattr(h, "model_dump") else h
+                    for h in history
+                ]
+            resp = await client.post(f"{AI_SERVICE_URL}/query", json=payload)
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPError as e:

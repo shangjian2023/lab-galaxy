@@ -67,10 +67,44 @@ def _normalize_rel_type(rel_type: str) -> str:
     return normalized
 
 
-async def _visible_document_ids(db: AsyncSession, current_user: User, years: list[int] | None = None) -> list[str]:
-    stmt = select(Document.id).where((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
+async def _visible_document_ids(
+    db: AsyncSession,
+    current_user: User,
+    years: list[int] | None = None,
+    scope: str | None = None,
+) -> list[str]:
+    """Return document IDs visible to the user based on scope.
+
+    scope:
+      - None (default): user's own docs + public docs (backward compatible)
+      - "public": only public documents
+      - "private": only the user's private documents
+      - "team": documents from the user's team members
+    """
+    stmt = select(Document.id)
+
+    if scope == "public":
+        stmt = stmt.where(Document.privacy == "public")
+    elif scope == "private":
+        stmt = stmt.where(Document.uploaded_by == current_user.id, Document.privacy == "private")
+    elif scope == "team":
+        from app.models.models import TeamMember
+        team_ids_stmt = (
+            select(TeamMember.team_id)
+            .where(TeamMember.user_id == current_user.id)
+        )
+        team_user_ids_stmt = (
+            select(TeamMember.user_id)
+            .where(TeamMember.team_id.in_(team_ids_stmt))
+        )
+        stmt = stmt.where(Document.uploaded_by.in_(team_user_ids_stmt))
+    else:
+        # Default: own + public
+        stmt = stmt.where((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
+
     if years:
         stmt = stmt.where(Document.experiment_year.in_(years))
+
     rows = (await db.execute(stmt)).scalars().all()
     return [str(doc_id) for doc_id in rows]
 
@@ -108,6 +142,7 @@ async def get_graph_data(
     from_date: str | None = Query(None, description="ISO date, e.g. 2024-01-01"),
     to_date: str | None = Query(None, description="ISO date, e.g. 2024-12-31"),
     years: str | None = Query(None, description="Comma-separated years, e.g. 2024,2025"),
+    scope: str | None = Query(None, description="Document scope: public, private, team"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -119,7 +154,7 @@ async def get_graph_data(
             parsed_years = [int(y.strip()) for y in years.split(",") if y.strip()]
         except ValueError:
             parsed_years = None
-    visible_doc_ids = await _visible_document_ids(db, current_user, years=parsed_years)
+    visible_doc_ids = await _visible_document_ids(db, current_user, years=parsed_years, scope=scope)
 
     async with driver.session() as session:
         node_query = "MATCH (n)"
@@ -199,15 +234,30 @@ async def get_graph_data(
 async def get_available_years(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    scope: str | None = Query(None, description="Document scope: public, private, team"),
 ):
     """Return distinct experiment years that have documents with graph data."""
+    if scope == "public":
+        condition = Document.privacy == "public"
+    elif scope == "private":
+        condition = (Document.uploaded_by == current_user.id) & (Document.privacy == "private")
+    elif scope == "team":
+        from app.models.models import TeamMember
+        team_ids_stmt = (
+            select(TeamMember.team_id)
+            .where(TeamMember.user_id == current_user.id)
+        )
+        team_user_ids_stmt = (
+            select(TeamMember.user_id)
+            .where(TeamMember.team_id.in_(team_ids_stmt))
+        )
+        condition = Document.uploaded_by.in_(team_user_ids_stmt)
+    else:
+        condition = (Document.uploaded_by == current_user.id) | (Document.privacy == "public")
+
     stmt = (
         select(Document.experiment_year)
-        .where(
-            ((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
-            & Document.experiment_year.isnot(None)
-            & (Document.status == "completed")
-        )
+        .where(condition & Document.experiment_year.isnot(None) & (Document.status == "completed"))
         .distinct()
         .order_by(Document.experiment_year.desc())
     )
@@ -219,10 +269,11 @@ async def get_available_years(
 async def get_timeline_data(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    scope: str | None = Query(None, description="Document scope: public, private, team"),
 ):
     driver = _driver()
     result: list[dict] = []
-    visible_doc_ids = await _visible_document_ids(db, current_user)
+    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope)
 
     async with driver.session() as session:
         if visible_doc_ids:
@@ -261,10 +312,11 @@ async def get_timeline_data(
 async def get_matrix_data(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    scope: str | None = Query(None, description="Document scope: public, private, team"),
 ):
     driver = _driver()
     result: list[dict] = []
-    visible_doc_ids = await _visible_document_ids(db, current_user)
+    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope)
 
     async with driver.session() as session:
         if visible_doc_ids:
@@ -472,3 +524,36 @@ async def suggest_node_relations(
     if node_id not in visible_node_ids:
         raise HTTPException(status_code=403, detail="无权访问此节点")
     return await suggest_relations(node_id)
+
+
+@router.post("/cleanup/orphans")
+async def cleanup_orphaned_nodes(
+    current_user: User = Depends(get_current_user),
+):
+    """Remove isolated nodes with no relations. Admin/owner only."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+
+    driver = _driver()
+    async with driver.session() as session:
+        exp_result = await session.run("""
+            MATCH (n:Experiment) WHERE NOT (n)--()
+            WITH n LIMIT 500 DELETE n RETURN count(n) AS cnt
+        """)
+        removed_experiments = 0
+        async for record in exp_result:
+            removed_experiments = record["cnt"]
+
+        iso_result = await session.run("""
+            MATCH (n) WHERE NOT (n)--()
+            WITH n LIMIT 500 DELETE n RETURN count(n) AS cnt
+        """)
+        removed_isolated = 0
+        async for record in iso_result:
+            removed_isolated = record["cnt"]
+
+    return {
+        "removed_experiments": removed_experiments,
+        "removed_isolated": removed_isolated,
+        "total": removed_experiments + removed_isolated,
+    }

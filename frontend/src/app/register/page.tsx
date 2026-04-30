@@ -33,7 +33,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#faf7f5]">
+    <main className="flex min-h-screen items-center justify-center">
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-4 glass-card rounded-2xl p-8"

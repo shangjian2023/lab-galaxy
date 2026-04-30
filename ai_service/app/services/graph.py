@@ -7,8 +7,19 @@ from app.core.exceptions import GraphWriteError
 
 logger = logging.getLogger(__name__)
 
+import re
+
 VALID_LABELS = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
 VALID_REL_TYPES = {"USES", "BASED_ON", "SIMILAR_TO", "REQUIRES", "RELATED_TO"}
+
+
+def _normalize_name(name: str) -> str:
+    """Normalize entity name for dedup: collapse whitespace, strip common suffixes."""
+    name = re.sub(r"\s+", " ", name.strip())
+    # Remove trailing "实验" suffix — LLM inconsistently adds it
+    if name.endswith("实验") and len(name) > 4:
+        name = name[:-2]
+    return name
 
 
 async def write_entities_and_relations(
@@ -18,30 +29,53 @@ async def write_entities_and_relations(
 ) -> int:
     """Write extracted entities and relations to Neo4j.
 
-    Merges by (name, type) so that the same entity referenced by multiple
-    documents becomes a single shared node — forming inter-experiment links.
+    Merges by (normalized_name, type) so that the same entity referenced by
+    multiple documents — or reprocessed with slightly different names — becomes
+    a single shared node.
     """
     driver = get_neo4j_driver()
     id_map: dict[str, str] = {}
 
     # Pre-validate and group entities by type for batch UNWIND
     valid_entities: list[dict] = []
+    # Track which entities appear in relations
+    relation_entity_ids: set[str] = set()
+    for rel in relations:
+        relation_entity_ids.add(rel.get("source_id"))
+        relation_entity_ids.add(rel.get("target_id"))
+
     for ent in entities:
         entity_type = ent.get("type", "Concept")
         if entity_type not in VALID_LABELS:
             logger.warning(f"Invalid entity type '{entity_type}', falling back to 'Concept'")
             entity_type = "Concept"
-        name = ent.get("name", "").strip()
-        if not name:
+        raw_name = ent.get("name", "").strip()
+        if not raw_name:
             continue
+        # Skip entities not involved in any relation (orphaned nodes)
+        if ent.get("id") not in relation_entity_ids:
+            logger.info(f"Dropping orphaned entity: {raw_name} ({entity_type})")
+            continue
+        name = _normalize_name(raw_name)
         valid_entities.append({
             "id": ent["id"],
             "name": name,
+            "raw_name": raw_name,
             "type": entity_type,
             "summary": ent.get("summary", ""),
         })
 
     async with driver.session() as session:
+        # Delete old graph data for this document to prevent duplicates on reprocessing
+        await session.run("""
+            MATCH ()-[r {document_id: $doc_id}]->()
+            DELETE r
+        """, doc_id=document_id)
+        await session.run("""
+            MATCH (n {document_id: $doc_id})
+            WHERE NOT (n)--()
+            DELETE n
+        """, doc_id=document_id)
         # Batch write entities grouped by label (Neo4j doesn't support parameterized labels)
         by_type: dict[str, list[dict]] = {}
         for e in valid_entities:
@@ -51,7 +85,7 @@ async def write_entities_and_relations(
             query = f"""
             UNWIND $batch AS ent
             MERGE (n:{entity_type} {{name: ent.name}})
-            ON CREATE SET n.id = ent.id, n.created_at = datetime(), n.summary = ent.summary
+            ON CREATE SET n.id = ent.id, n.created_at = datetime(), n.summary = ent.summary, n.display_name = ent.raw_name
             ON MATCH SET n.summary = CASE
                 WHEN n.summary IS NULL OR n.summary = '' THEN ent.summary
                 ELSE n.summary
@@ -213,3 +247,35 @@ async def delete_document_graph(document_id: str) -> int:
             deleted += record["cnt"]
 
     return deleted
+
+
+async def cleanup_orphaned_experiments() -> int:
+    """Remove Experiment nodes that have no relations (orphaned). Returns count deleted."""
+    driver = get_neo4j_driver()
+    async with driver.session() as session:
+        result = await session.run("""
+            MATCH (n:Experiment)
+            WHERE NOT (n)--()
+            WITH n LIMIT 500
+            DELETE n
+            RETURN count(n) AS cnt
+        """)
+        async for record in result:
+            return record["cnt"]
+    return 0
+
+
+async def cleanup_isolated_nodes() -> int:
+    """Remove all nodes with no relations across all types. Returns count deleted."""
+    driver = get_neo4j_driver()
+    async with driver.session() as session:
+        result = await session.run("""
+            MATCH (n)
+            WHERE NOT (n)--()
+            WITH n LIMIT 500
+            DELETE n
+            RETURN count(n) AS cnt
+        """)
+        async for record in result:
+            return record["cnt"]
+    return 0

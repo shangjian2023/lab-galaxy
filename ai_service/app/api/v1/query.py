@@ -10,8 +10,14 @@ router = APIRouter()
 MAX_QUESTION_LEN = 500
 
 
+class MessageHistory(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
 class QueryRequest(BaseModel):
     question: str = Field(..., max_length=MAX_QUESTION_LEN)
+    history: list[MessageHistory] = []
 
 
 class SuggestRequest(BaseModel):
@@ -22,7 +28,7 @@ class SuggestRequest(BaseModel):
 async def query(body: QueryRequest):
     """Natural language query over the knowledge graph (RAG pipeline)."""
     try:
-        return await natural_language_query(body.question)
+        return await natural_language_query(body.question, body.history)
     except Exception as e:
         import logging, traceback
         logging.getLogger(__name__).error(f"Query error: {e}\n{traceback.format_exc()}")

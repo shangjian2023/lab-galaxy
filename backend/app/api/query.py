@@ -10,8 +10,14 @@ from app.services.ai_client import query_natural_language
 router = APIRouter(prefix="/query", tags=["query"])
 
 
+class MessageHistory(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
 class QueryRequest(BaseModel):
     question: str
+    history: list[MessageHistory] = []
 
 
 @router.post("")
@@ -20,4 +26,4 @@ async def ask_question(
     current_user: User = Depends(get_current_user),
 ):
     """Natural language query over the knowledge graph."""
-    return await query_natural_language(body.question)
+    return await query_natural_language(body.question, body.history)

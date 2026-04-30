@@ -4,6 +4,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        gray: {
+          50: "#f5f6f7",
+          100: "#e6e8eb",
+          200: "#cdd1d6",
+          300: "#a8aeb8",
+          400: "#828997",
+          500: "#555c68",
+          600: "#383e49",
+          700: "#282d36",
+          800: "#1a1e25",
+          900: "#0e1117",
+        },
         brand: {
           50: "#fff7ed",
           100: "#ffedd5",
@@ -25,7 +37,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: ["KaiTi", "楷体", "STKaiti", "楷体_GB2312", "system-ui", "-apple-system", "sans-serif"],
       },
       spacing: {
         sidebar: "260px",

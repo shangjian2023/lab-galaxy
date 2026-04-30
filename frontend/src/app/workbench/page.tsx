@@ -91,17 +91,7 @@ function WorkbenchPageContent() {
     discoverInsights().then((res) => {
       if (res.insights.length > 0) {
         setInsights(res.insights);
-        const alreadyShown = sessionStorage.getItem("insight_overlay_shown");
-        if (!alreadyShown) {
-          const best = res.insights[0];
-          if (best.significance >= 0.5) {
-            sessionStorage.setItem("insight_overlay_shown", "1");
-            setTimeout(() => {
-              setActiveInsight(best);
-              soundEngine.play("insight");
-            }, 1500);
-          }
-        }
+        // Auto-show insight overlay removed — only triggered after document upload completion
       }
     });
   }, [user]);

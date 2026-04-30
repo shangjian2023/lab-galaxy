@@ -27,6 +27,7 @@ interface SimNode extends SimulationNodeDatum {
   baseSize: number;
   degree: number;
   opacity: number;
+  floatHash: number;
 }
 
 interface SimLink extends SimulationLinkDatum<SimNode> {
@@ -41,6 +42,7 @@ export interface ForceSettings {
   linkDistance: number;
   experimentCluster: number;
   nodeSize: number;
+  experimentSize: number;
   linkWidth: number;
 }
 
@@ -73,15 +75,17 @@ const TYPE_COLORS: Record<string, string> = {
 
 const DEFAULT_SETTINGS: ForceSettings = {
   centerStrength: 0.08,
-  repel: -200,
+  repel: -300,
   linkStrength: 0.8,
-  linkDistance: 70,
+  linkDistance: 90,
   experimentCluster: 0.15,
   nodeSize: 1,
+  experimentSize: 1,
   linkWidth: 1,
 };
 
 // ── Floating offset (gentle Obsidian-like bobbing) ──
+// Pre-compute hash per node on load to avoid string hashing every frame
 
 function hashStr(s: string): number {
   let h = 0;
@@ -89,12 +93,22 @@ function hashStr(s: string): number {
   return h;
 }
 
-function floatOffset(nodeId: string, now: number): [number, number] {
-  const h = hashStr(nodeId);
-  const t = now / 1000;
+// Cached per-node float params (set once when node is created)
+const FLOAT_CACHE = new Map<string, { h: number }>();
+
+function getFloatHash(nodeId: string): number {
+  let cached = FLOAT_CACHE.get(nodeId);
+  if (!cached) {
+    cached = { h: hashStr(nodeId) };
+    FLOAT_CACHE.set(nodeId, cached);
+  }
+  return cached.h;
+}
+
+function floatOffsetCached(hash: number, t: number): [number, number] {
   return [
-    Math.sin(t * 0.4 + h * 0.1) * 1.8,
-    Math.cos(t * 0.3 + h * 0.13) * 1.8,
+    Math.sin(t * 0.4 + hash * 0.1) * 1.8,
+    Math.cos(t * 0.3 + hash * 0.13) * 1.8,
   ];
 }
 
@@ -121,6 +135,9 @@ export default function GalaxyView({
   const zoomBehaviorRef = useRef<any>(null);
   const initialCenterDoneRef = useRef(false);
   const [dims, setDims] = useState({ w: 800, h: 600 });
+  const dirtyRef = useRef(true); // true = needs full render, false = skip or low-fps
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFrameTimeRef = useRef(0);
 
   const highlightedRef = useRef(highlightedNodeId);
   highlightedRef.current = highlightedNodeId;
@@ -148,10 +165,16 @@ export default function GalaxyView({
     (nodes: SimNode[], links: SimLink[], startAlpha = 1) => {
       if (simRef.current) simRef.current.stop();
 
-      for (const n of nodes) {
+      // Radial layout: distribute nodes evenly in a circle so they start spread out
+      const cx = dims.w / 2;
+      const cy = dims.h / 2;
+      const r = Math.min(dims.w, dims.h) * 0.35;
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
         if (n.x == null) {
-          n.x = dims.w / 2 + (Math.random() - 0.5) * dims.w * 0.3;
-          n.y = dims.h / 2 + (Math.random() - 0.5) * dims.h * 0.3;
+          const angle = (2 * Math.PI * i) / nodes.length;
+          n.x = cx + r * Math.cos(angle);
+          n.y = cy + r * Math.sin(angle);
         }
       }
 
@@ -164,25 +187,30 @@ export default function GalaxyView({
             .strength(fsRef.current.linkStrength)
         )
         .force("charge", forceManyBody<SimNode>().strength(fsRef.current.repel))
-        .force("center", forceCenter(dims.w / 2, dims.h / 2).strength(fsRef.current.centerStrength))
-        .force("collide", forceCollide<SimNode>().radius((d) => radius(d) + 4))
+        .force("center", forceCenter(cx, cy).strength(fsRef.current.centerStrength))
+        .force("collide", forceCollide<SimNode>().radius((d) => radius(d) + 6))
         .force("experimentCluster", (alpha) => {
           const exps = nodes.filter(n => n.type === "Experiment" && n.x != null && n.y != null);
           if (exps.length < 2) return;
-          const cx = exps.reduce((s, n) => s + n.x!, 0) / exps.length;
-          const cy = exps.reduce((s, n) => s + n.y!, 0) / exps.length;
+          const ecx = exps.reduce((s, n) => s + n.x!, 0) / exps.length;
+          const ecy = exps.reduce((s, n) => s + n.y!, 0) / exps.length;
           for (const n of exps) {
-            n.vx = (n.vx || 0) + (cx - n.x!) * alpha * fsRef.current.experimentCluster;
-            n.vy = (n.vy || 0) + (cy - n.y!) * alpha * fsRef.current.experimentCluster;
+            n.vx = (n.vx || 0) + (ecx - n.x!) * alpha * fsRef.current.experimentCluster;
+            n.vy = (n.vy || 0) + (ecy - n.y!) * alpha * fsRef.current.experimentCluster;
           }
         })
         .alpha(startAlpha)
-        .alphaDecay(0.015)
-        .velocityDecay(0.35);
+        .alphaDecay(0.01)
+        .velocityDecay(0.25);
 
       simRef.current = sim;
       nodesRef.current = nodes;
       linksRef.current = links;
+
+      // Trigger render on simulation tick
+      sim.on("tick", () => {
+        dirtyRef.current = true;
+      });
     },
     [dims.w, dims.h]
   );
@@ -200,8 +228,8 @@ export default function GalaxyView({
   }
 
   function radius(n: SimNode) {
-    const base = n.type === "Experiment" ? 8 : 6;
-    return Math.max(4, (base + n.degree * 1.5) * fsRef.current.nodeSize);
+    const sizeMultiplier = n.type === "Experiment" ? fsRef.current.experimentSize : fsRef.current.nodeSize;
+    return Math.max(4, (6 + n.degree * 1.5) * sizeMultiplier);
   }
 
   // ── Load data into simulation (preserving positions) ──
@@ -243,6 +271,7 @@ export default function GalaxyView({
         baseSize: n.data.size || 20,
         degree: 0,
         opacity: 1,
+        floatHash: getFloatHash(n.data.id),
         x: undefined,
         y: undefined,
       };
@@ -382,6 +411,8 @@ export default function GalaxyView({
       })
       .on("zoom", (event) => {
         transformRef.current = event.transform;
+        dirtyRef.current = true;
+        markDirty();
       });
     select(canvas).call(zb);
     zoomBehaviorRef.current = zb;
@@ -399,6 +430,8 @@ export default function GalaxyView({
         dragNode.fy = dragNode.y;
         simRef.current?.alphaTarget(0.5).restart();
         canvas.style.cursor = "grabbing";
+        dirtyRef.current = true;
+        markDirty();
       }
     };
 
@@ -409,9 +442,16 @@ export default function GalaxyView({
         didDrag = true;
         dragNode.fx = mx;
         dragNode.fy = my;
+        dirtyRef.current = true;
+        markDirty();
         return;
       }
-      hoveredRef.current = findNode(mx, my);
+      const hovered = findNode(mx, my);
+      if (hoveredRef.current?.id !== hovered?.id) {
+        hoveredRef.current = hovered;
+        dirtyRef.current = true;
+      }
+      markDirty();
       canvas.style.cursor = hoveredRef.current ? "pointer" : "default";
     };
 
@@ -421,6 +461,8 @@ export default function GalaxyView({
         dragNode.fy = null;
         simRef.current?.alphaTarget(0);
         dragNode = null;
+        dirtyRef.current = true;
+        markDirty();
       }
     };
 
@@ -454,46 +496,79 @@ export default function GalaxyView({
     let querySet = new Set<string>();
     let highlightSet = new Set<string>();
     let dimmed: Set<string> | null = null;
+    const lastHLRef = { current: "" };
 
-    function rebuildHighlightSets() {
-      const currentHL = highlightedRef.current;
-      const currentQHL = queryHLRef.current;
-      const qhlKey = currentQHL.join(",");
-      const cacheKey = `${currentHL}|${qhlKey}`;
-      const prevKey = `${cachedHLId}|${cachedQueryHL.join(",")}`;
-      if (cacheKey === prevKey) return;
+    // ── Adaptive render: rAF when dirty, 15fps setTimeout when idle ──
+    const IDLE_INTERVAL_MS = 66; // ~15fps
+    let renderScheduled = false;
+    let simActive = true; // sim is still running (positions changing)
 
-      cachedQueryHL = currentQHL;
-      cachedHLId = currentHL;
-      querySet = new Set(currentQHL);
-      highlightSet = new Set<string>();
-      if (currentHL) highlightSet.add(currentHL);
-      for (const id of currentQHL) highlightSet.add(id);
-
-      const hasHighlight = highlightSet.size > 0;
-      dimmed = null;
-      if (hasHighlight) {
-        dimmed = new Set<string>();
-        const connected = new Set<string>(highlightSet);
-        for (const l of linksRef.current) {
-          const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
-          const tg = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
-          if (highlightSet.has(s)) connected.add(tg);
-          if (highlightSet.has(tg)) connected.add(s);
-        }
-        for (const n of nodesRef.current) {
-          if (!connected.has(n.id)) dimmed.add(n.id);
-        }
-      }
+    function markDirty() {
+      if (renderScheduled) return;
+      renderScheduled = true;
+      if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
+      rafRef.current = requestAnimationFrame(doRender);
     }
 
-    // ── Render loop ──
-    function render() {
-      const now = Date.now();
+    function scheduleIdle() {
+      if (renderScheduled) return;
+      renderScheduled = true;
+      idleTimerRef.current = setTimeout(() => {
+        renderScheduled = false;
+        rafRef.current = requestAnimationFrame(doRender);
+      }, IDLE_INTERVAL_MS);
+    }
+
+    function doRender() {
+      renderScheduled = false;
+      const now = performance.now();
+      const dt = now - lastFrameTimeRef.current;
+      lastFrameTimeRef.current = now;
+
+      // Skip if nothing changed and less than idle interval
+      if (!dirtyRef.current && dt < IDLE_INTERVAL_MS) {
+        scheduleIdle();
+        return;
+      }
+      dirtyRef.current = false;
+
       const t = transformRef.current;
       const currentFS = fsRef.current;
+      const timeSec = now / 1000;
 
-      rebuildHighlightSets();
+      // Check if sim is still active (producing layout changes)
+      const sim = simRef.current;
+      const wasSimActive = simActive;
+      simActive = sim ? sim.alpha() > 0.001 : false;
+
+      // Only rebuild highlight sets when refs change
+      const curHL = highlightedRef.current;
+      const curQHL = queryHLRef.current;
+      const cacheKey = `${curHL}|${curQHL.join(",")}`;
+      if (cacheKey !== lastHLRef.current) {
+        lastHLRef.current = cacheKey;
+        cachedQueryHL = curQHL;
+        cachedHLId = curHL;
+        querySet = new Set(curQHL);
+        highlightSet = new Set<string>();
+        if (curHL) highlightSet.add(curHL);
+        for (const id of curQHL) highlightSet.add(id);
+        const hasHighlight = highlightSet.size > 0;
+        dimmed = null;
+        if (hasHighlight) {
+          dimmed = new Set<string>();
+          const connected = new Set<string>(highlightSet);
+          for (const l of linksRef.current) {
+            const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
+            const tg = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
+            if (highlightSet.has(s)) connected.add(tg);
+            if (highlightSet.has(tg)) connected.add(s);
+          }
+          for (const n of nodesRef.current) {
+            if (!connected.has(n.id)) dimmed.add(n.id);
+          }
+        }
+      }
 
       ctx.clearRect(0, 0, dims.w, dims.h);
 
@@ -507,8 +582,8 @@ export default function GalaxyView({
         const tg = l.target as SimNode;
         if (s.x == null || s.y == null || tg.x == null || tg.y == null) continue;
 
-        const sOff = s === dragNode ? [0, 0] : floatOffset(s.id, now);
-        const tOff = tg === dragNode ? [0, 0] : floatOffset(tg.id, now);
+        const sOff = s === dragNode ? [0, 0] : floatOffsetCached(s.floatHash, timeSec);
+        const tOff = tg === dragNode ? [0, 0] : floatOffsetCached(tg.floatHash, timeSec);
         const sx = s.x + sOff[0], sy = s.y + sOff[1];
         const tx = tg.x + tOff[0], ty2 = tg.y + tOff[1];
 
@@ -550,7 +625,7 @@ export default function GalaxyView({
       // ── Draw nodes ──
       for (const n of nodesRef.current) {
         if (n.x == null || n.y == null) continue;
-        const off = n === dragNode ? [0, 0] : floatOffset(n.id, now);
+        const off = n === dragNode ? [0, 0] : floatOffsetCached(n.floatHash, timeSec);
         const px = n.x + off[0], py = n.y + off[1];
         const r = radius(n);
         const isDimmed = dimmed?.has(n.id);
@@ -600,28 +675,28 @@ export default function GalaxyView({
 
       // ── Draw labels ──
       const zoomLevel = t.k;
-      const showLabels = zoomLevel > 0.8;
+      const showLabels = zoomLevel > 0.45;
 
       if (showLabels) {
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        const fontSize = Math.max(9, Math.min(12, 11 / zoomLevel * 1.2));
+        const fontSize = Math.max(9, Math.min(13, 12 / zoomLevel * 1.1));
         ctx.font = `500 ${fontSize}px system-ui, sans-serif`;
 
         for (const n of nodesRef.current) {
           if (n.x == null || n.y == null) continue;
-          const off = n === dragNode ? [0, 0] : floatOffset(n.id, now);
+          const off = n === dragNode ? [0, 0] : floatOffsetCached(n.floatHash, timeSec);
           const lx = n.x + off[0], ly = n.y + off[1];
           const isDimmedN = dimmed?.has(n.id);
           const isHoveredN = hoveredRef.current?.id === n.id;
           const isImportant = n.type === "Experiment" || n.degree > 2;
 
-          const shouldShow = isHoveredN || highlightedRef.current === n.id || querySet.has(n.id) || (isImportant && zoomLevel > 0.9) || zoomLevel > 1.5;
+          const shouldShow = isHoveredN || highlightedRef.current === n.id || querySet.has(n.id) || isImportant || zoomLevel > 0.7;
           if (!shouldShow && !isDimmedN) continue;
           if (isDimmedN && !shouldShow) continue;
 
           const r = radius(n);
-          const labelAlpha = isDimmedN ? 0.15 : isHoveredN || highlightedRef.current === n.id ? 1 : Math.min(1, (zoomLevel - 0.8) * 2);
+          const labelAlpha = isDimmedN ? 0.15 : isHoveredN || highlightedRef.current === n.id ? 1 : Math.min(1, (zoomLevel - 0.45) * 3);
           ctx.globalAlpha = labelAlpha;
 
           ctx.fillStyle = isDimmedN ? "rgba(156,163,175,0.6)" : "rgba(255,255,255,0.9)";
@@ -633,7 +708,7 @@ export default function GalaxyView({
       // ── Tooltip ──
       const hov = hoveredRef.current;
       if (hov && hov.x != null && hov.y != null) {
-        const off = hov === dragNode ? [0, 0] : floatOffset(hov.id, now);
+        const off = hov === dragNode ? [0, 0] : floatOffsetCached(hov.floatHash, timeSec);
         const r = radius(hov);
         const htx = hov.x + off[0];
         const hty = hov.y + off[1] - r - 10;
@@ -666,13 +741,22 @@ export default function GalaxyView({
       }
 
       ctx.restore();
-      rafRef.current = requestAnimationFrame(render);
+
+      // Schedule next render: rAF if sim/mouse active, setTimeout if idle
+      const shouldHighFps = simActive || wasSimActive || dragNode || hov || highlightSet.size > 0;
+      if (shouldHighFps) {
+        markDirty();
+      } else {
+        scheduleIdle();
+      }
     }
 
-    rafRef.current = requestAnimationFrame(render);
+    // Kick off the render loop
+    markDirty();
 
     return () => {
       cancelAnimationFrame(rafRef.current);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       hoveredRef.current = null;
       canvas.style.cursor = "default";
       simRef.current?.stop();
@@ -746,6 +830,7 @@ export default function GalaxyView({
           baseSize: nd.size || 20,
           degree: 0,
           opacity: 0,
+          floatHash: getFloatHash(nd.id),
         };
 
         setTimeout(() => { newNode.opacity = 1; }, 50);

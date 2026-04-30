@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     AI_SERVICE_URL: str = "http://localhost:8001/api/v1"
 
     # CORS
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001"]
 
     class Config:
         env_file = ".env"

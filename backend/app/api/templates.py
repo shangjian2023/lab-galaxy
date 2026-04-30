@@ -11,60 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_admin
 from app.models.models import PointsLog, Template, TemplateComment, TemplateLike, User
+from app.services.points import LEVEL_CONFIG, POINTS_RULES, calc_level, award_points
 
 router = APIRouter(prefix="/templates", tags=["templates"])
-
-# ========== Level System ==========
-
-LEVEL_CONFIG = [
-    {"level": 1, "title": "见习学者", "icon": "·", "points": 0, "frame": "none"},
-    {"level": 2, "title": "助理学者", "icon": "★", "points": 600, "frame": "copper"},
-    {"level": 3, "title": "正式学者", "icon": "★★", "points": 1800, "frame": "silver"},
-    {"level": 4, "title": "高级学者", "icon": "★★★", "points": 3600, "frame": "gold"},
-    {"level": 5, "title": "资深学者", "icon": "◆", "points": 6000, "frame": "diamond"},
-    {"level": 6, "title": "首席学者", "icon": "◆◆", "points": 10800, "frame": "rainbow"},
-    {"level": 7, "title": "荣誉学者", "icon": "⚜", "points": 18000, "frame": "dark_gold"},
-    {"level": 8, "title": "院士", "icon": "👑", "points": 30000, "frame": "crown"},
-    {"level": 9, "title": "传奇院士", "icon": "🌌", "points": 50000, "frame": "galaxy"},
-]
-
-POINTS_RULES = {
-    "upload_doc": 50,
-    "ai_parse_complete": 30,
-    "publish_template": 100,
-    "template_adopted": 200,
-    "comment_liked": 20,
-    "insight_accepted": 40,
-    "graph_contribution": 60,
-    "login_streak_7": 70,
-    "admin_featured": 80,
-}
-
-
-def calc_level(points: int) -> dict:
-    """Calculate level from total points."""
-    current = LEVEL_CONFIG[0]
-    for cfg in LEVEL_CONFIG:
-        if points >= cfg["points"]:
-            current = cfg
-        else:
-            break
-    idx = current["level"]
-    next_cfg = LEVEL_CONFIG[idx] if idx < len(LEVEL_CONFIG) else None
-    return {
-        "level": current["level"],
-        "title": current["title"],
-        "icon": current["icon"],
-        "frame": current["frame"],
-        "points": points,
-        "next_level_points": next_cfg["points"] if next_cfg else None,
-        "progress": (
-            (points - current["points"]) / (next_cfg["points"] - current["points"])
-            if next_cfg and next_cfg["points"] > current["points"]
-            else 1.0
-        ),
-    }
-
 
 # ========== Schemas ==========
 

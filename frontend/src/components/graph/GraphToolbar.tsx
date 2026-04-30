@@ -20,10 +20,19 @@ const VIEWS = [
 ] as const;
 
 export type ViewMode = "galaxy" | "timeline" | "matrix";
+export type GraphScope = "public" | "team" | "private";
+
+const SCOPES: { value: GraphScope; label: string; icon: string }[] = [
+  { value: "public", label: "公共图谱", icon: "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064" },
+  { value: "team", label: "团队图谱", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
+  { value: "private", label: "个人知识库", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" },
+];
 
 interface Props {
   viewType: ViewMode;
   onViewChange: (v: ViewMode) => void;
+  graphScope?: GraphScope;
+  onScopeChange?: (s: GraphScope) => void;
   nodeType: string;
   onNodeTypeChange: (t: string) => void;
   keyword: string;
@@ -39,54 +48,110 @@ interface Props {
   onForceSettingsChange: (s: ForceSettings) => void;
   onTimelineAnimate: () => void;
   isAnimating?: boolean;
+  onCleanupOrphans?: () => void;
+  onManageTeams?: () => void;
 }
 
 export default function GraphToolbar({
-  viewType, onViewChange, nodeType, onNodeTypeChange,
+  viewType, onViewChange, graphScope = "public", onScopeChange,
+  nodeType, onNodeTypeChange,
   keyword, onKeywordChange, onSearch, nodeCount, edgeCount,
   liveCount, fromDate, toDate, onDateChange,
   forceSettings, onForceSettingsChange, onTimelineAnimate, isAnimating,
+  onCleanupOrphans, onManageTeams,
 }: Props) {
   const [showSettings, setShowSettings] = useState(false);
 
+  const gearCls = showSettings
+    ? "bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
+    : "text-gray-400 hover:bg-white/40 hover:text-gray-600";
+
+  const timelineCls = isAnimating
+    ? "bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
+    : "bg-white/40 text-gray-500 hover:bg-white/60 hover:text-orange-700 ring-1 ring-white/40";
+
   return (
     <div className="space-y-3">
-      {/* View switcher + stats + settings toggle */}
+      {/* Scope + View switcher + stats + settings */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1 glass-button rounded-xl p-1">
-          {VIEWS.map((v) => (
-            <button
-              key={v.value}
-              onClick={() => onViewChange(v.value as ViewMode)}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
-                viewType === v.value
-                  ? "bg-white text-orange-700 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={v.icon} />
-              </svg>
-              {v.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          {/* Scope buttons */}
+          <div className="flex gap-0.5 rounded-xl bg-white/40 p-1 shadow-sm ring-1 ring-white/60">
+            {SCOPES.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => onScopeChange?.(s.value)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                  graphScope === s.value
+                    ? "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 shadow-md ring-1 ring-orange-300/40"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-white/50"
+                }`}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={s.icon} />
+                </svg>
+                {s.label}
+                {s.value === "team" && onManageTeams && (
+                  <svg
+                    className="h-3 w-3 ml-0.5 opacity-60"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    onClick={(e) => { e.stopPropagation(); onManageTeams(); }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* View switcher */}
+          <div className="flex gap-1 rounded-xl bg-white/40 p-1 shadow-sm ring-1 ring-white/60">
+            {VIEWS.map((v) => (
+              <button
+                key={v.value}
+                onClick={() => onViewChange(v.value as ViewMode)}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                  viewType === v.value
+                    ? "bg-white text-orange-700 shadow-md ring-1 ring-orange-200/50"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={v.icon} />
+                </svg>
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-3 text-xs text-gray-400">
-          <span>{nodeCount} 节点</span>
-          <span>{edgeCount} 关系</span>
+          <span className="rounded-full bg-white/50 px-2.5 py-0.5 ring-1 ring-white/40">{nodeCount} 节点</span>
+          <span className="rounded-full bg-white/50 px-2.5 py-0.5 ring-1 ring-white/40">{edgeCount} 关系</span>
           {liveCount !== undefined && liveCount > 0 && (
-            <span className="flex items-center gap-1 text-green-500">
+            <span className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-green-600 ring-1 ring-green-200/40">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              {liveCount} 实时更新
+              {liveCount} 更新
             </span>
+          )}
+
+          {onCleanupOrphans && (
+            <button
+              onClick={onCleanupOrphans}
+              className="rounded-lg px-2 py-0.5 text-[10px] font-medium text-red-400 hover:text-red-600 hover:bg-red-50 transition-all"
+              title="清理无关系的孤立节点"
+            >
+              清理孤立节点
+            </button>
           )}
 
           {/* Settings gear button */}
           {viewType === "galaxy" && (
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`rounded-lg p-1.5 transition-colors ${showSettings ? "bg-orange-100 text-orange-700" : "text-gray-400 hover:text-gray-600"}`}
+              className={`rounded-lg p-1.5 transition-all ${gearCls}`}
               title="力导向参数"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -101,11 +166,7 @@ export default function GraphToolbar({
             <button
               onClick={onTimelineAnimate}
               disabled={isAnimating}
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                isAnimating
-                  ? "bg-orange-100 text-orange-700"
-                  : "glass-button text-gray-500 hover:text-orange-700"
-              }`}
+              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${timelineCls}`}
             >
               {isAnimating ? "播放中..." : "时间轴动画"}
             </button>
@@ -118,7 +179,7 @@ export default function GraphToolbar({
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap items-center gap-2"
+          className="flex flex-wrap items-center gap-2 rounded-xl bg-white/30 px-3 py-2.5 ring-1 ring-white/50"
         >
           {TYPES.map((t) => (
             <button
@@ -126,8 +187,8 @@ export default function GraphToolbar({
               onClick={() => onNodeTypeChange(t.value)}
               className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-all ${
                 nodeType === t.value
-                  ? "border-orange-400 bg-orange-50 text-orange-700"
-                  : "glass-button text-gray-500"
+                  ? "border border-orange-400 bg-orange-50 text-orange-700 shadow-sm"
+                  : "bg-white/40 text-gray-500 hover:bg-white/60 ring-1 ring-white/40"
               }`}
             >
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
@@ -144,7 +205,7 @@ export default function GraphToolbar({
                   type="date"
                   value={fromDate || ""}
                   onChange={(e) => onDateChange(e.target.value || undefined, toDate)}
-                  className="glass-input rounded px-2 py-1 text-[10px]"
+                  className="rounded-lg bg-white/50 px-2 py-1 text-[10px] ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
                   placeholder="起始日期"
                 />
                 <span className="text-[10px] text-gray-400">—</span>
@@ -152,7 +213,7 @@ export default function GraphToolbar({
                   type="date"
                   value={toDate || ""}
                   onChange={(e) => onDateChange(fromDate, e.target.value || undefined)}
-                  className="glass-input rounded px-2 py-1 text-[10px]"
+                  className="rounded-lg bg-white/50 px-2 py-1 text-[10px] ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
                   placeholder="结束日期"
                 />
               </div>
@@ -163,7 +224,7 @@ export default function GraphToolbar({
               onChange={(e) => onKeywordChange(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onSearch()}
               placeholder="搜索节点..."
-              className="glass-input w-40 rounded-lg px-3 py-1.5 text-xs"
+              className="w-40 rounded-lg bg-white/50 px-3 py-1.5 text-xs ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
             />
             <button
               onClick={onSearch}
@@ -184,14 +245,14 @@ export default function GraphToolbar({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card rounded-xl p-4">
+            <div className="rounded-xl bg-white/30 p-4 ring-1 ring-white/50">
               <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="w-16 shrink-0">排斥力</span>
                   <input
                     type="range"
-                    min={-500}
-                    max={-50}
+                    min={-2000}
+                    max={-10}
                     step={10}
                     value={forceSettings.repel}
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, repel: +e.target.value })}
@@ -203,8 +264,8 @@ export default function GraphToolbar({
                   <span className="w-16 shrink-0">连接距离</span>
                   <input
                     type="range"
-                    min={30}
-                    max={200}
+                    min={20}
+                    max={500}
                     step={5}
                     value={forceSettings.linkDistance}
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, linkDistance: +e.target.value })}
@@ -216,8 +277,8 @@ export default function GraphToolbar({
                   <span className="w-16 shrink-0">节点大小</span>
                   <input
                     type="range"
-                    min={0.5}
-                    max={3}
+                    min={0.1}
+                    max={10}
                     step={0.1}
                     value={forceSettings.nodeSize}
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, nodeSize: +e.target.value })}
@@ -226,11 +287,24 @@ export default function GraphToolbar({
                   <span className="w-10 text-right text-gray-400">{forceSettings.nodeSize.toFixed(1)}x</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="w-16 shrink-0">实验节点</span>
+                  <input
+                    type="range"
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    value={forceSettings.experimentSize}
+                    onChange={(e) => onForceSettingsChange({ ...forceSettings, experimentSize: +e.target.value })}
+                    className="flex-1 accent-orange-500"
+                  />
+                  <span className="w-10 text-right text-gray-400">{forceSettings.experimentSize.toFixed(1)}x</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="w-16 shrink-0">连接粗细</span>
                   <input
                     type="range"
-                    min={0.5}
-                    max={3}
+                    min={0.2}
+                    max={5}
                     step={0.1}
                     value={forceSettings.linkWidth}
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, linkWidth: +e.target.value })}

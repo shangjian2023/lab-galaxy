@@ -290,7 +290,7 @@ export interface CytoscapeData {
   edges: CytoscapeEdge[];
 }
 
-export function getGraphData(nodeType?: string, keyword?: string, limit = 500, fromDate?: string, toDate?: string, years?: number[]) {
+export function getGraphData(nodeType?: string, keyword?: string, limit = 500, fromDate?: string, toDate?: string, years?: number[], scope?: string) {
   const params = new URLSearchParams();
   if (nodeType) params.set("node_type", nodeType);
   if (keyword) params.set("keyword", keyword);
@@ -298,11 +298,20 @@ export function getGraphData(nodeType?: string, keyword?: string, limit = 500, f
   if (fromDate) params.set("from_date", fromDate);
   if (toDate) params.set("to_date", toDate);
   if (years && years.length > 0) params.set("years", years.join(","));
+  if (scope) params.set("scope", scope);
   return request<CytoscapeData>(`/graph/data?${params}`);
 }
 
-export function getGraphYears() {
-  return request<{ years: number[] }>("/graph/years");
+export function getGraphYears(scope?: string) {
+  const params = scope ? `?scope=${scope}` : "";
+  return request<{ years: number[] }>(`/graph/years${params}`);
+}
+
+export function cleanupOrphanedNodes() {
+  return request<{ removed_experiments: number; removed_isolated: number; total: number }>(
+    "/graph/cleanup/orphans",
+    "POST",
+  );
 }
 
 export interface TimelineEntry {
@@ -310,8 +319,9 @@ export interface TimelineEntry {
   node: { id: string; name: string; type: string; summary: string; color: string };
 }
 
-export function getTimelineData() {
-  return request<TimelineEntry[]>("/graph/timeline");
+export function getTimelineData(scope?: string) {
+  const params = scope ? `?scope=${scope}` : "";
+  return request<TimelineEntry[]>(`/graph/timeline${params}`);
 }
 
 export interface MatrixEntry {
@@ -321,8 +331,9 @@ export interface MatrixEntry {
   count: number;
 }
 
-export function getMatrixData() {
-  return request<MatrixEntry[]>("/graph/matrix");
+export function getMatrixData(scope?: string) {
+  const params = scope ? `?scope=${scope}` : "";
+  return request<MatrixEntry[]>(`/graph/matrix${params}`);
 }
 
 // ========== Workbench APIs ==========
@@ -504,8 +515,13 @@ export interface QueryResult {
   entities: { id: string; name: string; type: string; summary: string; document_id?: string }[];
 }
 
-export function naturalLanguageQuery(question: string) {
-  return request<QueryResult>("/query", "POST", { question });
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export function naturalLanguageQuery(question: string, history: ChatMessage[] = []) {
+  return request<QueryResult>("/query", "POST", { question, history });
 }
 
 export function suggestRelations(nodeId: string) {
@@ -554,4 +570,196 @@ export interface DashboardData {
 
 export function getDashboard() {
   return request<DashboardData>("/users/me/dashboard");
+}
+
+// ========== Teams ==========
+
+export interface TeamInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_id: string;
+  owner_nickname: string;
+  member_count: number;
+  created_at: string;
+}
+
+export interface TeamDetail extends TeamInfo {
+  members: {
+    user_id: string;
+    username: string;
+    nickname: string;
+    avatar: string | null;
+    role: string;
+    joined_at: string;
+  }[];
+}
+
+export function createTeam(data: { name: string; description?: string }) {
+  return request<TeamInfo>("/teams/create", "POST", data);
+}
+
+export function getMyTeams() {
+  return request<TeamInfo[]>("/teams/my");
+}
+
+export function getTeam(teamId: string) {
+  return request<TeamDetail>(`/teams/${teamId}`);
+}
+
+export function inviteToTeam(teamId: string, username: string) {
+  return request<{ status: string; message: string }>(`/teams/${teamId}/invite`, "POST", { username });
+}
+
+export function leaveTeam(teamId: string) {
+  return request<{ status: string; message: string }>(`/teams/${teamId}/leave`, "POST");
+}
+
+export function deleteTeam(teamId: string) {
+  return request<{ status: string; message: string }>(`/teams/${teamId}`, "DELETE");
+}
+
+export function searchUsers(keyword: string) {
+  return request<{ id: string; username: string; nickname: string; avatar: string | null }[]>(`/teams/search/users?keyword=${encodeURIComponent(keyword)}`);
+}
+
+// ========== Forum ==========
+
+export interface ForumBoard {
+  slug: string;
+  name: string;
+  icon: string;
+  description: string;
+  color: string;
+  thread_count: number;
+}
+
+export interface ForumThread {
+  id: string;
+  board: string;
+  sub_board: string | null;
+  post_type: string;
+  title: string;
+  content: string;
+  tags: string[] | null;
+  graph_node_ids: string[] | null;
+  status: string;
+  is_featured: boolean;
+  reply_count: number;
+  like_count: number;
+  view_count: number;
+  created_by: string;
+  author_nickname: string;
+  author_avatar: string | null;
+  author_level: number;
+  created_at: string;
+  updated_at: string;
+  is_liked: boolean;
+  is_bookmarked: boolean;
+}
+
+export interface ForumReply {
+  id: string;
+  thread_id: string;
+  parent_id: string | null;
+  content: string;
+  graph_node_ids: string[] | null;
+  is_best_answer: boolean;
+  like_count: number;
+  created_by: string;
+  author_nickname: string;
+  author_avatar: string | null;
+  author_level: number;
+  created_at: string;
+  updated_at: string;
+  is_liked: boolean;
+}
+
+export interface ForumThreadListResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  items: ForumThread[];
+}
+
+export interface ForumThreadDetailResponse {
+  thread: ForumThread;
+  replies: ForumReply[];
+}
+
+export function listForumBoards() {
+  return request<{ boards: ForumBoard[] }>("/forum/boards");
+}
+
+export function listForumThreads(params: {
+  board?: string;
+  sort?: string;
+  keyword?: string;
+  page?: number;
+  page_size?: number;
+} = {}) {
+  const qs = new URLSearchParams();
+  if (params.board) qs.set("board", params.board);
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.keyword) qs.set("keyword", params.keyword);
+  if (params.page) qs.set("page", String(params.page));
+  if (params.page_size) qs.set("page_size", String(params.page_size));
+  const q = qs.toString() ? `?${qs.toString()}` : "";
+  return request<ForumThreadListResponse>(`/forum/threads${q}`);
+}
+
+export function getForumThread(id: string) {
+  return request<ForumThreadDetailResponse>(`/forum/threads/${id}`);
+}
+
+export function createForumThread(data: {
+  board: string;
+  sub_board?: string;
+  post_type?: string;
+  title: string;
+  content: string;
+  tags?: string[];
+  graph_node_ids?: string[];
+}) {
+  return request<{ id: string; points_earned: number; new_level: number }>("/forum/threads", "POST", data);
+}
+
+export function updateForumThread(id: string, data: { title?: string; content?: string; tags?: string[] }) {
+  return request<{ status: string }>(`/forum/threads/${id}`, "PATCH", data);
+}
+
+export function deleteForumThread(id: string) {
+  return request<void>(`/forum/threads/${id}`, "DELETE");
+}
+
+export function toggleThreadLike(id: string) {
+  return request<{ is_liked: boolean; like_count: number }>(`/forum/threads/${id}/like`, "POST");
+}
+
+export function toggleThreadBookmark(id: string) {
+  return request<{ is_bookmarked: boolean }>(`/forum/threads/${id}/bookmark`, "POST");
+}
+
+export function createForumReply(threadId: string, data: { content: string; parent_id?: string; graph_node_ids?: string[] }) {
+  return request<{ id: string; content: string; created_at: string; points_earned: number; new_level: number }>(`/forum/threads/${threadId}/reply`, "POST", data);
+}
+
+export function toggleReplyLike(replyId: string) {
+  return request<{ is_liked: boolean; like_count: number }>(`/forum/replies/${replyId}/like`, "POST");
+}
+
+export function changeThreadStatus(threadId: string, status: string) {
+  return request<{ status: string; is_featured: boolean }>(`/forum/threads/${threadId}/status?status=${status}`, "PATCH");
+}
+
+export function markBestAnswer(threadId: string, replyId: string) {
+  return request<{ status: string }>(`/forum/threads/${threadId}/best-answer/${replyId}`, "POST");
+}
+
+export function getMyForumThreads(page = 1) {
+  return request<ForumThreadListResponse>(`/forum/me/threads?page=${page}`);
+}
+
+export function getMyForumBookmarks(page = 1) {
+  return request<ForumThreadListResponse>(`/forum/me/bookmarks?page=${page}`);
 }
