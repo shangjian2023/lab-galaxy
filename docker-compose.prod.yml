@@ -84,6 +84,8 @@ services:
       context: .
       dockerfile: Dockerfile.ai_service
     container_name: kg_ai_service
+    ports:
+      - "127.0.0.1:8001:8001"
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -119,6 +121,8 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: kg_backend
+    ports:
+      - "127.0.0.1:8000:8000"
     environment:
       PROJECT_NAME: 知识图谱平台
       DEBUG: "false"
@@ -155,7 +159,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}/api/v1
+        NEXT_PUBLIC_API_URL: /api/v1
     container_name: kg_frontend
     depends_on:
       - backend

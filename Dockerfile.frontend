@@ -10,7 +10,7 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 COPY frontend/ .
-RUN npm run build
+RUN mkdir -p public && npm run build
 
 # Stage 2: Run
 FROM node:20-alpine AS runner

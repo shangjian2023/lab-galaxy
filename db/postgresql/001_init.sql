@@ -114,7 +114,7 @@ INSERT INTO users (username, email, hashed_password, role, nickname)
 VALUES (
     'admin',
     'admin@example.com',
-    '$2b$12$LJ3m4ys3Lk0TSwMi0fZBuuZvFXE8vQ0hmqQJ1qWqF1fGqN8qTqKKe',
+    '$2b$12$Dm4pgNmLO0Pszk/YQZfXqOouW70c/2OBGzI8ssLczkxYpLebB0c.W',
     'admin',
     '管理员'
 ) ON CONFLICT (username) DO NOTHING;

@@ -63,10 +63,8 @@ def _get_embedding_model():
         if _cached_model is not None:
             return _cached_model
         os.environ.setdefault("HF_ENDPOINT", settings.HF_ENDPOINT)
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
-        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-        from sentence_transformers import SentenceTransformer
-        _cached_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        from fastembed import TextEmbedding
+        _cached_model = TextEmbedding(model_name=settings.EMBEDDING_MODEL)
         return _cached_model
 
 
@@ -104,7 +102,7 @@ def _build_index_sync(texts: list[str], ids: list[str]):
     global _faiss_index
 
     model = _get_embedding_model()
-    embeddings = model.encode(texts, normalize_embeddings=True)
+    embeddings = np.stack(list(model.embed(texts)))
     dim = embeddings.shape[1]
 
     _faiss_index = faiss.IndexIDMap(faiss.IndexFlatIP(dim))
@@ -120,7 +118,7 @@ def _add_to_index_sync(texts: list[str], ids: list[str]):
     global _faiss_index
 
     model = _get_embedding_model()
-    embeddings = model.encode(texts, normalize_embeddings=True).astype("float32")
+    embeddings = np.stack(list(model.embed(texts))).astype("float32")
     int_ids = np.array([_to_int_id(i) for i in ids])
 
     _load_faiss_index()
@@ -145,7 +143,7 @@ def _search_sync(query: str, top_k: int) -> list[tuple[str, float]]:
         return []
 
     model = _get_embedding_model()
-    q_emb = model.encode([query], normalize_embeddings=True).astype("float32")
+    q_emb = np.stack(list(model.embed([query]))).astype("float32")
 
     scores, ids = _faiss_index.search(q_emb, top_k)
     return [
