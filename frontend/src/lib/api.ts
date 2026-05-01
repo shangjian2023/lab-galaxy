@@ -540,6 +540,13 @@ export function createGraphRelation(data: { source_id: string; target_id: string
 
 // ========== Dashboard ==========
 
+export interface QuotaInfo {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+  unlimited: boolean;
+}
+
 export interface DashboardData {
   user: {
     id: string;
@@ -554,6 +561,10 @@ export interface DashboardData {
     template_count: number;
     points: number;
     level: number;
+  };
+  quota?: {
+    query: QuotaInfo;
+    upload: QuotaInfo;
   };
   recent_documents: {
     id: string;

@@ -23,7 +23,7 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def _apply_schema_updates():
-    """Apply incremental schema updates that Alembic would normally handle."""
+    """Apply incremental schema updates (daily_usage, forum, teams, etc.)."""
     from app.core.database import engine
     from sqlalchemy import text
 
@@ -181,6 +181,23 @@ async def _apply_schema_updates():
             logger.info("Team schema migration completed.")
         except Exception as e:
             logger.debug(f"Team migration may have partial issues: {e}")
+
+        # Daily usage (rate limiting)
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS daily_usage (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    date DATE NOT NULL DEFAULT CURRENT_DATE,
+                    query_count INTEGER NOT NULL DEFAULT 0,
+                    upload_count INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE (user_id, date)
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)"))
+            logger.info("Daily usage schema migration completed.")
+        except Exception as e:
+            logger.debug(f"Daily usage migration may have partial issues: {e}")
 
 
 @app.get("/health")

@@ -20,6 +20,7 @@ from app.schemas.document import (
     IngestConfirmRequest,
 )
 from app.services.storage import upload_file
+from app.services.usage import check_upload_quota, increment_upload
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +216,13 @@ async def upload_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    quota = await check_upload_quota(db, current_user)
+    if not quota["allowed"]:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"今日上传次数已用完（{quota['limit']}/{quota['limit']}），请明天再试",
+        )
+
     filename = file.filename or "unknown"
     content = await file.read()
     try:
@@ -241,6 +249,10 @@ async def upload_document(
     await db.commit()
     await db.refresh(doc)
 
+    if not quota["unlimited"]:
+        await increment_upload(db, current_user.id)
+        await db.commit()
+
     # Trigger AI processing in the background
     import asyncio
     task = asyncio.create_task(_process_single(str(doc.id), content, filename))
@@ -260,6 +272,13 @@ async def upload_batch(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    quota = await check_upload_quota(db, current_user)
+    if not quota["allowed"]:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"今日上传次数已用完（{quota['limit']}/{quota['limit']}），请明天再试",
+        )
+
     meta = _parse_upload_meta(experiment_year, experiment_type, subjects, privacy)
     docs: list[Document] = []
     pending_processing: list[tuple[Document, bytes, str]] = []
@@ -293,6 +312,10 @@ async def upload_batch(
     await db.commit()
     for doc in docs:
         await db.refresh(doc)
+
+    if not quota["unlimited"] and docs:
+        await increment_upload(db, current_user.id)
+        await db.commit()
 
     import asyncio
     for doc, content, filename in pending_processing:

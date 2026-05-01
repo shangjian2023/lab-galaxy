@@ -15,6 +15,7 @@ from app.schemas.user import (
     UserRegister,
     UserUpdate,
 )
+from app.services.usage import get_quota_info
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -96,6 +97,8 @@ async def get_dashboard(
         select(PointsLog).where(PointsLog.user_id == uid).order_by(PointsLog.created_at.desc()).limit(5)
     )).scalars().all()
 
+    quota = await get_quota_info(db, current_user)
+
     return {
         "user": {
             "id": str(current_user.id),
@@ -111,6 +114,7 @@ async def get_dashboard(
             "points": current_user.points,
             "level": current_user.level,
         },
+        "quota": quota,
         "recent_documents": [
             {
                 "id": str(d.id),

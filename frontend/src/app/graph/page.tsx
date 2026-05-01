@@ -21,7 +21,7 @@ import TimelineView from "@/components/graph/TimelineView";
 import MatrixView from "@/components/graph/MatrixView";
 import NodeCard from "@/components/graph/NodeCard";
 import GraphToolbar, { type ViewMode } from "@/components/graph/GraphToolbar";
-import PixelCharacter from "@/components/graph/PixelCharacter";
+import DraggablePixelChar from "@/components/graph/DraggablePixelChar";
 import InsightOverlay from "@/components/insight/InsightOverlay";
 import QueryPanel from "@/components/query/QueryPanel";
 import TeamManager from "@/components/graph/TeamManager";
@@ -645,15 +645,8 @@ function GraphPageContent() {
         )}
       </AnimatePresence>
 
-      {/* ── Pixel Character (fixed top-left, click to toggle fullscreen) ── */}
-      <div className="fixed left-4 top-28 z-50" style={{ pointerEvents: "auto" }}>
-        <div className="flex flex-col items-center gap-0.5">
-          <PixelCharacter isFullscreen={isFullscreen} onToggle={() => setIsFullscreen((v) => !v)} />
-          <span className="rounded-md bg-gradient-to-r from-orange-500 to-amber-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-md shadow-orange-400/30">
-            {isFullscreen ? "点击还原" : "点击全屏"}
-          </span>
-        </div>
-      </div>
+      {/* ── Draggable Pixel Character ── */}
+      <DraggablePixelChar isFullscreen={isFullscreen} onToggle={() => setIsFullscreen((v) => !v)} />
 
       {/* Inline graph container */}
       <div

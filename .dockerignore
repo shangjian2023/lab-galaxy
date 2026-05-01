@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.local
+*.log
+.git/
+.gitignore
+README.md
+.claude/
+tmp_*

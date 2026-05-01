@@ -37,15 +37,18 @@ const BODY_PATH = BODY_PIXELS.map(([x, y]) => `M${x} ${y}h1v1h-1z`).join("");
 interface Props {
   isFullscreen: boolean;
   onToggle: () => void;
+  scared?: boolean;
 }
 
-export default function PixelCharacter({ isFullscreen, onToggle }: Props) {
+export default function PixelCharacter({ isFullscreen, onToggle, scared: externalScared }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   const [renderTick, setRenderTick] = useState(0);
   const [isScared, setIsScared] = useState(false);
   const [clipPath, setClipPath] = useState("inset(0% 0% 100% 0% round 2px)");
   const rafIdRef = useRef<number>(0);
+
+  const scared = externalScared ?? isScared;
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const x = e.clientX;
@@ -135,8 +138,8 @@ export default function PixelCharacter({ isFullscreen, onToggle }: Props) {
           imageRendering: "pixelated",
           shapeRendering: "crispEdges",
         }}
-        animate={isScared ? { x: [-1, 1, -1, 1, 0] } : {}}
-        transition={isScared ? { duration: 0.08, repeat: Infinity } : {}}
+        animate={scared ? { x: [-1, 1, -1, 1, 0] } : {}}
+        transition={scared ? { duration: 0.08, repeat: Infinity } : {}}
       >
         {/* Base body (single path = one draw call) */}
         <path d={BODY_PATH} fill={BODY_NORMAL} />
@@ -145,11 +148,11 @@ export default function PixelCharacter({ isFullscreen, onToggle }: Props) {
         <path d={BODY_PATH} fill={BODY_FULL} style={{ clipPath, transition: "clip-path 0.6s cubic-bezier(0.4, 0, 0.2, 1)" }} />
 
         {/* Eyes */}
-        <rect x={5} y={1} width={2} height={2} fill={isScared ? SCARED_WHITE : EYE_COLOR} />
-        <rect x={8} y={1} width={2} height={2} fill={isScared ? SCARED_WHITE : EYE_COLOR} />
+        <rect x={5} y={1} width={2} height={2} fill={scared ? SCARED_WHITE : EYE_COLOR} />
+        <rect x={8} y={1} width={2} height={2} fill={scared ? SCARED_WHITE : EYE_COLOR} />
 
         {/* Pupils */}
-        {!isScared && (
+        {!scared && (
           <>
             <rect x={5.5 + pupilOffsets.lx} y={1.3 + pupilOffsets.ly} width={1} height={1} fill={PUPIL_COLOR} />
             <rect x={8.5 + pupilOffsets.rx} y={1.3 + pupilOffsets.ry} width={1} height={1} fill={PUPIL_COLOR} />
@@ -157,7 +160,7 @@ export default function PixelCharacter({ isFullscreen, onToggle }: Props) {
         )}
 
         {/* Scared mouth */}
-        {isScared && <rect x={6} y={3} width={1} height={1} fill={SCARED_WHITE} />}
+        {scared && <rect x={6} y={3} width={1} height={1} fill={SCARED_WHITE} />}
       </motion.svg>
     </div>
   );

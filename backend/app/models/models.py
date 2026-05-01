@@ -198,3 +198,16 @@ class TeamMember(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     role: Mapped[str] = mapped_column(String(20), default="member")  # owner / admin / member
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# ── Rate Limiting ──
+
+class DailyUsage(Base):
+    __tablename__ = "daily_usage"
+    __table_args__ = (UniqueConstraint("user_id", "date"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    query_count: Mapped[int] = mapped_column(Integer, default=0)
+    upload_count: Mapped[int] = mapped_column(Integer, default=0)
