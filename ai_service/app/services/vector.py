@@ -138,6 +138,8 @@ def _add_to_index_sync(texts: list[str], ids: list[str]):
 
 
 def _search_sync(query: str, top_k: int) -> list[tuple[str, float]]:
+    import numpy as np
+
     _load_faiss_index()
     if _faiss_index is None:
         return []
