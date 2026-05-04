@@ -101,6 +101,7 @@ services:
       REDIS_URL: redis://redis:6379/1
       HF_ENDPOINT: https://hf-mirror.com
       EMBEDDING_MODEL: BAAI/bge-small-zh-v1.5
+      FASTEMBED_CACHE_PATH: /app/fastembed_cache
       FAISS_INDEX_PATH: /app/data/faiss_index
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:

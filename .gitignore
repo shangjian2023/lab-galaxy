@@ -47,3 +47,10 @@ ai_service/data/
 *.docx
 *.pdf
 !frontend/public/**
+
+# Secrets
+*.pem
+
+# Build artifacts
+*.tar.gz
+*.tsbuildinfo
