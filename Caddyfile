@@ -1,3 +1,7 @@
+api.mazhuoran.cloud {
+    reverse_proxy backend:8000
+}
+
 graph.mazhuoran.cloud {
     @websocket {
         header Connection *Upgrade*
