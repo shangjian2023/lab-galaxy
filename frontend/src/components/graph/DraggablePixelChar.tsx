@@ -46,6 +46,8 @@ export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
   const charRef = useRef<HTMLDivElement>(null);
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   const scaredRafRef = useRef(0);
+  const posRef = useRef(pos);
+  posRef.current = pos;
 
   // Clamp on resize
   useEffect(() => {
@@ -82,20 +84,6 @@ export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
       if (scaredRafRef.current) cancelAnimationFrame(scaredRafRef.current);
     };
   }, []);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    dragRef.current = {
-      originX: pos.x,
-      originY: pos.y,
-      startX: e.clientX,
-      startY: e.clientY,
-      moved: 0,
-    };
-    window.addEventListener("mousemove", handleWindowMouseMove);
-    window.addEventListener("mouseup", handleWindowMouseUp);
-  }, [pos]);
 
   const handleWindowMouseMove = useCallback((e: MouseEvent) => {
     const d = dragRef.current;
@@ -136,14 +124,30 @@ export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
     }
   }, [onToggle, handleWindowMouseMove]);
 
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const p = posRef.current;
+    dragRef.current = {
+      originX: p.x,
+      originY: p.y,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: 0,
+    };
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+  }, [handleWindowMouseMove, handleWindowMouseUp]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
-      savePosition(pos.x, pos.y);
+      const p = posRef.current;
+      savePosition(p.x, p.y);
     };
-  }, [handleWindowMouseMove, handleWindowMouseUp, pos]);
+  }, [handleWindowMouseMove, handleWindowMouseUp]);
 
   return (
     <div
