@@ -82,7 +82,7 @@ export default function AdminTemplatesPage() {
               <th className="px-3 py-2 font-medium">创建者</th>
               <th className="px-3 py-2 font-medium">❤️</th>
               <th className="px-3 py-2 font-medium">下载</th>
-              <th className="px-3 py-2 font-medium">采纳</th>
+              <th className="px-3 py-2 font-medium">收藏</th>
               <th className="px-3 py-2 font-medium">操作</th>
             </tr>
           </thead>
@@ -130,7 +130,7 @@ export default function AdminTemplatesPage() {
                   <td className="px-3 py-2 text-xs text-gray-400">{tpl.created_by?.slice(0, 8)}</td>
                   <td className="px-3 py-2 text-xs">{tpl.likes}</td>
                   <td className="px-3 py-2 text-xs">{tpl.downloads}</td>
-                  <td className="px-3 py-2 text-xs">{tpl.adoptions}</td>
+                  <td className="px-3 py-2 text-xs">{tpl.bookmarks}</td>
                   <td className="px-3 py-2 space-x-2">
                     <button
                       onClick={() => setEditing(isEditing ? null : tpl.id)}

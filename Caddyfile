@@ -1,4 +1,10 @@
 graph.mazhuoran.cloud {
+    handle /api/v1/ws/* {
+        reverse_proxy backend:8000 {
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+        }
+    }
     handle /api/* {
         reverse_proxy backend:8000
     }

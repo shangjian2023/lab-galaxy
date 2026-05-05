@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMyTeams, createTeam, getTeam, inviteToTeam, leaveTeam, deleteTeam, searchUsers, getProfile } from "@/lib/api";
 import type { TeamInfo, TeamDetail } from "@/lib/api";
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function TeamManager({ open, onClose }: Props) {
+  const router = useRouter();
   const [teams, setTeams] = useState<TeamInfo[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<TeamDetail | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -253,6 +255,12 @@ export default function TeamManager({ open, onClose }: Props) {
                     {selectedTeam.description && (
                       <p className="text-xs text-gray-400">{selectedTeam.description}</p>
                     )}
+                    <button
+                      onClick={() => { onClose(); router.push(`/team/${selectedTeam.id}`); }}
+                      className="mt-2 w-full rounded-lg bg-orange-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
+                    >
+                      进入团队空间
+                    </button>
                   </div>
 
                   {/* Members */}

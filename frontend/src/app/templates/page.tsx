@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { browseTemplates, toggleTemplateLike, adoptTemplate, deleteTemplate, type TemplateItem } from "@/lib/api";
+import { browseTemplates, toggleTemplateLike, bookmarkTemplate, deleteTemplate, getTemplate, type TemplateItem } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { soundEngine } from "@/lib/audio/SoundEngine";
+import { markdownToDocx, downloadBlob } from "@/lib/word-utils";
 
 const CATEGORIES = [
   { value: "", label: "全部" },
@@ -43,10 +44,10 @@ export default function TemplatesPage() {
     setItems((prev) => prev.map((t) => t.id === id ? { ...t, is_liked: res.is_liked, likes: res.likes } : t));
   };
 
-  const handleAdopt = async (id: string) => {
-    await adoptTemplate(id);
+  const handleBookmark = async (id: string) => {
+    await bookmarkTemplate(id);
     soundEngine.play("achievement");
-    setItems((prev) => prev.map((t) => t.id === id ? { ...t, adoptions: t.adoptions + 1 } : t));
+    setItems((prev) => prev.map((t) => t.id === id ? { ...t, bookmarks: t.bookmarks + 1 } : t));
   };
 
   const handleDelete = async (id: string) => {
@@ -54,6 +55,16 @@ export default function TemplatesPage() {
     await deleteTemplate(id);
     soundEngine.play("connect");
     load();
+  };
+
+  const handleDownload = async (tpl: TemplateItem) => {
+    try {
+      const detail = await getTemplate(tpl.id);
+      const blob = await markdownToDocx(detail.content || "");
+      downloadBlob(blob, `${tpl.name}.docx`);
+    } catch {
+      // silently fail
+    }
   };
 
   return (
@@ -126,13 +137,18 @@ export default function TemplatesPage() {
                   </svg>
                   {tpl.likes}
                 </button>
-                <span>{tpl.downloads} 下载</span>
-                <span>{tpl.adoptions} 采纳</span>
+                <span>{tpl.bookmarks} 收藏</span>
               </div>
-              <button onClick={() => handleAdopt(tpl.id)}
-                className="btn-primary rounded-lg px-3 py-1 text-xs font-medium text-white">
-                采纳
-              </button>
+              <div className="flex gap-1.5">
+                <button onClick={() => handleDownload(tpl)}
+                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-500 transition-colors hover:border-orange-300 hover:text-orange-600">
+                  下载 Word
+                </button>
+                <button onClick={() => handleBookmark(tpl.id)}
+                  className="btn-primary rounded-lg px-3 py-1 text-xs font-medium text-white">
+                  收藏
+                </button>
+              </div>
             </div>
           </motion.div>
         ))}

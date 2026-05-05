@@ -74,7 +74,7 @@ async def marketplace(
             "id": str(t.id), "name": t.name, "description": t.description,
             "tags": t.tags, "category": t.category,
             "status": t.status, "is_official": t.is_official,
-            "likes": t.likes, "downloads": t.downloads, "adoptions": t.adoptions,
+            "likes": t.likes, "downloads": t.downloads, "bookmarks": t.adoptions,
             "is_liked": str(t.id) in liked,
             "created_by": str(t.created_by), "created_at": t.created_at.isoformat(),
         })
@@ -103,7 +103,7 @@ async def get_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
         "id": str(tpl.id), "name": tpl.name, "description": tpl.description,
         "content": tpl.content, "tags": tpl.tags, "category": tpl.category,
         "status": tpl.status, "is_official": tpl.is_official,
-        "likes": tpl.likes, "downloads": tpl.downloads, "adoptions": tpl.adoptions,
+        "likes": tpl.likes, "downloads": tpl.downloads, "bookmarks": tpl.adoptions,
         "is_liked": liked is not None,
         "created_by": str(tpl.created_by), "created_at": tpl.created_at.isoformat(),
         "comments": [{"id": str(c.id), "user_id": str(c.user_id), "content": c.content, "created_at": c.created_at.isoformat()} for c in comments],
@@ -184,26 +184,25 @@ async def toggle_like(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db), cur
         return {"is_liked": True, "likes": tpl.likes}
 
 
-@router.post("/{tpl_id}/adopt")
-async def adopt_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.post("/{tpl_id}/bookmark")
+async def bookmark_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     tpl = (await db.execute(select(Template).where(Template.id == tpl_id))).scalar_one_or_none()
     if not tpl or tpl.status != "published":
         raise HTTPException(404)
     tpl.adoptions += 1
-    tpl.downloads += 1
     # Award points to template creator
     creator = (await db.execute(select(User).where(User.id == tpl.created_by))).scalar_one_or_none()
     if creator:
         creator.points += POINTS_RULES["template_adopted"]
-        db.add(PointsLog(user_id=creator.id, change=POINTS_RULES["template_adopted"], reason=f"模板「{tpl.name}」被采纳"))
+        db.add(PointsLog(user_id=creator.id, change=POINTS_RULES["template_adopted"], reason=f"模板「{tpl.name}」被收藏"))
         new_level = calc_level(creator.points)["level"]
         if new_level > creator.level:
             creator.level = new_level
-    # Award points to adopter
+    # Award points to user
     current_user.points += 20
-    db.add(PointsLog(user_id=current_user.id, change=20, reason=f"采纳模板「{tpl.name}」"))
+    db.add(PointsLog(user_id=current_user.id, change=20, reason=f"收藏模板「{tpl.name}」"))
     await db.commit()
-    return {"status": "adopted", "adoptions": tpl.adoptions}
+    return {"status": "bookmarked", "bookmarks": tpl.adoptions}
 
 
 @router.post("/{tpl_id}/comments")

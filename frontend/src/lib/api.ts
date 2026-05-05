@@ -416,7 +416,7 @@ export interface TemplateItem {
   is_official: boolean;
   likes: number;
   downloads: number;
-  adoptions: number;
+  bookmarks: number;
   is_liked: boolean;
   created_by: string;
   created_at: string;
@@ -455,8 +455,8 @@ export function toggleTemplateLike(id: string) {
   return request<{ is_liked: boolean; likes: number }>(`/templates/${id}/like`, "POST");
 }
 
-export function adoptTemplate(id: string) {
-  return request<{ status: string; adoptions: number }>(`/templates/${id}/adopt`, "POST");
+export function bookmarkTemplate(id: string) {
+  return request<{ status: string; bookmarks: number }>(`/templates/${id}/bookmark`, "POST");
 }
 
 export function addTemplateComment(id: string, content: string) {
@@ -632,6 +632,40 @@ export function deleteTeam(teamId: string) {
 
 export function searchUsers(keyword: string) {
   return request<{ id: string; username: string; nickname: string; avatar: string | null }[]>(`/teams/search/users?keyword=${encodeURIComponent(keyword)}`);
+}
+
+// ========== Team Chat ==========
+
+export interface ChatMessageItem {
+  id: string;
+  team_id: string;
+  user_id: string;
+  nickname: string;
+  avatar: string | null;
+  message_type: "text" | "system";
+  content: string;
+  created_at: string;
+}
+
+export interface ChatHistoryResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  items: ChatMessageItem[];
+}
+
+export function getTeamMessages(teamId: string, page = 1, pageSize = 50) {
+  return request<ChatHistoryResponse>(`/teams/${teamId}/messages?page=${page}&page_size=${pageSize}`);
+}
+
+export function getRecentMessages(teamId: string, limit = 50) {
+  return request<{ items: ChatMessageItem[] }>(`/teams/${teamId}/messages/recent?limit=${limit}`);
+}
+
+export function createTeamChatWS(teamId: string): WebSocket {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(/^http/, "ws");
+  return new WebSocket(`${base}/ws/team/${teamId}?token=${token}`);
 }
 
 // ========== Forum ==========

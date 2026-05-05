@@ -9,7 +9,7 @@ import {
   deleteTemplate,
   publishTemplate,
   toggleTemplateLike,
-  adoptTemplate,
+  bookmarkTemplate,
   addTemplateComment,
   getMyGrowth,
 } from "@/lib/api";
@@ -70,10 +70,10 @@ export function useToggleTemplateLike() {
   });
 }
 
-export function useAdoptTemplate() {
+export function useBookmarkTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: adoptTemplate,
+    mutationFn: bookmarkTemplate,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
   });
 }

@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 const NAV_ITEMS = [
   { href: "/graph", label: "知识图谱" },
   { href: "/workbench", label: "工作台" },
+  { href: "/team", label: "团队空间" },
   { href: "/forum", label: "🧪 知识发酵池" },
   { href: "/templates", label: "模板市场" },
 ];

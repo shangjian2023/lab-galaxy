@@ -119,7 +119,7 @@ const RULE_LABELS: Record<string, string> = {
   upload_doc: "上传实验资料",
   ai_parse_complete: "AI 解析完成",
   publish_template: "发布模板",
-  template_adopted: "模板被采纳",
+  template_adopted: "模板被收藏",
   comment_liked: "评论被点赞",
   insight_accepted: "洞察被采纳",
   graph_contribution: "图谱贡献",

@@ -20,6 +20,21 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="/api/v1")
 
+from app.api.ws_chat import router as ws_router
+app.include_router(ws_router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+async def _startup_chat_bus():
+    from app.services.chat_bus import chat_bus
+    await chat_bus.connect()
+
+
+@app.on_event("shutdown")
+async def _shutdown_chat_bus():
+    from app.services.chat_bus import chat_bus
+    await chat_bus.close()
+
 
 @app.on_event("startup")
 async def _apply_schema_updates():
@@ -181,6 +196,24 @@ async def _apply_schema_updates():
             logger.info("Team schema migration completed.")
         except Exception as e:
             logger.debug(f"Team migration may have partial issues: {e}")
+
+        # Team messages
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS team_messages (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+                    user_id UUID NOT NULL REFERENCES users(id),
+                    message_type VARCHAR(20) NOT NULL DEFAULT 'text',
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_team_messages_team ON team_messages(team_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_team_messages_created_at ON team_messages(created_at DESC)"))
+            logger.info("Team messages schema migration completed.")
+        except Exception as e:
+            logger.debug(f"Team messages migration may have partial issues: {e}")
 
         # Daily usage (rate limiting)
         try:
