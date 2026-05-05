@@ -162,6 +162,8 @@ services:
       args:
         NEXT_PUBLIC_API_URL: /api/v1
     container_name: kg_frontend
+    ports:
+      - "127.0.0.1:3001:3000"
     depends_on:
       - backend
     restart: unless-stopped
@@ -172,19 +174,17 @@ services:
   caddy:
     image: caddy:2-alpine
     container_name: kg_caddy
-    ports:
-      - "80:80"
-      - "443:443"
+    network_mode: host
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - frontend
       - backend
     restart: unless-stopped
-    networks:
-      - kg_net
 
 volumes:
   postgres_data:

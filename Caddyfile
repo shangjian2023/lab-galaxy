@@ -1,5 +1,5 @@
 api.mazhuoran.cloud {
-    reverse_proxy backend:8000
+    reverse_proxy 127.0.0.1:3000
 }
 
 graph.mazhuoran.cloud {
@@ -7,22 +7,22 @@ graph.mazhuoran.cloud {
         header Connection *Upgrade*
         path /api/v1/ws/*
     }
-    reverse_proxy @websocket backend:8000 {
+    reverse_proxy @websocket 127.0.0.1:8000 {
         header_up Connection {>Connection}
         header_up Upgrade {>Upgrade}
     }
 
     handle /api/* {
-        reverse_proxy backend:8000
+        reverse_proxy 127.0.0.1:8000
     }
     handle /docs* {
-        reverse_proxy backend:8000
+        reverse_proxy 127.0.0.1:8000
     }
     handle /openapi.json* {
-        reverse_proxy backend:8000
+        reverse_proxy 127.0.0.1:8000
     }
     handle /health* {
-        reverse_proxy backend:8000
+        reverse_proxy 127.0.0.1:8000
     }
-    reverse_proxy frontend:3000
+    reverse_proxy 127.0.0.1:3001
 }
