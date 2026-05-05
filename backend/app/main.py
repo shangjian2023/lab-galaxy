@@ -1,7 +1,6 @@
 import logging
 
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router as api_router
@@ -236,7 +235,7 @@ async def _apply_schema_updates():
 
 @app.get("/")
 async def root():
-    return RedirectResponse(url="/docs")
+    return {"message": "LabGalaxy API", "version": "0.1.0", "docs": "/docs"}
 
 
 @app.get("/health")
