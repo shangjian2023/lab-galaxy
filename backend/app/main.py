@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router as api_router
@@ -231,6 +232,11 @@ async def _apply_schema_updates():
             logger.info("Daily usage schema migration completed.")
         except Exception as e:
             logger.debug(f"Daily usage migration may have partial issues: {e}")
+
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
