@@ -7,6 +7,8 @@ import os
 import threading
 from pathlib import Path
 
+import numpy as np
+
 from app.core.config import settings
 
 _id_map_path = Path(settings.FAISS_INDEX_PATH + ".idmap.json")
