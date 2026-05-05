@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createForumReply } from "@/lib/api";
+import NodeMentionInput from "./NodeMentionInput";
 
 interface Props {
   threadId: string;
@@ -16,7 +17,17 @@ export default function ReplyForm({ threadId, onSuccess }: Props) {
     if (!content.trim()) return;
     setLoading(true);
     try {
-      await createForumReply(threadId, { content: content.trim() });
+      // Extract graph_node_ids from @[name](id) mentions
+      const nodeIdRegex = /@\[([^\]]+)\]\(([a-f0-9-]+)\)/g;
+      const graphNodeIds: string[] = [];
+      let m;
+      while ((m = nodeIdRegex.exec(content)) !== null) {
+        if (!graphNodeIds.includes(m[2])) graphNodeIds.push(m[2]);
+      }
+      await createForumReply(threadId, {
+        content: content.trim(),
+        graph_node_ids: graphNodeIds.length > 0 ? graphNodeIds : undefined,
+      });
       setContent("");
       onSuccess();
     } catch (e) {
@@ -29,16 +40,15 @@ export default function ReplyForm({ threadId, onSuccess }: Props) {
   return (
     <div className="liquid-glass-card p-4">
       <h3 className="mb-3 text-sm font-bold text-gray-700">✍️ 发表回复</h3>
-      <textarea
+      <NodeMentionInput
         value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="写下你的回复..."
-        className="w-full rounded-lg bg-white/50 p-3 text-sm ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
+        onChange={setContent}
+        placeholder="写下你的回复... 输入 @ 后输入节点名称可关联图谱节点"
         rows={3}
       />
       <div className="mt-2 flex items-center justify-between">
         <span className="text-[10px] text-gray-400">
-          使用 @图谱节点ID 可关联图谱节点
+          输入 @ 后输入节点名称，选择即可关联图谱节点
         </span>
         <button
           onClick={handleSubmit}

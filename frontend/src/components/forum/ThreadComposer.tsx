@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createForumThread } from "@/lib/api";
+import NodeMentionInput from "./NodeMentionInput";
 
 const BOARDS = [
   { slug: "methodology", name: "方法论堂", icon: "🔬" },
@@ -50,12 +51,20 @@ export default function ThreadComposer({ defaultBoard }: Props) {
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
+      // Extract graph_node_ids from @[name](id) mentions in content
+      const nodeIdRegex = /@\[([^\]]+)\]\(([a-f0-9-]+)\)/g;
+      const graphNodeIds: string[] = [];
+      let m;
+      while ((m = nodeIdRegex.exec(content)) !== null) {
+        if (!graphNodeIds.includes(m[2])) graphNodeIds.push(m[2]);
+      }
       const res = await createForumThread({
         board,
         post_type: postType,
         title: title.trim(),
         content: content.trim(),
         tags: tags.length > 0 ? tags : undefined,
+        graph_node_ids: graphNodeIds.length > 0 ? graphNodeIds : undefined,
       });
       router.push(`/forum/thread/${res.id}`);
     } catch (e: any) {
@@ -116,12 +125,11 @@ export default function ThreadComposer({ defaultBoard }: Props) {
         {/* Content */}
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">内容</label>
-          <textarea
+          <NodeMentionInput
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="写下你的想法...&#10;使用 @图谱节点ID 可关联图谱节点"
+            onChange={setContent}
+            placeholder="写下你的想法...&#10;输入 @ 后输入节点名称可关联图谱节点"
             rows={8}
-            className="w-full rounded-lg bg-white/50 px-3 py-2 text-sm ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
           />
         </div>
 

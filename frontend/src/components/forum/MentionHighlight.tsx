@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { getBoardInfo, getPostTypeInfo } from "./PostTypeBadge";
 
-const AT_REGEX = /@([a-zA-Z0-9_一-鿿]+)/g;
+// Matches @[显示名称](nodeId) format
+const MENTION_REGEX = /@\[([^\]]+)\]\(([a-f0-9-]+)\)/g;
 
 interface Props {
   content: string;
@@ -14,20 +14,22 @@ export default function MentionHighlight({ content }: Props) {
   let lastIndex = 0;
   let match;
 
-  const regex = new RegExp(AT_REGEX.source, AT_REGEX.flags);
+  const regex = new RegExp(MENTION_REGEX.source, MENTION_REGEX.flags);
 
   while ((match = regex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       parts.push(content.slice(lastIndex, match.index));
     }
-    const nodeId = match[1];
+    const displayName = match[1];
+    const nodeId = match[2];
     parts.push(
       <Link
         key={match.index}
         href={`/graph?node=${nodeId}`}
         className="rounded bg-blue-50 px-1 text-blue-600 hover:bg-blue-100 hover:underline"
+        title={`跳转到图谱节点: ${displayName}`}
       >
-        @{nodeId}
+        @{displayName}
       </Link>
     );
     lastIndex = match.index + match[0].length;

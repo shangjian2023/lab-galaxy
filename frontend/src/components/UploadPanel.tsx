@@ -32,7 +32,7 @@ export default function UploadPanel({ onUploaded }: Props) {
   const [experimentYear, setExperimentYear] = useState<number>(new Date().getFullYear());
   const [experimentType, setExperimentType] = useState<string>("");
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [privacy, setPrivacy] = useState("public");
+  const [privacy, setPrivacy] = useState("private");
 
   // File state
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -321,6 +321,11 @@ export default function UploadPanel({ onUploaded }: Props) {
             </button>
           ))}
         </div>
+        {privacy === "public" && (
+          <p className="mt-2 text-xs text-amber-600">
+            ⚠️ 选择「公开」后，文档需经管理员审核通过后才会对所有用户可见
+          </p>
+        )}
       </div>
 
       {/* ---- Drop Zone ---- */}
