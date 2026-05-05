@@ -519,14 +519,6 @@ function GraphPageContent() {
         </div>
       </div>
 
-      {/* Query Panel */}
-      <div className="liquid-glass-card mb-4 p-4">
-        <QueryPanel
-          onHighlightNodes={handleQueryHighlight}
-          onSourceClick={(docId) => handleJumpToWorkbench(docId)}
-        />
-      </div>
-
       {/* Year filter */}
       {availableYears.length > 0 && (
         <div className="liquid-glass-compact mb-3 flex items-center gap-2 px-4 py-2.5">
@@ -695,6 +687,14 @@ function GraphPageContent() {
             清除选中
           </button>
         )}
+      </div>
+
+      {/* Query Panel */}
+      <div className="liquid-glass-card mt-4 p-4">
+        <QueryPanel
+          onHighlightNodes={handleQueryHighlight}
+          onSourceClick={(docId) => handleJumpToWorkbench(docId)}
+        />
       </div>
     </main>
   );
