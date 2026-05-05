@@ -56,14 +56,14 @@ async def ws_team_chat(websocket: WebSocket, team_id: str, token: str = Query(..
     Messages (server→client): {"type":"message"|"system", "id", "team_id", "user_id", "nickname", "avatar", "content", "created_at}
     """
     # Authenticate before accepting
-    async with async_session() as db:
-        try:
+    try:
+        async with async_session() as db:
             user, team = await _authenticate_ws(token, team_id, db)
-        except ValueError as e:
-            await websocket.accept()
-            await websocket.send_json({"type": "error", "detail": str(e)})
-            await websocket.close(code=4001)
-            return
+    except ValueError as e:
+        await websocket.accept()
+        await websocket.send_json({"type": "error", "detail": str(e)})
+        await websocket.close(code=4001)
+        return
 
     await websocket.accept()
 

@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # HuggingFace
     HF_ENDPOINT: str = "https://hf-mirror.com"
 
+    # CORS
+    ALLOWED_ORIGINS: list[str] = ["*"]
+
     class Config:
         env_file = ".env"
 

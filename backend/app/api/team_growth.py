@@ -16,7 +16,7 @@ from app.services.usage import check_growth_analysis_quota, increment_growth_ana
 router = APIRouter(prefix="/teams", tags=["team-growth"])
 
 
-def _is_team_member(db: AsyncSession, team_id: str, user_id: uuid.UUID):
+def _is_team_member(team_id: str, user_id: uuid.UUID):
     """Return a select clause for team membership check."""
     return select(TeamMember).where(
         TeamMember.team_id == team_id,

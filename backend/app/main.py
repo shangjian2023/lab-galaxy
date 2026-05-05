@@ -36,6 +36,13 @@ async def _shutdown_chat_bus():
     await chat_bus.close()
 
 
+@app.on_event("shutdown")
+async def _shutdown_neo4j():
+    from app.api.graph import _driver_instance
+    if _driver_instance:
+        await _driver_instance.close()
+
+
 @app.on_event("startup")
 async def _apply_schema_updates():
     """Apply incremental schema updates (daily_usage, forum, teams, etc.)."""

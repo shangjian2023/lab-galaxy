@@ -823,6 +823,7 @@ export function listForumBoards() {
 
 export function listForumThreads(params: {
   board?: string;
+  post_type?: string;
   sort?: string;
   keyword?: string;
   page?: number;
@@ -830,6 +831,7 @@ export function listForumThreads(params: {
 } = {}) {
   const qs = new URLSearchParams();
   if (params.board) qs.set("board", params.board);
+  if (params.post_type) qs.set("post_type", params.post_type);
   if (params.sort) qs.set("sort", params.sort);
   if (params.keyword) qs.set("keyword", params.keyword);
   if (params.page) qs.set("page", String(params.page));

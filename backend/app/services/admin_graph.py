@@ -7,9 +7,14 @@ from app.core.config import settings
 VALID_LABELS = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
 VALID_REL_TYPES = {"USES", "BASED_ON", "SIMILAR_TO", "REQUIRES", "RELATED_TO"}
 
+_driver_instance = None
 
-def _driver():
-    return AsyncGraphDatabase.driver(settings.NEO4J_URI, auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD))
+
+def _get_driver():
+    global _driver_instance
+    if _driver_instance is None:
+        _driver_instance = AsyncGraphDatabase.driver(settings.NEO4J_URI, auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD))
+    return _driver_instance
 
 
 def _normalize_rel_type(rel_type: str) -> str:
@@ -20,7 +25,7 @@ def _normalize_rel_type(rel_type: str) -> str:
 
 
 async def list_nodes(label: str | None = None, skip: int = 0, limit: int = 100) -> list[dict]:
-    driver = _driver()
+    driver = _get_driver()
     results = []
     async with driver.session() as session:
         if label and label in VALID_LABELS:
@@ -37,12 +42,11 @@ async def list_nodes(label: str | None = None, skip: int = 0, limit: int = 100) 
                 "summary": r["summary"] or "",
                 "document_id": r.get("document_id"),
             })
-    await driver.close()
     return results
 
 
 async def get_node(node_id: str) -> dict | None:
-    driver = _driver()
+    driver = _get_driver()
     result = None
     async with driver.session() as session:
         records = await session.run(
@@ -58,14 +62,13 @@ async def get_node(node_id: str) -> dict | None:
                 "summary": r["summary"] or "",
                 "document_id": r.get("document_id"),
             }
-    await driver.close()
     return result
 
 
 async def create_node(data: dict) -> dict:
     import uuid
 
-    driver = _driver()
+    driver = _get_driver()
     node_id = data.get("id") or str(uuid.uuid4())
     label = data.get("type", "Concept")
     if label not in VALID_LABELS:
@@ -95,7 +98,6 @@ async def create_node(data: dict) -> dict:
                 "summary": r["summary"] or "",
                 "document_id": r.get("document_id"),
             }
-    await driver.close()
     return result or {
         "id": node_id,
         "type": label,
@@ -106,7 +108,7 @@ async def create_node(data: dict) -> dict:
 
 
 async def update_node(node_id: str, data: dict) -> bool:
-    driver = _driver()
+    driver = _get_driver()
     async with driver.session() as session:
         sets = []
         params = {"id": node_id}
@@ -122,23 +124,30 @@ async def update_node(node_id: str, data: dict) -> bool:
 
         if data.get("type") and data["type"] in VALID_LABELS:
             new_label = data["type"]
-            for old_label in VALID_LABELS:
-                await session.run(f"MATCH (n {{id: $id}}) REMOVE n:{old_label}", id=node_id)
-            await session.run(f"MATCH (n {{id: $id}}) SET n:{new_label}", id=node_id)
-    await driver.close()
+            records = await session.run(
+                f"MATCH (n {{id: $id}}) RETURN labels(n) AS labels",
+                id=node_id,
+            )
+            async for r in records:
+                for lbl in r["labels"]:
+                    if lbl in VALID_LABELS:
+                        await session.run(
+                            f"MATCH (n {{id: $id}}) REMOVE n:{lbl} SET n:{new_label}",
+                            id=node_id,
+                        )
+                        break
     return True
 
 
 async def delete_node(node_id: str) -> bool:
-    driver = _driver()
+    driver = _get_driver()
     async with driver.session() as session:
         await session.run("MATCH (n {id: $id}) DETACH DELETE n", id=node_id)
-    await driver.close()
     return True
 
 
 async def list_relations(node_id: str | None = None, skip: int = 0, limit: int = 100) -> list[dict]:
-    driver = _driver()
+    driver = _get_driver()
     results = []
     async with driver.session() as session:
         if node_id:
@@ -164,12 +173,11 @@ async def list_relations(node_id: str | None = None, skip: int = 0, limit: int =
                 "confidence": r["confidence"] or 0.5,
                 "document_id": r.get("document_id"),
             })
-    await driver.close()
     return results
 
 
 async def create_relation(data: dict) -> dict:
-    driver = _driver()
+    driver = _get_driver()
     rel_type = _normalize_rel_type(data.get("type", "RELATED_TO"))
     async with driver.session() as session:
         q = f"""
@@ -194,14 +202,13 @@ async def create_relation(data: dict) -> dict:
                 "confidence": r["confidence"] or 0.5,
                 "document_id": r.get("document_id"),
             }
-    await driver.close()
     if not result:
         raise LookupError("关系两端的节点不存在")
     return result
 
 
 async def update_relation(source_id: str, target_id: str, rel_type: str, data: dict) -> dict | None:
-    driver = _driver()
+    driver = _get_driver()
     current_type = _normalize_rel_type(rel_type)
     new_type = _normalize_rel_type(data["type"]) if data.get("type") else current_type
 
@@ -221,7 +228,6 @@ async def update_relation(source_id: str, target_id: str, rel_type: str, data: d
             break
 
         if not current_relation:
-            await driver.close()
             return None
 
         confidence = data.get("confidence", current_relation["confidence"])
@@ -254,12 +260,11 @@ async def update_relation(source_id: str, target_id: str, rel_type: str, data: d
                 "confidence": r["confidence"] or 0.5,
                 "document_id": r.get("document_id"),
             }
-    await driver.close()
     return result
 
 
 async def delete_relation(source_id: str, target_id: str, rel_type: str) -> bool:
-    driver = _driver()
+    driver = _get_driver()
     normalized_type = _normalize_rel_type(rel_type)
     async with driver.session() as session:
         count_query = f"MATCH (a {{id: $src}})-[r:{normalized_type}]->(b {{id: $tgt}}) RETURN count(r) AS cnt"
@@ -269,9 +274,7 @@ async def delete_relation(source_id: str, target_id: str, rel_type: str) -> bool
             count = record["cnt"]
             break
         if count == 0:
-            await driver.close()
             return False
         delete_query = f"MATCH (a {{id: $src}})-[r:{normalized_type}]->(b {{id: $tgt}}) DELETE r"
         await session.run(delete_query, src=source_id, tgt=target_id)
-    await driver.close()
     return True

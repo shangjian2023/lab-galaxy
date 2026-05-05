@@ -17,6 +17,10 @@ class MessageHistory(BaseModel):
     role: str  # "user" | "assistant"
     content: str
 
+    def model_post_init(self, __context):
+        if self.role not in ("user", "assistant"):
+            raise ValueError(f"role must be 'user' or 'assistant', got '{self.role}'")
+
 
 class QueryRequest(BaseModel):
     question: str
@@ -36,12 +40,8 @@ async def ask_question(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"今日查询次数已用完（{quota['limit']}/{quota['limit']}），请明天再试",
         )
-    try:
-        result = await query_natural_language(body.question, body.history)
-    except Exception:
-        raise
-    else:
-        if not quota["unlimited"]:
-            await increment_query(db, current_user.id)
-            await db.commit()
-        return result
+    result = await query_natural_language(body.question, body.history)
+    if not quota["unlimited"]:
+        await increment_query(db, current_user.id)
+        await db.commit()
+    return result

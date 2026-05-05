@@ -6,7 +6,7 @@ from app.core.config import update_overrides
 router = APIRouter()
 
 
-@router.post("/config/reload")
+@router.post("/reload")
 async def reload_config(request: Request):
     """Reload LLM client configuration. Backend sends new config values."""
     from app.core.connections import reload_llm_clients

@@ -140,7 +140,8 @@ async def list_boards(db: AsyncSession = Depends(get_db), current_user: User = D
 @router.get("/threads")
 async def list_threads(
     board: str | None = Query(None),
-    sort: str = Query("newest", regex="^(newest|popular|latest_reply)$"),
+    post_type: str | None = Query(None),
+    sort: str = Query("hot", regex="^(newest|popular|latest_reply|hot)$"),
     keyword: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
@@ -153,19 +154,30 @@ async def list_threads(
         if board not in VALID_BOARDS:
             raise HTTPException(400, f"无效的板块: {board}")
         base = base.where(ForumThread.board == board)
+    if post_type:
+        base = base.where(ForumThread.post_type == post_type)
     if keyword:
         base = base.where(ForumThread.title.ilike(f"%{keyword}%"))
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
 
-    order_map = {
-        "newest": ForumThread.created_at.desc(),
-        "popular": ForumThread.like_count.desc(),
-        "latest_reply": ForumThread.updated_at.desc(),
-    }
+    if sort == "hot":
+        # Combined score: likes * 5 + replies * 2 + views * 0.1, decayed by age
+        hot_score = (
+            ForumThread.like_count * 5
+            + ForumThread.reply_count * 2
+            + ForumThread.view_count * 0.1
+        )
+        order = hot_score.desc()
+    else:
+        order_map = {
+            "newest": ForumThread.created_at.desc(),
+            "popular": ForumThread.like_count.desc(),
+            "latest_reply": ForumThread.updated_at.desc(),
+        }
+        order = order_map.get(sort, ForumThread.created_at.desc())
     rows = (await db.execute(
-        base.order_by(order_map.get(sort, ForumThread.created_at.desc()))
-        .offset((page - 1) * page_size).limit(page_size)
+        base.order_by(order).offset((page - 1) * page_size).limit(page_size)
     )).scalars().all()
 
     # Check likes/bookmarks

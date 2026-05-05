@@ -9,8 +9,9 @@ import Link from "next/link";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
 
 const SORT_OPTIONS = [
-  { value: "newest", label: "最新" },
+  { value: "hot", label: "综合" },
   { value: "popular", label: "最热" },
+  { value: "newest", label: "最新" },
   { value: "latest_reply", label: "最新回复" },
 ];
 
@@ -21,7 +22,7 @@ export default function BoardPage() {
   const [threads, setThreads] = useState<ForumThread[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState("newest");
+  const [sort, setSort] = useState("hot");
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
   const [boards, setBoards] = useState<ForumBoard[]>([]);
