@@ -106,3 +106,27 @@ async def suggest_relations(node_id: str) -> dict:
         except httpx.HTTPError as e:
             logger.error(f"Suggest relations failed: {e}")
             return {"suggestions": []}
+
+
+async def reload_ai_config(configs: dict) -> dict:
+    """Notify AI service to reload config."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        try:
+            resp = await client.post(f"{AI_SERVICE_URL}/config/reload", json={"configs": configs})
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error(f"AI config reload failed: {e}")
+            raise AIServiceError(f"Config reload failed: {e}")
+
+
+async def analyze_growth(data: dict) -> dict:
+    """Call AI service for growth analysis."""
+    async with httpx.AsyncClient(timeout=120) as client:
+        try:
+            resp = await client.post(f"{AI_SERVICE_URL}/growth-analysis", json=data)
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Growth analysis failed: {e}")
+            return {"summary": "分析暂时不可用", "strengths": [], "weaknesses": [], "suggestions": [], "score": 50}

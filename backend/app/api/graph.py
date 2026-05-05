@@ -557,3 +557,107 @@ async def cleanup_orphaned_nodes(
         "removed_isolated": removed_isolated,
         "total": removed_experiments + removed_isolated,
     }
+
+
+@router.get("/tree")
+async def get_relation_tree(
+    root_id: str = Query(...),
+    target_type: str | None = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a relation tree rooted at a specific node, optionally filtered by target type."""
+    driver = _driver()
+    async with driver.session() as session:
+        # Get root node
+        root_result = await session.run(
+            "MATCH (n {id: $id}) RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary",
+            id=root_id,
+        )
+        root_record = await root_result.single()
+        if not root_record:
+            raise HTTPException(status_code=404, detail="节点不存在")
+
+        root_type = _node_type(root_record["labels"])
+        root = {
+            "id": root_record["id"],
+            "name": root_record["name"] or "",
+            "type": root_type,
+            "summary": root_record["summary"] or "",
+            "children": [],
+        }
+
+        # Get related nodes
+        if target_type and target_type in VALID_LABELS:
+            rel_query = """
+                MATCH (n {id: $id})-[r]-(m:{target_type})
+                RETURN m.id AS id, m.name AS name, labels(m) AS labels, m.summary AS summary,
+                       type(r) AS rel_type
+                LIMIT 50
+            """.replace("{target_type}", target_type)
+        else:
+            rel_query = """
+                MATCH (n {id: $id})-[r]-(m)
+                WHERE m.id <> $id
+                RETURN m.id AS id, m.name AS name, labels(m) AS labels, m.summary AS summary,
+                       type(r) AS rel_type
+                LIMIT 50
+            """
+
+        rel_result = await session.run(rel_query, id=root_id)
+        children = []
+        async for record in rel_result:
+            child_type = _node_type(record["labels"])
+            children.append({
+                "id": record["id"],
+                "name": record["name"] or "",
+                "type": child_type,
+                "summary": record["summary"] or "",
+                "rel_type": record["rel_type"] or "RELATED_TO",
+                "children": [],
+            })
+
+        root["children"] = children
+
+    return {"root": root}
+
+
+@router.get("/search")
+async def search_graph_nodes(
+    q: str = Query(..., min_length=1),
+    node_type: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+):
+    """Search graph nodes by name keyword."""
+    driver = _driver()
+    async with driver.session() as session:
+        if node_type and node_type in VALID_LABELS:
+            cypher = """
+                MATCH (n:{label})
+                WHERE n.name CONTAINS $q
+                RETURN n.id AS id, n.name AS name, labels(n) AS labels,
+                       n.summary AS summary, n.document_id AS document_id
+                LIMIT $limit
+            """.replace("{label}", node_type)
+        else:
+            cypher = """
+                MATCH (n)
+                WHERE n.name CONTAINS $q
+                RETURN n.id AS id, n.name AS name, labels(n) AS labels,
+                       n.summary AS summary, n.document_id AS document_id
+                LIMIT $limit
+            """
+
+        result = await session.run(cypher, q=q, limit=limit)
+        nodes = []
+        async for record in result:
+            ntype = _node_type(record["labels"])
+            nodes.append({
+                "id": record["id"],
+                "name": record["name"] or "",
+                "type": ntype,
+                "summary": record["summary"] or "",
+                "document_id": record["document_id"],
+            })
+
+    return {"nodes": nodes}

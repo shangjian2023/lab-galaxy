@@ -2,7 +2,7 @@
 
 import logging
 
-from app.core.config import settings
+from app.core.config import settings, get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -38,34 +38,55 @@ def get_neo4j_driver():
 
 
 def init_llm_clients():
-    if settings.LLM_PROVIDER == "anthropic":
+    provider = get_setting("LLM_PROVIDER")
+    if provider == "anthropic":
         import anthropic
-        kwargs = {"api_key": settings.ANTHROPIC_API_KEY}
+        kwargs = {"api_key": get_setting("ANTHROPIC_API_KEY")}
         _llm_clients["anthropic"] = anthropic.AsyncAnthropic(**kwargs)
-        logger.info(f"Anthropic client initialized (model={settings.ANTHROPIC_MODEL})")
-    elif settings.LLM_PROVIDER == "openai":
+        logger.info(f"Anthropic client initialized (model={get_setting('ANTHROPIC_MODEL')})")
+    elif provider == "openai":
         from openai import AsyncOpenAI
-        kwargs = {"api_key": settings.OPENAI_API_KEY}
-        if settings.OPENAI_BASE_URL:
-            kwargs["base_url"] = settings.OPENAI_BASE_URL
+        kwargs = {"api_key": get_setting("OPENAI_API_KEY")}
+        base_url = get_setting("OPENAI_BASE_URL")
+        if base_url:
+            kwargs["base_url"] = base_url
         _llm_clients["openai"] = AsyncOpenAI(**kwargs)
-        logger.info(f"OpenAI client initialized (model={settings.OPENAI_MODEL}, base_url={settings.OPENAI_BASE_URL or 'default'})")
+        logger.info(f"OpenAI client initialized (model={get_setting('OPENAI_MODEL')}, base_url={base_url or 'default'})")
 
-    if settings.LLM_PROVIDER == "anthropic" and "openai" not in _llm_clients:
-        if settings.OPENAI_API_KEY:
+    if provider == "anthropic" and "openai" not in _llm_clients:
+        openai_key = get_setting("OPENAI_API_KEY")
+        if openai_key:
             from openai import AsyncOpenAI
-            kwargs = {"api_key": settings.OPENAI_API_KEY}
-            if settings.OPENAI_BASE_URL:
-                kwargs["base_url"] = settings.OPENAI_BASE_URL
+            kwargs = {"api_key": openai_key}
+            base_url = get_setting("OPENAI_BASE_URL")
+            if base_url:
+                kwargs["base_url"] = base_url
             _llm_clients["openai"] = AsyncOpenAI(**kwargs)
-    elif settings.LLM_PROVIDER == "openai" and "anthropic" not in _llm_clients:
-        if settings.ANTHROPIC_API_KEY:
+    elif provider == "openai" and "anthropic" not in _llm_clients:
+        anthropic_key = get_setting("ANTHROPIC_API_KEY")
+        if anthropic_key:
             import anthropic
-            _llm_clients["anthropic"] = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+            _llm_clients["anthropic"] = anthropic.AsyncAnthropic(api_key=anthropic_key)
+
+
+async def reload_llm_clients():
+    """Re-initialize LLM clients with current config overrides."""
+    global _llm_clients
+    # Close existing clients
+    for name, client in _llm_clients.items():
+        try:
+            if hasattr(client, "close"):
+                await client.close()
+        except Exception:
+            pass
+    _llm_clients.clear()
+    # Re-initialize
+    init_llm_clients()
+    logger.info("LLM clients reloaded")
 
 
 def get_llm_client(provider: str | None = None):
-    provider = provider or settings.LLM_PROVIDER
+    provider = provider or get_setting("LLM_PROVIDER")
     if provider not in _llm_clients:
         raise RuntimeError(f"LLM client for '{provider}' not initialized")
     return _llm_clients[provider]

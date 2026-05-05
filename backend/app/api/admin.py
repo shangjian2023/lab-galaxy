@@ -493,3 +493,90 @@ async def admin_delete_template(
     await db.execute(delete(TemplateComment).where(TemplateComment.template_id == tpl_id))
     await db.delete(tpl)
     await db.commit()
+
+
+# ── AI Config ──
+
+class AIConfigItem(PydanticBaseModel):
+    key: str
+    value: str
+    updated_at: str | None = None
+
+class AIConfigResponse(PydanticBaseModel):
+    configs: list[AIConfigItem]
+
+class AIConfigUpdate(PydanticBaseModel):
+    configs: dict[str, str]
+
+AI_CONFIG_KEYS = {
+    "llm_provider", "openai_api_key", "openai_base_url", "openai_model",
+    "anthropic_api_key", "anthropic_model", "embedding_model",
+}
+_MASKED_KEYS = {"openai_api_key", "anthropic_api_key"}
+
+
+@router.get("/ai-config", response_model=AIConfigResponse)
+async def get_ai_config(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    from app.models.models import AIConfig
+    result = await db.execute(select(AIConfig))
+    rows = result.scalars().all()
+    configs = []
+    existing = {r.key: r for r in rows}
+    for key in sorted(AI_CONFIG_KEYS):
+        row = existing.get(key)
+        value = row.value if row else ""
+        updated_at = row.updated_at.isoformat() if row else None
+        # Mask API keys
+        if key in _MASKED_KEYS and value:
+            value = "****" + value[-4:] if len(value) > 4 else "****"
+        configs.append(AIConfigItem(key=key, value=value, updated_at=updated_at))
+    return AIConfigResponse(configs=configs)
+
+
+@router.patch("/ai-config", response_model=AIConfigResponse)
+async def update_ai_config(
+    body: AIConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    from app.models.models import AIConfig
+    from app.services.ai_client import reload_ai_config
+
+    updated = {}
+    for key, value in body.configs.items():
+        if key not in AI_CONFIG_KEYS:
+            continue
+        if not value:  # skip empty values
+            continue
+        existing = (await db.execute(select(AIConfig).where(AIConfig.key == key))).scalar_one_or_none()
+        if existing:
+            existing.value = value
+            existing.updated_by = _admin.id
+        else:
+            db.add(AIConfig(key=key, value=value, updated_by=_admin.id))
+        updated[key] = value
+    await db.commit()
+
+    # Notify AI service to reload
+    if updated:
+        try:
+            await reload_ai_config(updated)
+        except Exception as e:
+            logger.warning(f"AI config reload notification failed: {e}")
+
+    # Return updated config (masked)
+    result = await db.execute(select(AIConfig))
+    rows = result.scalars().all()
+    configs = []
+    existing_map = {r.key: r for r in rows}
+    for key in sorted(AI_CONFIG_KEYS):
+        row = existing_map.get(key)
+        value = row.value if row else ""
+        updated_at = row.updated_at.isoformat() if row else None
+        if key in _MASKED_KEYS and value:
+            value = "****" + value[-4:] if len(value) > 4 else "****"
+        configs.append(AIConfigItem(key=key, value=value, updated_at=updated_at))
+    return AIConfigResponse(configs=configs)

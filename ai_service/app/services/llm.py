@@ -1,6 +1,6 @@
 """LLM service — unified interface for Claude / GPT, backed by registry."""
 
-from app.core.config import settings
+from app.core.config import get_setting
 from app.core.connections import get_llm_client
 from app.registries.llm_providers import llm_provider_registry
 
@@ -13,7 +13,7 @@ async def _call_anthropic(prompt: str, system: str, max_tokens: int, messages: l
     else:
         msg_list = [{"role": "user", "content": prompt}]
     resp = await client.messages.create(
-        model=settings.ANTHROPIC_MODEL,
+        model=get_setting("ANTHROPIC_MODEL"),
         max_tokens=max_tokens,
         system=system,
         messages=msg_list,
@@ -32,7 +32,7 @@ async def _call_openai(prompt: str, system: str, max_tokens: int, messages: list
             {"role": "user", "content": prompt},
         ]
     resp = await client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
+        model=get_setting("OPENAI_MODEL"),
         max_tokens=max_tokens,
         messages=msg_list,
     )
@@ -52,6 +52,6 @@ async def call_llm(
     history (list of {"role": "user"|"assistant", "content": "..."} dicts).
     Otherwise falls back to single-turn using `prompt`.
     """
-    prov = provider or settings.LLM_PROVIDER
+    prov = provider or get_setting("LLM_PROVIDER")
     fn = llm_provider_registry.get(prov)
     return await fn(prompt, system, max_tokens, messages)

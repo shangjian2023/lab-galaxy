@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.models import Document, User
+from app.models.models import Document, User, UserAchievement
 from app.schemas.document import (
     BatchUploadResponse,
     DocumentListResponse,
@@ -168,6 +168,29 @@ async def _process_single(doc_id: str, file_data: bytes, filename: str):
 
         entities = result.get("entities", [])
         relations = result.get("relations", [])
+        achievements = result.get("achievements", [])
+
+        # Store achievements
+        if achievements:
+            from app.core.database import async_session
+            async with async_session() as ach_db:
+                doc_owner = (await ach_db.execute(
+                    select(Document.uploaded_by).where(Document.id == doc_id)
+                )).scalar_one()
+                for ach in achievements:
+                    if not isinstance(ach, dict) or not ach.get("name"):
+                        continue
+                    ach_type = ach.get("type", "其他")
+                    if ach_type not in ("论文", "专利", "获奖", "项目成果", "其他"):
+                        ach_type = "其他"
+                    ach_db.add(UserAchievement(
+                        user_id=doc_owner,
+                        document_id=doc_id,
+                        name=ach["name"],
+                        description=ach.get("description"),
+                        achievement_type=ach_type,
+                    ))
+                await ach_db.commit()
 
         # Check for duplicate experiments
         warnings = await _check_duplicate_experiments(entities, "")

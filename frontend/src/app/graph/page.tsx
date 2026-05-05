@@ -25,6 +25,7 @@ import DraggablePixelChar from "@/components/graph/DraggablePixelChar";
 import InsightOverlay from "@/components/insight/InsightOverlay";
 import QueryPanel from "@/components/query/QueryPanel";
 import TeamManager from "@/components/graph/TeamManager";
+import RelationExplorer from "@/components/graph/RelationExplorer";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface SelectedNode {
@@ -231,6 +232,7 @@ function GraphPageContent() {
   const [expListOpen, setExpListOpen] = useState(false);
   const [graphScope, setGraphScope] = useState<"public" | "team" | "private">("public");
   const [showTeamManager, setShowTeamManager] = useState(false);
+  const [showRelationExplorer, setShowRelationExplorer] = useState(false);
 
   // Experiment list derived from graph data
   const experiments = useMemo(
@@ -554,8 +556,19 @@ function GraphPageContent() {
         </div>
       )}
 
-      {/* Toolbar */}
+      {/* Toolbar + Relation Explorer button */}
       <div className="liquid-glass-card mb-4 p-4">
+        <div className="mb-3 flex items-center justify-end">
+          <button
+            onClick={() => setShowRelationExplorer(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            关系探索
+          </button>
+        </div>
         <GraphToolbar
           viewType={viewType}
           onViewChange={setViewType}
@@ -583,6 +596,11 @@ function GraphPageContent() {
 
       {/* Team Manager Modal */}
       <TeamManager open={showTeamManager} onClose={() => setShowTeamManager(false)} />
+
+      {/* Relation Explorer Modal */}
+      {showRelationExplorer && (
+        <RelationExplorer onClose={() => setShowRelationExplorer(false)} />
+      )}
 
       {/* Fullscreen overlay */}
       <AnimatePresence>

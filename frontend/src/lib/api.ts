@@ -260,6 +260,21 @@ export function adminGraphOverview() {
   return request<{ nodes: GraphNode[]; relations: GraphRelation[] }>("/admin/graph/data");
 }
 
+// AI Config
+export interface AIConfigItem {
+  key: string;
+  value: string;
+  updated_at: string | null;
+}
+
+export function getAIConfig() {
+  return request<{ configs: AIConfigItem[] }>("/admin/ai-config");
+}
+
+export function updateAIConfig(configs: Record<string, string>) {
+  return request<{ configs: AIConfigItem[] }>("/admin/ai-config", "PATCH", { configs });
+}
+
 // ========== Public Graph APIs ==========
 
 export interface CytoscapeNode {
@@ -666,6 +681,76 @@ export function createTeamChatWS(teamId: string): WebSocket {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(/^http/, "ws");
   return new WebSocket(`${base}/ws/team/${teamId}?token=${token}`);
+}
+
+// ========== Team Growth ==========
+
+export interface GrowthTimelineEntry {
+  date: string | null;
+  type: "document" | "achievement";
+  user_id: string;
+  user_nickname: string;
+  title: string;
+  details: string;
+  achievement_type?: string;
+}
+
+export interface GrowthTimelineResponse {
+  timeline: GrowthTimelineEntry[];
+  summary: {
+    total_documents: number;
+    total_achievements: number;
+    unique_entities: number;
+    members: {
+      user_id: string;
+      nickname: string;
+      document_count: number;
+      achievement_count: number;
+    }[];
+  };
+}
+
+export interface AIGrowthAnalysis {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+  score: number;
+  quota: { remaining: number; limit: number };
+}
+
+export function getTeamGrowth(teamId: string) {
+  return request<GrowthTimelineResponse>(`/teams/${teamId}/growth`);
+}
+
+export function requestAIGrowthAnalysis(teamId: string) {
+  return request<AIGrowthAnalysis>(`/teams/${teamId}/ai-growth-analysis`, "POST");
+}
+
+// ========== Graph Tree ==========
+
+export interface TreeNode {
+  id: string;
+  name: string;
+  type: string;
+  summary: string;
+  children: TreeNode[];
+}
+
+export interface TreeData {
+  root: TreeNode;
+}
+
+export function getTreeData(rootId: string, targetType?: string) {
+  const params = new URLSearchParams({ root_id: rootId });
+  if (targetType) params.set("target_type", targetType);
+  return request<TreeData>(`/graph/tree?${params}`);
+}
+
+export function searchGraphNodes(q: string, nodeType?: string, limit = 20) {
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  if (nodeType) params.set("node_type", nodeType);
+  return request<{ nodes: GraphNode[] }>(`/graph/search?${params}`);
 }
 
 // ========== Forum ==========

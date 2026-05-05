@@ -7,6 +7,7 @@ from app.api.graph import router as graph_router
 from app.api.insights import router as insights_router
 from app.api.templates import router as templates_router
 from app.api.team_chat import router as team_chat_router
+from app.api.team_growth import router as team_growth_router
 from app.api.teams import router as teams_router
 from app.api.users import router as users_router
 from app.api.workbench import router as workbench_router
@@ -23,4 +24,5 @@ router.include_router(templates_router)
 router.include_router(query_router)
 router.include_router(forum_router)
 router.include_router(teams_router)
+router.include_router(team_growth_router)
 router.include_router(team_chat_router)

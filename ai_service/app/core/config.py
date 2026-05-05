@@ -41,3 +41,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Runtime config overrides (set via admin API reload)
+_config_overrides: dict[str, str] = {}
+
+
+def get_setting(key: str) -> str:
+    """Return override if set, else fall back to env-based settings."""
+    return _config_overrides.get(key, getattr(settings, key, ""))
+
+
+def update_overrides(new_configs: dict[str, str]) -> None:
+    """Update config overrides from admin API."""
+    _config_overrides.update(new_configs)

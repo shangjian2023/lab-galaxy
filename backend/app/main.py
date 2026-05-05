@@ -232,6 +232,57 @@ async def _apply_schema_updates():
         except Exception as e:
             logger.debug(f"Daily usage migration may have partial issues: {e}")
 
+        # AI Config
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS ai_config (
+                    id SERIAL PRIMARY KEY,
+                    key VARCHAR(50) UNIQUE NOT NULL,
+                    value TEXT NOT NULL,
+                    updated_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_by UUID REFERENCES users(id)
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_ai_config_key ON ai_config(key)"))
+            logger.info("AI config schema migration completed.")
+        except Exception as e:
+            logger.debug(f"AI config migration may have partial issues: {e}")
+
+        # User achievements
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS user_achievements (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    user_id UUID NOT NULL REFERENCES users(id),
+                    document_id UUID REFERENCES documents(id),
+                    name VARCHAR(200) NOT NULL,
+                    description TEXT,
+                    achievement_type VARCHAR(50) NOT NULL,
+                    achieved_at TIMESTAMPTZ DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id)"))
+            logger.info("User achievements schema migration completed.")
+        except Exception as e:
+            logger.debug(f"User achievements migration may have partial issues: {e}")
+
+        # Monthly usage
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS monthly_usage (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    user_id UUID NOT NULL REFERENCES users(id),
+                    year_month VARCHAR(7) NOT NULL,
+                    growth_analysis_count INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE (user_id, year_month)
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_monthly_usage_user ON monthly_usage(user_id, year_month)"))
+            logger.info("Monthly usage schema migration completed.")
+        except Exception as e:
+            logger.debug(f"Monthly usage migration may have partial issues: {e}")
+
 
 @app.get("/")
 async def root():

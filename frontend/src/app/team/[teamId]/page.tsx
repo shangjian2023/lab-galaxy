@@ -7,8 +7,9 @@ import type { TeamDetail, UserProfile } from "@/lib/api";
 import TeamSpaceHeader from "@/components/team/TeamSpaceHeader";
 import ChatRoom from "@/components/team/ChatRoom";
 import MemberSidebar from "@/components/team/MemberSidebar";
+import GrowthTimeline from "@/components/team/GrowthTimeline";
 
-type Tab = "chat" | "members";
+type Tab = "chat" | "members" | "growth";
 
 export default function TeamSpacePage() {
   const params = useParams();
@@ -54,7 +55,7 @@ export default function TeamSpacePage() {
         <div className="flex flex-1 flex-col">
           {/* Tabs */}
           <div className="flex gap-1 border-b border-gray-100 bg-white px-4">
-            {(["chat", "members"] as Tab[]).map((t) => (
+            {(["chat", "members", "growth"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -64,7 +65,7 @@ export default function TeamSpacePage() {
                     : "border-transparent text-gray-400 hover:text-gray-600"
                 }`}
               >
-                {t === "chat" ? "聊天" : "成员"}
+                {t === "chat" ? "聊天" : t === "members" ? "成员" : "成长历程"}
               </button>
             ))}
           </div>
@@ -73,10 +74,12 @@ export default function TeamSpacePage() {
           <div className="flex-1 overflow-hidden">
             {tab === "chat" ? (
               <ChatRoom teamId={teamId} currentUserId={user.id} />
-            ) : (
+            ) : tab === "members" ? (
               <div className="h-full overflow-y-auto">
                 <MemberSidebar team={team} />
               </div>
+            ) : (
+              <GrowthTimeline teamId={teamId} />
             )}
           </div>
         </div>
