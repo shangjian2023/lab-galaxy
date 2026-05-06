@@ -33,7 +33,7 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
-          className="glass-dark absolute right-4 top-4 z-10 w-72 overflow-hidden rounded-2xl"
+          className="absolute right-4 top-4 z-10 w-72 overflow-hidden rounded-2xl border border-white/10 bg-gray-900 shadow-2xl"
         >
           <div className="p-4">
             {/* Header */}
@@ -49,7 +49,7 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
                 />
                 <h3 className="font-bold text-white">{node.name || node.id.slice(0, 8)}</h3>
               </div>
-              <button onClick={onClose} className="text-gray-900 hover:text-gray-600">
+              <button onClick={onClose} className="text-gray-400 hover:text-white">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -68,11 +68,11 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
 
             {/* Summary */}
             {node.summary && (
-              <p className="mb-3 text-sm leading-relaxed text-gray-900">{node.summary}</p>
+              <p className="mb-3 text-sm leading-relaxed text-gray-200">{node.summary}</p>
             )}
 
             {/* Meta */}
-            <div className="space-y-1 text-xs text-gray-900">
+            <div className="space-y-1 text-xs text-gray-300">
               <p>ID: {node.id.slice(0, 12)}...</p>
               {node.document_id && (
                 <div className="flex items-center justify-between">

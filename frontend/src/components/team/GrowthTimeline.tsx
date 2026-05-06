@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTeamGrowth, requestAIGrowthAnalysis } from "@/lib/api";
-import type { GrowthTimelineResponse, AIGrowthAnalysis } from "@/lib/api";
+import { getTeamGrowth } from "@/lib/api";
+import type { GrowthTimelineResponse } from "@/lib/api";
 
 interface Props {
   teamId: string;
@@ -11,8 +11,6 @@ interface Props {
 export default function GrowthTimeline({ teamId }: Props) {
   const [data, setData] = useState<GrowthTimelineResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [analysis, setAnalysis] = useState<AIGrowthAnalysis | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,19 +19,6 @@ export default function GrowthTimeline({ teamId }: Props) {
       .catch(() => setError("加载失败"))
       .finally(() => setLoading(false));
   }, [teamId]);
-
-  const handleAnalyze = async () => {
-    setAnalyzing(true);
-    setError(null);
-    try {
-      const result = await requestAIGrowthAnalysis(teamId);
-      setAnalysis(result);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "分析失败");
-    } finally {
-      setAnalyzing(false);
-    }
-  };
 
   if (loading) return <div className="p-6 text-black">加载中...</div>;
   if (error && !data) return <div className="p-6 text-red-400">{error}</div>;
@@ -49,22 +34,6 @@ export default function GrowthTimeline({ teamId }: Props) {
         <SummaryCard label="成果数量" value={summary.total_achievements} icon="🏆" />
         <SummaryCard label="知识实体" value={summary.unique_entities} icon="🔗" />
         <SummaryCard label="团队成员" value={summary.members.length} icon="👥" />
-      </div>
-
-      {/* AI Analysis */}
-      <div className="border-b border-gray-100 bg-white p-4">
-        {!analysis ? (
-          <button
-            onClick={handleAnalyze}
-            disabled={analyzing}
-            className="rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {analyzing ? "AI 分析中..." : "🤖 AI 成长分析"}
-          </button>
-        ) : (
-          <AnalysisCard analysis={analysis} />
-        )}
-        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
       </div>
 
       {/* Timeline */}
@@ -123,81 +92,6 @@ function SummaryCard({ label, value, icon }: { label: string; value: number; ico
         <p className="text-lg font-bold text-gray-800">{value}</p>
         <p className="text-xs text-gray-700">{label}</p>
       </div>
-    </div>
-  );
-}
-
-function AnalysisCard({ analysis }: { analysis: AIGrowthAnalysis }) {
-  const scoreColor =
-    analysis.score >= 85 ? "text-green-600" :
-    analysis.score >= 70 ? "text-blue-600" :
-    analysis.score >= 60 ? "text-amber-600" : "text-red-500";
-
-  return (
-    <div className="rounded-lg bg-gradient-to-br from-orange-50 to-amber-50 p-4">
-      <div className="mb-3 flex items-center gap-3">
-        <div className="relative h-14 w-14">
-          <svg className="h-14 w-14 -rotate-90" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="24" fill="none" stroke="#e5e7eb" strokeWidth="4" />
-            <circle
-              cx="28" cy="28" r="24" fill="none"
-              stroke="currentColor"
-              strokeWidth="4"
-              strokeDasharray={`${(analysis.score / 100) * 150.8} 150.8`}
-              strokeLinecap="round"
-              className={scoreColor}
-            />
-          </svg>
-          <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${scoreColor}`}>
-            {analysis.score}
-          </span>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-gray-800">成长评分</p>
-          <p className="text-xs text-gray-700">AI 基于团队数据综合评估</p>
-        </div>
-      </div>
-
-      <p className="mb-3 text-sm text-gray-700">{analysis.summary}</p>
-
-      {analysis.strengths.length > 0 && (
-        <div className="mb-2">
-          <p className="mb-1 text-xs font-medium text-green-700">优势</p>
-          <ul className="space-y-0.5">
-            {analysis.strengths.map((s, i) => (
-              <li key={i} className="text-xs text-black">• {s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {analysis.weaknesses.length > 0 && (
-        <div className="mb-2">
-          <p className="mb-1 text-xs font-medium text-amber-700">待提升</p>
-          <ul className="space-y-0.5">
-            {analysis.weaknesses.map((w, i) => (
-              <li key={i} className="text-xs text-black">• {w}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {analysis.suggestions.length > 0 && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-blue-700">建议</p>
-          <ul className="space-y-0.5">
-            {analysis.suggestions.map((s, i) => (
-              <li key={i} className="text-xs text-black">• {s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {analysis.quota && (
-        <p className="mt-3 text-xs text-black">
-          本月剩余 {analysis.quota.remaining}/{analysis.quota.limit} 次
-        </p>
-      )}
     </div>
   );
 }
