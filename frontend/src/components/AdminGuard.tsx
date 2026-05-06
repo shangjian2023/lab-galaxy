@@ -15,7 +15,7 @@ export default function AdminGuard({ children }: { children: ReactNode }) {
   }, [user, loading, isAdmin, router]);
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-600">加载中...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-black">加载中...</div>;
   }
   if (!user || !isAdmin) return null;
 

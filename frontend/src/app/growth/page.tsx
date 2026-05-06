@@ -13,7 +13,7 @@ export default function GrowthPage() {
   }, []);
 
   if (!data) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-600">加载中...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-black">加载中...</div>;
   }
 
   const { level, level_config, points_rules, recent_points } = data;
@@ -41,7 +41,7 @@ export default function GrowthPage() {
         {/* Progress bar */}
         {level.next_level_points && (
           <div className="mt-4">
-            <div className="mb-1 flex justify-between text-xs text-gray-600">
+            <div className="mb-1 flex justify-between text-xs text-black">
               <span>VIP{level.level} {level.title}</span>
               <span>{level.next_level_points - data.points} 分升下一级</span>
             </div>
@@ -74,7 +74,7 @@ export default function GrowthPage() {
                 <span className="text-lg">{l.icon}</span>
                 <span className="mt-1 text-[10px] font-bold">VIP{l.level}</span>
                 <span className="text-[9px] text-gray-700">{l.title}</span>
-                <span className="mt-1 text-[9px] text-gray-600">{l.points}分</span>
+                <span className="mt-1 text-[9px] text-black">{l.points}分</span>
               </div>
             );
           })}
@@ -87,7 +87,7 @@ export default function GrowthPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {Object.entries(points_rules).map(([key, val]) => (
             <div key={key} className="glass-button flex items-center justify-between px-3 py-2">
-              <span className="text-xs text-gray-600">{RULE_LABELS[key] || key}</span>
+              <span className="text-xs text-black">{RULE_LABELS[key] || key}</span>
               <span className="text-sm font-bold text-orange-600">+{val}</span>
             </div>
           ))}
@@ -98,14 +98,14 @@ export default function GrowthPage() {
       <div className="glass-card p-6">
         <h2 className="mb-4 text-lg font-bold">最近积分变动</h2>
         {recent_points.length === 0 ? (
-          <p className="text-sm text-gray-600">暂无记录</p>
+          <p className="text-sm text-black">暂无记录</p>
         ) : (
           <div className="space-y-2">
             {recent_points.map((p, i) => (
               <div key={i} className="glass-table-row flex items-center justify-between px-3 py-2 text-sm">
-                <span className="text-gray-600">{p.reason}</span>
+                <span className="text-black">{p.reason}</span>
                 <span className="font-bold text-orange-600">+{p.change}</span>
-                <span className="text-xs text-gray-600">{new Date(p.created_at).toLocaleDateString("zh-CN")}</span>
+                <span className="text-xs text-black">{new Date(p.created_at).toLocaleDateString("zh-CN")}</span>
               </div>
             ))}
           </div>

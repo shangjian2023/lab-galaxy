@@ -142,7 +142,7 @@ export default function NodeMentionInput({ value, onChange, placeholder, rows = 
           className="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
           {searching && results.length === 0 && (
-            <div className="px-3 py-2 text-xs text-gray-600">搜索中...</div>
+            <div className="px-3 py-2 text-xs text-black">搜索中...</div>
           )}
           {results.map((node, i) => {
             const TYPE_COLORS: Record<string, string> = {
@@ -160,12 +160,12 @@ export default function NodeMentionInput({ value, onChange, placeholder, rows = 
                   i === selectedIndex ? "bg-orange-50" : "hover:bg-gray-50"
                 }`}
               >
-                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_COLORS[node.type] || "bg-gray-100 text-gray-600"}`}>
+                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_COLORS[node.type] || "bg-gray-100 text-black"}`}>
                   {node.type}
                 </span>
                 <span className="flex-1 truncate font-medium text-gray-800">{node.name}</span>
                 {node.summary && (
-                  <span className="truncate text-xs text-gray-600">{node.summary}</span>
+                  <span className="truncate text-xs text-black">{node.summary}</span>
                 )}
               </button>
             );

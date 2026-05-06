@@ -65,7 +65,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
       <h2 className="mb-4 text-lg font-bold">我的文档</h2>
 
       {docs.length === 0 ? (
-        <p className="py-10 text-center text-sm text-gray-600">暂无文档，点击上方区域上传</p>
+        <p className="py-10 text-center text-sm text-black">暂无文档，点击上方区域上传</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -112,13 +112,13 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                             {s.label}
                           </span>
                           {(doc.status === "parsing" || doc.status === "extracting") && doc.created_at && (
-                            <span className="text-[10px] text-gray-600">
+                            <span className="text-[10px] text-black">
                               ⏱ {elapsedSince(doc.created_at)}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-2.5 text-gray-600">
+                      <td className="py-2.5 text-black">
                         {new Date(doc.created_at).toLocaleString("zh-CN")}
                       </td>
                       <td className="py-2.5">
@@ -182,7 +182,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
               className="mt-3 glass-card rounded-lg p-4 text-sm"
             >
               <h3 className="mb-2 font-semibold">解析结果</h3>
-              <div className="mb-2 flex gap-4 text-gray-600">
+              <div className="mb-2 flex gap-4 text-black">
                 <span>实体数: <strong>{entities.length}</strong></span>
                 <span>关系数: <strong>{relations.length}</strong></span>
                 {subjects.length > 0 && <span>学科: {subjects.join("、")}</span>}

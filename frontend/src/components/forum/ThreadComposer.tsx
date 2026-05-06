@@ -121,7 +121,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
             maxLength={200}
             className="w-full rounded-lg bg-white/50 px-3 py-2 text-sm ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
           />
-          <div className="mt-1 text-right text-[10px] text-gray-600">{title.length}/200</div>
+          <div className="mt-1 text-right text-[10px] text-black">{title.length}/200</div>
         </div>
 
         {/* Content */}
@@ -156,7 +156,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
 
         {/* Submit */}
         <div className="flex items-center justify-between border-t border-white/40 pt-3">
-          <span className="text-[10px] text-gray-600">发布帖子可获得 +3 积分</span>
+          <span className="text-[10px] text-black">发布帖子可获得 +3 积分</span>
           <button
             onClick={handleSubmit}
             disabled={loading || !title.trim() || !content.trim()}

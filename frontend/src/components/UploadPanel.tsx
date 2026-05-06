@@ -290,7 +290,7 @@ export default function UploadPanel({ onUploaded }: Props) {
                   className={`${
                     active
                       ? "glass-warm rounded-full px-3 py-1 text-xs font-medium text-orange-700"
-                      : "glass-button rounded-full px-3 py-1 text-xs font-medium text-gray-600"
+                      : "glass-button rounded-full px-3 py-1 text-xs font-medium text-black"
                   }`}
                 >
                   {s.label}
@@ -313,7 +313,7 @@ export default function UploadPanel({ onUploaded }: Props) {
               className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm transition-all ${
                 privacy === p.value
                   ? "glass-warm text-orange-700 shadow-sm"
-                  : "glass-button text-gray-600"
+                  : "glass-button text-black"
               }`}
             >
               <span>{p.icon}</span>
@@ -352,7 +352,7 @@ export default function UploadPanel({ onUploaded }: Props) {
         <motion.svg
           animate={{ y: dragActive ? -4 : 0 }}
           transition={{ duration: 0.3 }}
-          className="mb-3 h-12 w-12 text-gray-600"
+          className="mb-3 h-12 w-12 text-black"
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -361,7 +361,7 @@ export default function UploadPanel({ onUploaded }: Props) {
         <p className="text-sm text-gray-700">
           拖拽文件到此处，或<span className="text-brand-600">点击选择</span>
         </p>
-        <p className="mt-1 text-xs text-gray-600">
+        <p className="mt-1 text-xs text-black">
           支持 PDF / Word / PPT | 最大 50MB | 可多选
         </p>
         <input
@@ -442,7 +442,7 @@ export default function UploadPanel({ onUploaded }: Props) {
       {/* ---- Submit (always visible) ---- */}
       <div className="mt-4 flex items-center justify-between rounded-xl bg-white/40 p-3 ring-1 ring-white/50">
         {files.length === 0 ? (
-          <span className="text-sm text-gray-600">选择文件后开始上传与解析</span>
+          <span className="text-sm text-black">选择文件后开始上传与解析</span>
         ) : failedOnly ? (
           <span className="text-sm text-red-500">所有文件验证失败，请检查文件格式与大小</span>
         ) : activeCount > 0 ? (
@@ -497,7 +497,7 @@ function FileRow({ entry, onRemove }: { entry: FileEntry; onRemove: (id: string)
       className="flex items-center gap-3 glass-card rounded-lg px-4 py-3"
     >
       {/* File icon */}
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-white text-xs font-bold uppercase text-gray-600">
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded bg-white text-xs font-bold uppercase text-black">
         {entry.file.name.split(".").pop()}
       </div>
 
@@ -510,7 +510,7 @@ function FileRow({ entry, onRemove }: { entry: FileEntry; onRemove: (id: string)
             {entry.status !== "completed" && entry.status !== "failed" && (
               <button
                 onClick={() => onRemove(entry.id)}
-                className="text-gray-600 hover:text-red-500"
+                className="text-black hover:text-red-500"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -520,7 +520,7 @@ function FileRow({ entry, onRemove }: { entry: FileEntry; onRemove: (id: string)
           </div>
         </div>
         <div className="mt-1 flex items-center gap-2">
-          <span className="text-xs text-gray-600">{formatSize(entry.file.size)}</span>
+          <span className="text-xs text-black">{formatSize(entry.file.size)}</span>
           {(entry.status === "uploading" || entry.status === "parsing") && (
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
               <motion.div

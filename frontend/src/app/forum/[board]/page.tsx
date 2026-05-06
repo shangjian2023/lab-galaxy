@@ -67,7 +67,7 @@ export default function BoardPage() {
         <div className="liquid-glass-card px-5 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Link href="/forum" className="text-gray-600 hover:text-gray-600">
+              <Link href="/forum" className="text-black hover:text-black">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
@@ -118,7 +118,7 @@ export default function BoardPage() {
       {/* Thread List */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-black">加载中...</p>
         </div>
       ) : (
         <ThreadList

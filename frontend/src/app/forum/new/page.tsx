@@ -17,7 +17,7 @@ function ThreadComposerInner() {
 
 export default function NewThreadPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-3xl px-6 py-8"><p className="text-gray-600">加载中...</p></main>}>
+    <Suspense fallback={<main className="mx-auto max-w-3xl px-6 py-8"><p className="text-black">加载中...</p></main>}>
       <ThreadComposerInner />
     </Suspense>
   );

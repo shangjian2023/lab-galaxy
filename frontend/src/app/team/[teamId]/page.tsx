@@ -34,7 +34,7 @@ export default function TeamSpacePage() {
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <p className="text-gray-600">加载中...</p>
+        <p className="text-black">加载中...</p>
       </div>
     );
   }
@@ -42,7 +42,7 @@ export default function TeamSpacePage() {
   if (!team || !user) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <p className="text-gray-600">团队不存在或无权访问</p>
+        <p className="text-black">团队不存在或无权访问</p>
       </div>
     );
   }
@@ -76,7 +76,7 @@ export default function TeamSpacePage() {
                 className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                   tab === t
                     ? "border-orange-500 text-orange-600"
-                    : "border-transparent text-gray-600 hover:text-gray-600"
+                    : "border-transparent text-black hover:text-black"
                 }`}
               >
                 {t === "chat" ? "聊天" : t === "members" ? "成员" : "成长历程"}

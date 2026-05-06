@@ -258,16 +258,16 @@ export default function ProcessingChamber({ docId, filename, onComplete, onDupli
             initial={{ y: 4, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="mt-1 text-xs text-gray-600"
+            className="mt-1 text-xs text-black"
           >
             {activeStage.description}
           </motion.p>
         </div>
 
         {/* Sample label */}
-        <div className="rounded-full border border-gray-700 bg-gray-800/60 px-3 py-1 text-[11px] text-gray-600">
+        <div className="rounded-full border border-gray-700 bg-gray-800/60 px-3 py-1 text-[11px] text-black">
           <span className="text-gray-700">样本:</span>{" "}
-          <span className="text-gray-500 font-mono">{filename}</span>
+          <span className="text-gray-800 font-mono">{filename}</span>
         </div>
 
         {/* Progress bar */}
@@ -297,7 +297,7 @@ export default function ProcessingChamber({ docId, filename, onComplete, onDupli
                   transition={{ duration: 1.2, repeat: Infinity }}
                   title={s.label}
                 >
-                  <span className={reached ? "text-white" : "text-gray-600"}>
+                  <span className={reached ? "text-white" : "text-black"}>
                     {i + 1}
                   </span>
                 </motion.div>

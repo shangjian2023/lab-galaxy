@@ -156,7 +156,7 @@ export default function TeamManager({ open, onClose }: Props) {
               <h2 className="text-lg font-bold text-gray-800">团队管理</h2>
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg p-1.5 text-black transition-colors hover:bg-gray-100 hover:text-black"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -178,7 +178,7 @@ export default function TeamManager({ open, onClose }: Props) {
                   {/* Team list */}
                   <div className="space-y-2">
                     {teams.length === 0 && (
-                      <p className="py-6 text-center text-sm text-gray-600">
+                      <p className="py-6 text-center text-sm text-black">
                         还没有加入任何团队，创建或邀请加入团队
                       </p>
                     )}
@@ -192,12 +192,12 @@ export default function TeamManager({ open, onClose }: Props) {
                           <div>
                             <span className="text-sm font-semibold text-gray-700">{t.name}</span>
                             {t.description && (
-                              <p className="text-[11px] text-gray-600">{t.description}</p>
+                              <p className="text-[11px] text-black">{t.description}</p>
                             )}
                           </div>
                           <div className="text-right">
-                            <span className="text-[10px] text-gray-600">{t.member_count} 成员</span>
-                            <p className="text-[10px] text-gray-500">创建者: {t.owner_nickname}</p>
+                            <span className="text-[10px] text-black">{t.member_count} 成员</span>
+                            <p className="text-[10px] text-gray-800">创建者: {t.owner_nickname}</p>
                           </div>
                         </div>
                       </button>
@@ -240,7 +240,7 @@ export default function TeamManager({ open, onClose }: Props) {
                   ) : (
                     <button
                       onClick={() => setShowCreate(true)}
-                      className="mt-4 w-full rounded-xl border border-dashed border-gray-200 py-3 text-sm text-gray-600 transition-colors hover:border-orange-300 hover:text-orange-600"
+                      className="mt-4 w-full rounded-xl border border-dashed border-gray-200 py-3 text-sm text-black transition-colors hover:border-orange-300 hover:text-orange-600"
                     >
                       + 创建新团队
                     </button>
@@ -252,13 +252,13 @@ export default function TeamManager({ open, onClose }: Props) {
                   <div className="mb-4">
                     <button
                       onClick={() => setSelectedTeam(null)}
-                      className="mb-2 text-xs text-gray-600 hover:text-gray-600"
+                      className="mb-2 text-xs text-black hover:text-black"
                     >
                       ← 返回团队列表
                     </button>
                     <h3 className="text-base font-bold text-gray-800">{selectedTeam.name}</h3>
                     {selectedTeam.description && (
-                      <p className="text-xs text-gray-600">{selectedTeam.description}</p>
+                      <p className="text-xs text-black">{selectedTeam.description}</p>
                     )}
                     <button
                       onClick={() => { onClose(); router.push(`/team/${selectedTeam.id}`); }}
@@ -276,7 +276,7 @@ export default function TeamManager({ open, onClose }: Props) {
 
                   {/* Members */}
                   <div className="mb-4">
-                    <h4 className="mb-2 text-sm font-semibold text-gray-600">成员 ({selectedTeam.members.length})</h4>
+                    <h4 className="mb-2 text-sm font-semibold text-black">成员 ({selectedTeam.members.length})</h4>
                     <div className="space-y-1.5">
                       {selectedTeam.members.map((m) => (
                         <div
@@ -305,7 +305,7 @@ export default function TeamManager({ open, onClose }: Props) {
 
                   {/* Invite */}
                   <div className="mb-4">
-                    <h4 className="mb-2 text-sm font-semibold text-gray-600">邀请成员</h4>
+                    <h4 className="mb-2 text-sm font-semibold text-black">邀请成员</h4>
                     <div className="relative">
                       <input
                         type="text"

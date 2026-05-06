@@ -28,7 +28,7 @@ export default function BoardCard({ board, index }: Props) {
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-600">{board.thread_count} 帖子</span>
+        <span className="text-xs text-black">{board.thread_count} 帖子</span>
         <span
           className="h-2 w-2 rounded-full"
           style={{ backgroundColor: board.color }}

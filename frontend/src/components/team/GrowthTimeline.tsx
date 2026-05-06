@@ -35,7 +35,7 @@ export default function GrowthTimeline({ teamId }: Props) {
     }
   };
 
-  if (loading) return <div className="p-6 text-gray-600">加载中...</div>;
+  if (loading) return <div className="p-6 text-black">加载中...</div>;
   if (error && !data) return <div className="p-6 text-red-400">{error}</div>;
   if (!data) return null;
 
@@ -70,7 +70,7 @@ export default function GrowthTimeline({ teamId }: Props) {
       {/* Timeline */}
       <div className="flex-1 overflow-y-auto p-4">
         {timeline.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-600">暂无成长记录</p>
+          <p className="py-8 text-center text-sm text-black">暂无成长记录</p>
         ) : (
           <div className="relative pl-6">
             {/* Vertical line */}
@@ -94,9 +94,9 @@ export default function GrowthTimeline({ teamId }: Props) {
                         ? entry.achievement_type || "成果"
                         : "文档"}
                     </span>
-                    <span className="text-xs text-gray-600">{entry.user_nickname}</span>
+                    <span className="text-xs text-black">{entry.user_nickname}</span>
                     {entry.date && (
-                      <span className="ml-auto text-xs text-gray-600">
+                      <span className="ml-auto text-xs text-black">
                         {new Date(entry.date).toLocaleDateString("zh-CN")}
                       </span>
                     )}
@@ -165,7 +165,7 @@ function AnalysisCard({ analysis }: { analysis: AIGrowthAnalysis }) {
           <p className="mb-1 text-xs font-medium text-green-700">优势</p>
           <ul className="space-y-0.5">
             {analysis.strengths.map((s, i) => (
-              <li key={i} className="text-xs text-gray-600">• {s}</li>
+              <li key={i} className="text-xs text-black">• {s}</li>
             ))}
           </ul>
         </div>
@@ -176,7 +176,7 @@ function AnalysisCard({ analysis }: { analysis: AIGrowthAnalysis }) {
           <p className="mb-1 text-xs font-medium text-amber-700">待提升</p>
           <ul className="space-y-0.5">
             {analysis.weaknesses.map((w, i) => (
-              <li key={i} className="text-xs text-gray-600">• {w}</li>
+              <li key={i} className="text-xs text-black">• {w}</li>
             ))}
           </ul>
         </div>
@@ -187,14 +187,14 @@ function AnalysisCard({ analysis }: { analysis: AIGrowthAnalysis }) {
           <p className="mb-1 text-xs font-medium text-blue-700">建议</p>
           <ul className="space-y-0.5">
             {analysis.suggestions.map((s, i) => (
-              <li key={i} className="text-xs text-gray-600">• {s}</li>
+              <li key={i} className="text-xs text-black">• {s}</li>
             ))}
           </ul>
         </div>
       )}
 
       {analysis.quota && (
-        <p className="mt-3 text-xs text-gray-600">
+        <p className="mt-3 text-xs text-black">
           本月剩余 {analysis.quota.remaining}/{analysis.quota.limit} 次
         </p>
       )}

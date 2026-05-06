@@ -12,7 +12,7 @@ export default function DocumentsPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">加载中...</p>
+        <p className="text-black">加载中...</p>
       </main>
     );
   }

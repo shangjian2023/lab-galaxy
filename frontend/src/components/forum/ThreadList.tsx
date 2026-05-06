@@ -20,7 +20,7 @@ export default function ThreadList({ threads, total, page, pageSize, onPageChang
       <div className="liquid-glass-card flex items-center justify-center py-16">
         <div className="text-center">
           <p className="text-3xl">🌿</p>
-          <p className="mt-2 text-sm text-gray-600">暂无帖子，快来发布第一条吧</p>
+          <p className="mt-2 text-sm text-black">暂无帖子，快来发布第一条吧</p>
         </div>
       </div>
     );
@@ -43,7 +43,7 @@ export default function ThreadList({ threads, total, page, pageSize, onPageChang
           >
             上一页
           </button>
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-black">
             {page} / {totalPages}
           </span>
           <button

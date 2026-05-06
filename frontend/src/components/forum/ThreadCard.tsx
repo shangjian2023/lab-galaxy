@@ -49,7 +49,7 @@ export default function ThreadCard({ thread }: Props) {
 
           <div className="mt-1.5 flex items-center justify-between">
             <AuthorBadge nickname={thread.author_nickname} level={thread.author_level} avatar={thread.author_avatar} />
-            <div className="flex items-center gap-3 text-[10px] text-gray-600">
+            <div className="flex items-center gap-3 text-[10px] text-black">
               <span>💬 {thread.reply_count}</span>
               <span>❤️ {thread.like_count}</span>
               <span>👁 {thread.view_count}</span>

@@ -122,7 +122,7 @@ export default function ChatRoom({ teamId, currentUserId }: Props) {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16">
             <div className="mb-3 h-16 w-16 rounded-full bg-white/30 backdrop-blur-sm ring-1 ring-white/40 flex items-center justify-center text-3xl">💬</div>
-            <p className="text-sm text-gray-600">暂无消息，发送第一条吧</p>
+            <p className="text-sm text-black">暂无消息，发送第一条吧</p>
           </div>
         )}
       </div>

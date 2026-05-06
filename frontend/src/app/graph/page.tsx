@@ -174,7 +174,7 @@ function ExperimentListPanel({ open, onToggle, experiments, selectedId, onSelect
               <span className="text-xs font-bold text-gray-700">实验列表</span>
               <button
                 onClick={onToggle}
-                className="rounded-md p-0.5 text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600"
+                className="rounded-md p-0.5 text-black transition-colors hover:bg-orange-100 hover:text-orange-600"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -189,7 +189,7 @@ function ExperimentListPanel({ open, onToggle, experiments, selectedId, onSelect
                   className={`w-full rounded-lg px-3 py-2 text-left text-xs transition-all ${
                     selectedId === exp.id
                       ? "bg-orange-100 font-semibold text-orange-700"
-                      : "text-gray-600 hover:bg-orange-50 hover:text-orange-700"
+                      : "text-black hover:bg-orange-50 hover:text-orange-700"
                   }`}
                 >
                   <span className="line-clamp-2">{exp.name}</span>
@@ -367,7 +367,7 @@ function GraphPageContent() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">加载中...</p>
+        <p className="text-black">加载中...</p>
       </main>
     );
   }
@@ -558,7 +558,7 @@ function GraphPageContent() {
               </button>
             ))}
           </div>
-          <span className="ml-auto text-xs text-gray-600">
+          <span className="ml-auto text-xs text-black">
             已选 {selectedYears.length}/{availableYears.length}
           </span>
         </div>
@@ -608,10 +608,10 @@ function GraphPageContent() {
             style={{ backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(30px) saturate(200%)" }}
           >
             <div className="flex items-center justify-between px-5 py-3">
-              <span className="text-sm font-medium text-white/80">知识图谱 — 全屏模式</span>
+              <span className="text-sm font-medium text-gray-900">知识图谱 — 全屏模式</span>
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-white/90 transition-colors hover:bg-white/20 hover:text-white"
+                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-gray-900 transition-colors hover:bg-white/20 hover:text-gray-700"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -637,7 +637,7 @@ function GraphPageContent() {
 
             <div className="flex items-center justify-center gap-5 px-5 py-2.5">
               {legendItems.map((t) => (
-                <span key={t.label} className="flex items-center gap-1.5 text-xs text-white/90">
+                <span key={t.label} className="flex items-center gap-1.5 text-xs text-gray-900">
                   <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
                   {t.label}
                 </span>
@@ -669,14 +669,14 @@ function GraphPageContent() {
         )}
 
         {viewType === "galaxy" && galaxyData.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-600">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-black">
             上传文档后将自动生成知识图谱
           </div>
         )}
       </div>
 
       <div className="liquid-glass-compact mt-3 flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-4 text-xs text-gray-600">
+        <div className="flex items-center gap-4 text-xs text-black">
           <span className="font-medium">图例:</span>
           {legendItems.map((t) => (
             <span key={t.label} className="flex items-center gap-1">
@@ -712,7 +712,7 @@ function GraphPageContent() {
 
 export default function GraphPage() {
   return (
-    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-gray-600">加载中...</p></main>}>
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-black">加载中...</p></main>}>
       <GraphPageContent />
     </Suspense>
   );

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router as api_router
 from app.core.config import settings
+from app.api.equipment import router as equipment_router
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(equipment_router, prefix="/api/v1/equipment")
 
 from app.api.ws_chat import router as ws_router
 app.include_router(ws_router, prefix="/api/v1")
@@ -289,6 +291,34 @@ async def _apply_schema_updates():
             logger.info("Monthly usage schema migration completed.")
         except Exception as e:
             logger.debug(f"Monthly usage migration may have partial issues: {e}")
+
+        # Equipment requests
+        try:
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE TYPE equip_req_status AS ENUM ('pending', 'approved', 'rejected');
+                EXCEPTION WHEN duplicate_object THEN null; END $$;
+            """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS equipment_requests (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    user_id UUID NOT NULL REFERENCES users(id),
+                    request_type VARCHAR(30) NOT NULL,
+                    title VARCHAR(200) NOT NULL,
+                    description TEXT,
+                    quantity INTEGER NOT NULL DEFAULT 1,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    admin_reply TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_equip_req_user ON equipment_requests(user_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_equip_req_status ON equipment_requests(status)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_equip_req_created ON equipment_requests(created_at DESC)"))
+            logger.info("Equipment requests schema migration completed.")
+        except Exception as e:
+            logger.debug(f"Equipment requests migration may have partial issues: {e}")
 
         # Add display_id to users
         try:

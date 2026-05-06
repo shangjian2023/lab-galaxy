@@ -45,7 +45,7 @@ export default function ChatMessage({ msg, isOwn }: Props) {
   if (msg.message_type === "system") {
     return (
       <div className="flex justify-center py-1.5">
-        <span className="text-[11px] text-gray-600">{msg.content}</span>
+        <span className="text-[11px] text-black">{msg.content}</span>
       </div>
     );
   }

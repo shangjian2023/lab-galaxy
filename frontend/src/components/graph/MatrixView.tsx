@@ -58,7 +58,7 @@ export default function MatrixView({ data, highlightedNodeId }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-600">
+      <div className="flex h-full items-center justify-center text-sm text-black">
         暂无矩阵数据
       </div>
     );
@@ -131,7 +131,7 @@ export default function MatrixView({ data, highlightedNodeId }: Props) {
         ))}
 
         {/* Legend */}
-        <div className="mt-4 flex items-center gap-2 text-xs text-gray-600">
+        <div className="mt-4 flex items-center gap-2 text-xs text-black">
           <span>关系数量:</span>
           {[0, 0.25, 0.5, 0.75, 1].map((t) => (
             <div key={t} className="flex items-center gap-1">

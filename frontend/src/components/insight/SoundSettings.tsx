@@ -43,7 +43,7 @@ export default function SoundSettings({ open, onClose }: Props) {
 
           {/* Sound toggle */}
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-xs text-gray-600">音效</span>
+            <span className="text-xs text-black">音效</span>
             <button
               onClick={() => setEnabled(!enabled)}
               className={`relative h-6 w-11 rounded-full transition-colors ${enabled ? "bg-orange-500" : "bg-gray-300"}`}
@@ -59,8 +59,8 @@ export default function SoundSettings({ open, onClose }: Props) {
           {/* Volume */}
           <div className="mb-4">
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-xs text-gray-600">音量</span>
-              <span className="text-xs text-gray-600">{volume}%</span>
+              <span className="text-xs text-black">音量</span>
+              <span className="text-xs text-black">{volume}%</span>
             </div>
             <input
               type="range" min={0} max={100} value={volume}
@@ -72,8 +72,8 @@ export default function SoundSettings({ open, onClose }: Props) {
           {/* Animation intensity */}
           <div className="mb-4">
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-xs text-gray-600">动画强度</span>
-              <span className="text-xs text-gray-600">{intensity}%</span>
+              <span className="text-xs text-black">动画强度</span>
+              <span className="text-xs text-black">{intensity}%</span>
             </div>
             <input
               type="range" min={0} max={100} value={intensity}
@@ -110,7 +110,7 @@ function TestBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="glass-button rounded-lg px-3 py-1.5 text-[10px] font-medium text-gray-600 hover:text-orange-600"
+      className="glass-button rounded-lg px-3 py-1.5 text-[10px] font-medium text-black hover:text-orange-600"
     >
       {label}
     </button>

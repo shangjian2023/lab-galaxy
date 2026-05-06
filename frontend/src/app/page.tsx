@@ -14,7 +14,7 @@ export default function Home() {
   }, [user]);
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center text-gray-600">加载中...</main>;
+    return <main className="flex min-h-screen items-center justify-center text-black">加载中...</main>;
   }
 
   if (!user) {
@@ -93,7 +93,7 @@ export default function Home() {
         <div className="glass-card p-6">
           <h2 className="mb-4 text-lg font-bold text-gray-800">最近文档</h2>
           {(!dashboard?.recent_documents || dashboard.recent_documents.length === 0) ? (
-            <p className="text-sm text-gray-600">暂无文档，去<a href="/documents" className="text-brand-600 hover:underline">上传</a>吧</p>
+            <p className="text-sm text-black">暂无文档，去<a href="/documents" className="text-brand-600 hover:underline">上传</a>吧</p>
           ) : (
             <div className="space-y-2">
               {dashboard.recent_documents.map((doc) => (
@@ -114,12 +114,12 @@ export default function Home() {
         <div className="glass-card p-6">
           <h2 className="mb-4 text-lg font-bold text-gray-800">最近积分变动</h2>
           {(!dashboard?.recent_points || dashboard.recent_points.length === 0) ? (
-            <p className="text-sm text-gray-600">暂无积分记录</p>
+            <p className="text-sm text-black">暂无积分记录</p>
           ) : (
             <div className="space-y-2">
               {dashboard.recent_points.map((p, i) => (
                 <div key={i} className="flex items-center justify-between rounded-lg bg-[rgba(255,248,240,0.3)] px-3 py-2 text-sm">
-                  <span className="text-gray-600">{p.reason}</span>
+                  <span className="text-black">{p.reason}</span>
                   <span className="font-bold text-brand-600">+{p.change}</span>
                 </div>
               ))}

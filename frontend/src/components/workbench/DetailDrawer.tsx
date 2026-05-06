@@ -97,7 +97,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-500"
+                  className="rounded p-1 text-black transition-colors hover:bg-red-50 hover:text-red-500"
                   title="删除文档"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -105,7 +105,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                   </svg>
                 </button>
               )}
-              <button onClick={onClose} className="btn-secondary rounded p-1 text-gray-600 hover:text-gray-600">
+              <button onClick={onClose} className="btn-secondary rounded p-1 text-black hover:text-black">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -182,10 +182,10 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
             {/* Subjects */}
             {card.subjects && card.subjects.length > 0 && (
               <div>
-                <h4 className="mb-1 text-xs font-medium text-gray-600">学科领域</h4>
+                <h4 className="mb-1 text-xs font-medium text-black">学科领域</h4>
                 <div className="flex flex-wrap gap-1">
                   {card.subjects.map((s) => (
-                    <span key={s} className="glass-button rounded-full px-2 py-0.5 text-xs text-gray-600">{s}</span>
+                    <span key={s} className="glass-button rounded-full px-2 py-0.5 text-xs text-black">{s}</span>
                   ))}
                 </div>
               </div>
@@ -202,7 +202,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
             {/* Entities */}
             {card.entities.length > 0 && (
               <div>
-                <h4 className="mb-2 text-xs font-medium text-gray-600">
+                <h4 className="mb-2 text-xs font-medium text-black">
                   提取实体 ({card.entities.length})
                 </h4>
                 <div className="space-y-2">
@@ -238,7 +238,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
             {/* Relations */}
             {card.relations.length > 0 && (
               <div>
-                <h4 className="mb-2 text-xs font-medium text-gray-600">
+                <h4 className="mb-2 text-xs font-medium text-black">
                   关系 ({card.relations.length})
                 </h4>
                 <div className="space-y-1">
@@ -248,9 +248,9 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                     return (
                       <div key={i} className="flex items-center gap-1 text-[10px] text-gray-700">
                         <span className="font-medium">{srcEntity?.name || r.source_id.slice(0, 6)}</span>
-                        <span className="rounded bg-gray-200 px-1 text-gray-600">{r.type}</span>
+                        <span className="rounded bg-gray-200 px-1 text-black">{r.type}</span>
                         <span className="font-medium">{tgtEntity?.name || r.target_id.slice(0, 6)}</span>
-                        <span className="text-gray-600">({(r.confidence * 100).toFixed(0)}%)</span>
+                        <span className="text-black">({(r.confidence * 100).toFixed(0)}%)</span>
                       </div>
                     );
                   })}
@@ -267,7 +267,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] text-gray-600">{label}</p>
+      <p className="text-[10px] text-black">{label}</p>
       <p className="font-medium text-gray-700">{value}</p>
     </div>
   );

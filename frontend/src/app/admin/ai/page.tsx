@@ -64,7 +64,7 @@ export default function AdminAIConfigPage() {
 
   const toggleShow = (key: string) => setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  if (loading) return <main className="p-6 text-gray-600">加载中...</main>;
+  if (loading) return <main className="p-6 text-black">加载中...</main>;
 
   return (
     <main className="mx-auto max-w-2xl">

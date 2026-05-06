@@ -27,7 +27,7 @@ export default function TimelineView({ data, highlightedNodeId, onNodeClick }: P
 
   if (data.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-600">
+      <div className="flex h-full items-center justify-center text-sm text-black">
         暂无时间线数据
       </div>
     );
@@ -68,7 +68,7 @@ export default function TimelineView({ data, highlightedNodeId, onNodeClick }: P
                     <span className={`font-medium ${isHighlighted ? "text-purple-700" : ""}`}>
                       {entry.node.name || entry.node.id.slice(0, 8)}
                     </span>
-                    <span className="text-xs text-gray-600">{entry.node.type}</span>
+                    <span className="text-xs text-black">{entry.node.type}</span>
                   </motion.button>
                 );
               })}

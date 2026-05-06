@@ -70,7 +70,7 @@ export default function MyForumPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-black">加载中...</p>
         </div>
       ) : (
         <ThreadList

@@ -18,7 +18,7 @@ export default function AuthorBadge({ nickname, level, avatar }: Props) {
           {nickname.charAt(0)}
         </span>
       )}
-      <span className="text-xs text-gray-600">{nickname}</span>
+      <span className="text-xs text-black">{nickname}</span>
       <span className="rounded-full bg-orange-50 px-1.5 py-0.5 text-[9px] font-bold text-orange-500 ring-1 ring-orange-200/40">
         Lv{level}
       </span>

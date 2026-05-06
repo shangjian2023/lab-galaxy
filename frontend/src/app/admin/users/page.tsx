@@ -167,7 +167,7 @@ export default function AdminUsersPage() {
           <option value="pending">待审批</option>
           <option value="disabled">已禁用</option>
         </select>
-        <span className="ml-auto text-xs text-gray-600">共 {total} 个用户</span>
+        <span className="ml-auto text-xs text-black">共 {total} 个用户</span>
       </div>
 
       <AnimatePresence>
@@ -280,7 +280,7 @@ export default function AdminUsersPage() {
                     </select>
                   ) : (
                     <span className={`rounded-xl px-1.5 py-0.5 text-xs font-medium ${
-                      u.role === "admin" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-600"
+                      u.role === "admin" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-black"
                     }`}>{u.role}</span>
                   )}
                 </td>
@@ -318,7 +318,7 @@ export default function AdminUsersPage() {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-gray-600">
+                <td className="px-4 py-2 text-black">
                   {new Date(u.created_at).toLocaleDateString("zh-CN")}
                 </td>
                 <td className="px-4 py-2">
@@ -404,7 +404,7 @@ function Modal({ children, onClose, title }: { children: ReactNode; onClose: () 
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} className="text-gray-600 hover:text-gray-600">×</button>
+          <button onClick={onClose} className="text-black hover:text-black">×</button>
         </div>
         {children}
       </motion.div>

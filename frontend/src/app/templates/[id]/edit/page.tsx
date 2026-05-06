@@ -45,7 +45,7 @@ export default function EditTemplatePage() {
   }, [tplId, user, router]);
 
   if (loading || dataLoading) {
-    return <main className="flex min-h-screen items-center justify-center text-gray-600">加载中...</main>;
+    return <main className="flex min-h-screen items-center justify-center text-black">加载中...</main>;
   }
 
   if (!user) {
@@ -168,7 +168,7 @@ export default function EditTemplatePage() {
             <input ref={fileInputRef} type="file" accept=".docx" onChange={handleImportWord} className="hidden" />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50"
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black transition-colors hover:bg-gray-50"
             >
               导入 Word
             </button>
@@ -197,7 +197,7 @@ export default function EditTemplatePage() {
             {content.trim() ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             ) : (
-              <p className="text-sm text-gray-500">预览区域</p>
+              <p className="text-sm text-gray-800">预览区域</p>
             )}
           </div>
         </div>
@@ -207,7 +207,7 @@ export default function EditTemplatePage() {
       <div className="flex justify-end gap-3">
         <button
           onClick={() => router.push("/templates")}
-          className="btn-secondary rounded-lg px-6 py-2 text-sm font-medium text-gray-600"
+          className="btn-secondary rounded-lg px-6 py-2 text-sm font-medium text-black"
         >
           取消
         </button>

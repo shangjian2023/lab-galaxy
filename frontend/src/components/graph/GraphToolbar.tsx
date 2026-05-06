@@ -64,7 +64,7 @@ export default function GraphToolbar({
 
   const gearCls = showSettings
     ? "bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
-    : "text-gray-600 hover:bg-white/40 hover:text-gray-600";
+    : "text-black hover:bg-white/40 hover:text-black";
 
   const timelineCls = isAnimating
     ? "bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
@@ -127,7 +127,7 @@ export default function GraphToolbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-600">
+        <div className="flex items-center gap-3 text-xs text-black">
           <span className="rounded-full bg-white/50 px-2.5 py-0.5 ring-1 ring-white/40">{nodeCount} 节点</span>
           <span className="rounded-full bg-white/50 px-2.5 py-0.5 ring-1 ring-white/40">{edgeCount} 关系</span>
           {liveCount !== undefined && liveCount > 0 && (
@@ -208,7 +208,7 @@ export default function GraphToolbar({
                   className="rounded-lg bg-white/50 px-2 py-1 text-[10px] ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
                   placeholder="起始日期"
                 />
-                <span className="text-[10px] text-gray-600">—</span>
+                <span className="text-[10px] text-black">—</span>
                 <input
                   type="date"
                   value={toDate || ""}
@@ -247,7 +247,7 @@ export default function GraphToolbar({
           >
             <div className="rounded-xl bg-white/30 p-4 ring-1 ring-white/50">
               <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                <label className="flex items-center gap-2 text-xs text-gray-600">
+                <label className="flex items-center gap-2 text-xs text-black">
                   <span className="w-16 shrink-0">排斥力</span>
                   <input
                     type="range"
@@ -258,9 +258,9 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, repel: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-600">{forceSettings.repel}</span>
+                  <span className="w-10 text-right text-black">{forceSettings.repel}</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs text-gray-600">
+                <label className="flex items-center gap-2 text-xs text-black">
                   <span className="w-16 shrink-0">连接距离</span>
                   <input
                     type="range"
@@ -271,9 +271,9 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, linkDistance: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-600">{forceSettings.linkDistance}px</span>
+                  <span className="w-10 text-right text-black">{forceSettings.linkDistance}px</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs text-gray-600">
+                <label className="flex items-center gap-2 text-xs text-black">
                   <span className="w-16 shrink-0">节点大小</span>
                   <input
                     type="range"
@@ -284,9 +284,9 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, nodeSize: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-600">{forceSettings.nodeSize.toFixed(1)}x</span>
+                  <span className="w-10 text-right text-black">{forceSettings.nodeSize.toFixed(1)}x</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs text-gray-600">
+                <label className="flex items-center gap-2 text-xs text-black">
                   <span className="w-16 shrink-0">实验节点</span>
                   <input
                     type="range"
@@ -297,9 +297,9 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, experimentSize: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-600">{forceSettings.experimentSize.toFixed(1)}x</span>
+                  <span className="w-10 text-right text-black">{forceSettings.experimentSize.toFixed(1)}x</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs text-gray-600">
+                <label className="flex items-center gap-2 text-xs text-black">
                   <span className="w-16 shrink-0">连接粗细</span>
                   <input
                     type="range"
@@ -310,7 +310,7 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, linkWidth: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-600">{forceSettings.linkWidth.toFixed(1)}x</span>
+                  <span className="w-10 text-right text-black">{forceSettings.linkWidth.toFixed(1)}x</span>
                 </label>
               </div>
             </div>

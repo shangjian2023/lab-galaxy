@@ -99,12 +99,12 @@ export default function TeamListPage() {
       {/* Team list */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-black">加载中...</p>
         </div>
       ) : teams.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="text-gray-600">还没有加入任何团队</p>
-          <p className="mt-1 text-sm text-gray-500">点击上方按钮创建你的第一个团队</p>
+          <p className="text-black">还没有加入任何团队</p>
+          <p className="mt-1 text-sm text-gray-800">点击上方按钮创建你的第一个团队</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -120,14 +120,14 @@ export default function TeamListPage() {
                     {t.name}
                   </h3>
                   {t.description && (
-                    <p className="mt-1 text-xs text-gray-600 line-clamp-2">{t.description}</p>
+                    <p className="mt-1 text-xs text-black line-clamp-2">{t.description}</p>
                   )}
                 </div>
                 <span className="shrink-0 rounded-full bg-orange-50 px-2.5 py-0.5 text-[11px] text-orange-500">
                   {t.member_count} 人
                 </span>
               </div>
-              <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500">
+              <div className="mt-3 flex items-center justify-between text-[11px] text-gray-800">
                 <span>创建者: {t.owner_nickname}</span>
                 <span>{new Date(t.created_at).toLocaleDateString("zh-CN")}</span>
               </div>

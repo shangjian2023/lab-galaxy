@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/team", label: "团队空间" },
   { href: "/forum", label: "🧪 知识发酵池" },
   { href: "/templates", label: "模板市场" },
+  { href: "/equipment", label: "实验器材" },
 ];
 
 export default function Navbar() {
@@ -27,7 +28,7 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-xl px-4 py-2 text-sm text-[#6b5e50] hover:bg-[rgba(249,115,22,0.06)] hover:text-brand-600 transition-all"
+                  className="rounded-xl px-4 py-2 text-sm text-black hover:bg-[rgba(249,115,22,0.06)] hover:text-brand-600 transition-all"
                 >
                   {item.label}
                 </Link>
@@ -44,7 +45,7 @@ export default function Navbar() {
                   管理后台
                 </Link>
               )}
-              <Link href="/profile" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[#6b5e50] hover:bg-[rgba(249,115,22,0.06)] transition-all">
+              <Link href="/profile" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-black hover:bg-[rgba(249,115,22,0.06)] transition-all">
                 <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
                   {user.level}
                 </span>
@@ -52,14 +53,14 @@ export default function Navbar() {
               </Link>
               <button
                 onClick={logout}
-                className="btn-secondary rounded-xl px-4 py-2 text-sm text-[#6b5e50]"
+                className="btn-secondary rounded-xl px-4 py-2 text-sm text-black"
               >
                 退出
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" className="btn-secondary rounded-xl px-5 py-2 text-sm text-[#6b5e50]">
+              <Link href="/login" className="btn-secondary rounded-xl px-5 py-2 text-sm text-black">
                 登录
               </Link>
               <Link href="/register" className="btn-primary rounded-xl px-5 py-2 text-sm">

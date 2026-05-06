@@ -936,3 +936,56 @@ export function getMyForumThreads(page = 1) {
 export function getMyForumBookmarks(page = 1) {
   return request<ForumThreadListResponse>(`/forum/me/bookmarks?page=${page}`);
 }
+
+// ========== Equipment Requests ==========
+
+export interface EquipmentCatalogItem {
+  name: string;
+  icon: string;
+  description: string;
+}
+
+export interface EquipmentRequestItem {
+  id: string;
+  user_id: string;
+  user_nickname: string | null;
+  request_type: string;
+  title: string;
+  description: string | null;
+  quantity: number;
+  status: string;
+  admin_reply: string | null;
+  created_at: string | null;
+}
+
+export function getEquipmentCatalog() {
+  return request<{ items: EquipmentCatalogItem[] }>("/equipment/catalog", "POST");
+}
+
+export function submitEquipmentRequest(data: {
+  request_type: string;
+  title: string;
+  description?: string;
+  quantity?: number;
+}) {
+  return request<{ id: string; message: string }>("/equipment/requests", "POST", data);
+}
+
+export function getMyEquipmentRequests(page = 1) {
+  return request<{ total: number; items: EquipmentRequestItem[] }>(
+    `/equipment/requests/my?page=${page}`
+  );
+}
+
+export function adminListEquipmentRequests(page = 1, status?: string) {
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  if (status) params.set("status", status);
+  return request<{ total: number; items: EquipmentRequestItem[] }>(
+    `/equipment/admin/requests?${params.toString()}`
+  );
+}
+
+export function adminReplyEquipmentRequest(id: string, data: { status: string; reply: string }) {
+  return request<EquipmentRequestItem>(`/equipment/admin/requests/${id}`, "PATCH", data);
+}

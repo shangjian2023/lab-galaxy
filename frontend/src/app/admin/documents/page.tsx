@@ -74,7 +74,7 @@ export default function AdminDocumentsPage() {
             <option value="">全部状态</option>
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <span className="text-sm text-gray-600">共 {total} 条</span>
+          <span className="text-sm text-black">共 {total} 条</span>
         </div>
       </div>
 

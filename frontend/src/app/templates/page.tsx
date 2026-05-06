@@ -91,7 +91,7 @@ export default function TemplatesPage() {
           <h1 className="text-2xl font-bold">模板市场</h1>
           <p className="text-sm text-gray-700">发现、使用、分享实验模板</p>
         </div>
-        <span className="text-sm text-gray-600">{total} 个模板</span>
+        <span className="text-sm text-black">{total} 个模板</span>
         <a href="/templates/new" className="btn-primary px-4 py-1.5 text-sm font-medium text-white">
           创建模板
         </a>
@@ -102,13 +102,13 @@ export default function TemplatesPage() {
         {CATEGORIES.map((c) => (
           <button key={c.value} onClick={() => setCategory(c.value)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              category === c.value ? "bg-orange-100 text-orange-700" : "glass-button text-gray-600"
+              category === c.value ? "bg-orange-100 text-orange-700" : "glass-button text-black"
             }`}>{c.label}</button>
         ))}
         <div className="ml-auto flex items-center gap-2">
           {SORT_OPTIONS.map((s) => (
             <button key={s.value} onClick={() => setSort(s.value)}
-              className={`text-xs font-medium ${sort === s.value ? "text-orange-600" : "text-gray-600 hover:text-gray-600"}`}>{s.label}</button>
+              className={`text-xs font-medium ${sort === s.value ? "text-orange-600" : "text-black hover:text-black"}`}>{s.label}</button>
           ))}
           <input value={keyword} onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
@@ -133,7 +133,7 @@ export default function TemplatesPage() {
             {/* Tags */}
             {tpl.tags && tpl.tags.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1">
-                {tpl.tags.map((t) => <span key={t} className="rounded-full bg-gray-50 px-2 py-0.5 text-[10px] text-gray-600">{t}</span>)}
+                {tpl.tags.map((t) => <span key={t} className="rounded-full bg-gray-50 px-2 py-0.5 text-[10px] text-black">{t}</span>)}
               </div>
             )}
 
@@ -146,9 +146,9 @@ export default function TemplatesPage() {
             )}
 
             {/* Stats */}
-            <div className="flex items-center justify-between text-xs text-gray-600">
+            <div className="flex items-center justify-between text-xs text-black">
               <div className="flex gap-3">
-                <button onClick={() => handleLike(tpl.id)} className={`flex items-center gap-1 hover:text-red-500 transition-colors ${tpl.is_liked ? "text-red-500" : "text-gray-600"}`}>
+                <button onClick={() => handleLike(tpl.id)} className={`flex items-center gap-1 hover:text-red-500 transition-colors ${tpl.is_liked ? "text-red-500" : "text-black"}`}>
                   <svg className="h-3.5 w-3.5" fill={tpl.is_liked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
@@ -176,7 +176,7 @@ export default function TemplatesPage() {
       </div>
 
       {items.length === 0 && (
-        <div className="py-20 text-center text-sm text-gray-600">暂无模板</div>
+        <div className="py-20 text-center text-sm text-black">暂无模板</div>
       )}
 
       {/* Preview Modal */}
@@ -198,7 +198,7 @@ export default function TemplatesPage() {
             >
               <div className="flex items-center justify-between border-b px-6 py-4">
                 <h2 className="text-lg font-bold text-gray-800">{previewTpl.name || previewLoading ? "加载中..." : "模板预览"}</h2>
-                <button onClick={() => setPreviewTpl(null)} className="text-gray-500 hover:text-gray-700">
+                <button onClick={() => setPreviewTpl(null)} className="text-gray-800 hover:text-gray-700">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -206,7 +206,7 @@ export default function TemplatesPage() {
               </div>
               <div className="max-h-[60vh] overflow-y-auto p-6 text-sm text-gray-700">
                 {previewLoading ? (
-                  <div className="py-8 text-center text-gray-500">加载中...</div>
+                  <div className="py-8 text-center text-gray-800">加载中...</div>
                 ) : (
                   <MarkdownRenderer content={previewTpl.content} />
                 )}

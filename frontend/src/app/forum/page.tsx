@@ -85,7 +85,7 @@ export default function ForumPage() {
       <div className="mb-8">
         {boardsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <p className="text-gray-600">加载板块...</p>
+            <p className="text-black">加载板块...</p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -99,7 +99,7 @@ export default function ForumPage() {
       {/* Divider */}
       <div className="mb-6 flex items-center gap-3">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-        <span className="text-xs font-medium text-gray-600">全部帖子</span>
+        <span className="text-xs font-medium text-black">全部帖子</span>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
       </div>
 
@@ -150,7 +150,7 @@ export default function ForumPage() {
       {/* Thread list */}
       {threadsLoading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-black">加载中...</p>
         </div>
       ) : (
         <ThreadList

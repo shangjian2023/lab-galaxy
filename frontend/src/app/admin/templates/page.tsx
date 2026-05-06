@@ -66,7 +66,7 @@ export default function AdminTemplatesPage() {
             <option value="">全部状态</option>
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <span className="text-sm text-gray-600">共 {total} 条</span>
+          <span className="text-sm text-black">共 {total} 条</span>
         </div>
       </div>
 
@@ -93,7 +93,7 @@ export default function AdminTemplatesPage() {
                 <tr key={tpl.id} className="glass-table-row border-t">
                   <td className="max-w-[160px] truncate px-3 py-2 font-medium">{tpl.name}</td>
                   <td className="px-3 py-2 text-gray-700">{tpl.category || "-"}</td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
+                  <td className="px-3 py-2 text-xs text-black">
                     {tpl.tags?.join("、") || "-"}
                   </td>
                   <td className="px-3 py-2">
@@ -127,7 +127,7 @@ export default function AdminTemplatesPage() {
                       <span className="rounded-xl bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">官方</span>
                     ) : "-"}
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">{tpl.created_by?.slice(0, 8)}</td>
+                  <td className="px-3 py-2 text-xs text-black">{tpl.created_by?.slice(0, 8)}</td>
                   <td className="px-3 py-2 text-xs">{tpl.likes}</td>
                   <td className="px-3 py-2 text-xs">{tpl.downloads}</td>
                   <td className="px-3 py-2 text-xs">{tpl.bookmarks}</td>

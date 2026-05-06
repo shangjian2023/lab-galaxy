@@ -49,7 +49,7 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
                 />
                 <h3 className="font-bold text-white">{node.name || node.id.slice(0, 8)}</h3>
               </div>
-              <button onClick={onClose} className="text-white/80 hover:text-white">
+              <button onClick={onClose} className="text-gray-900 hover:text-gray-600">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -68,11 +68,11 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
 
             {/* Summary */}
             {node.summary && (
-              <p className="mb-3 text-sm leading-relaxed text-white/80">{node.summary}</p>
+              <p className="mb-3 text-sm leading-relaxed text-gray-900">{node.summary}</p>
             )}
 
             {/* Meta */}
-            <div className="space-y-1 text-xs text-white/90">
+            <div className="space-y-1 text-xs text-gray-900">
               <p>ID: {node.id.slice(0, 12)}...</p>
               {node.document_id && (
                 <div className="flex items-center justify-between">

@@ -47,7 +47,7 @@ export default function LevelBadge({ level, icon, frame, nickname, avatar, point
         {avatar ? (
           <img src={avatar} alt="" className="h-full w-full rounded-full object-cover" />
         ) : (
-          <span className="text-gray-600">{nickname[0]}</span>
+          <span className="text-black">{nickname[0]}</span>
         )}
         {/* Level icon overlay */}
         <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] shadow">
@@ -56,7 +56,7 @@ export default function LevelBadge({ level, icon, frame, nickname, avatar, point
       </div>
       <div>
         <p className={`text-sm font-bold ${nickClass}`}>{nickname}</p>
-        <p className="text-[10px] text-gray-600">VIP{level} · {points}分</p>
+        <p className="text-[10px] text-black">VIP{level} · {points}分</p>
       </div>
     </div>
   );

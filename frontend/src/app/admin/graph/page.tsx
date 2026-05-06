@@ -150,7 +150,7 @@ export default function AdminGraphPage() {
               <tbody>
                 {nodes.map((n) => (
                   <tr key={n.id} className="glass-table-row border-t">
-                    <td className="max-w-[120px] truncate px-3 py-2 font-mono text-xs text-gray-600">{n.id}</td>
+                    <td className="max-w-[120px] truncate px-3 py-2 font-mono text-xs text-black">{n.id}</td>
                     <td className="px-3 py-2">
                       {editingNode === n.id ? (
                         <select value={editValues.type ?? n.type}
@@ -267,14 +267,14 @@ export default function AdminGraphPage() {
                     <tr key={`${r.source_id}-${r.target_id}-${r.type}-${i}`} className="glass-table-row border-t">
                       <td className="px-3 py-2">
                         <span className="font-medium">{src?.name ?? r.source_id.slice(0, 8)}</span>
-                        {src && <span className="ml-1 text-xs text-gray-600">({src.type})</span>}
+                        {src && <span className="ml-1 text-xs text-black">({src.type})</span>}
                       </td>
                       <td className="px-3 py-2">
                         <span className="rounded-xl bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">{r.type}</span>
                       </td>
                       <td className="px-3 py-2">
                         <span className="font-medium">{tgt?.name ?? r.target_id.slice(0, 8)}</span>
-                        {tgt && <span className="ml-1 text-xs text-gray-600">({tgt.type})</span>}
+                        {tgt && <span className="ml-1 text-xs text-black">({tgt.type})</span>}
                       </td>
                       <td className="px-3 py-2">
                         <span className="text-gray-700">{(r.confidence * 100).toFixed(0)}%</span>

@@ -115,7 +115,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
+        <div className="mt-4 flex items-center gap-4 text-xs text-black">
           <span>{timeAgo(thread.created_at)}</span>
           <span>👁 {thread.view_count}</span>
         </div>
@@ -146,7 +146,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
         <h3 className="mb-4 text-sm font-bold text-gray-700">💬 回复 ({thread.reply_count})</h3>
 
         {replies.length === 0 && (
-          <p className="py-6 text-center text-sm text-gray-600">暂无回复，快来抢沙发吧！</p>
+          <p className="py-6 text-center text-sm text-black">暂无回复，快来抢沙发吧！</p>
         )}
 
         <div className="space-y-3">
@@ -161,12 +161,12 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
               <div className="mt-2 text-sm leading-relaxed text-gray-700">
                 <MentionHighlight content={reply.content} />
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs text-gray-600">
+              <div className="mt-2 flex items-center gap-3 text-xs text-black">
                 <span>{timeAgo(reply.created_at)}</span>
                 <button
                   onClick={() => handleReplyLike(reply.id)}
                   className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-all ${
-                    replyLikes[reply.id] ? "text-red-500" : "text-gray-600 hover:text-red-400"
+                    replyLikes[reply.id] ? "text-red-500" : "text-black hover:text-red-400"
                   }`}
                 >
                   {replyLikes[reply.id] ? "❤️" : "🤍"} {replyLikeCounts[reply.id]}
@@ -180,7 +180,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
                     <div key={child.id} className="rounded-lg bg-white/20 p-2.5 ring-1 ring-white/30">
                       <div className="flex items-center gap-2">
                         <AuthorBadge nickname={child.author_nickname} level={child.author_level} avatar={child.author_avatar} />
-                        <span className="text-[10px] text-gray-600">
+                        <span className="text-[10px] text-black">
                           {timeAgo(child.created_at)}
                         </span>
                       </div>

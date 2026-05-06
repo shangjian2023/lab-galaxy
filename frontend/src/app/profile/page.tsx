@@ -18,7 +18,7 @@ export default function ProfilePage() {
   }, [user]);
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center text-gray-600">加载中...</main>;
+    return <main className="flex min-h-screen items-center justify-center text-black">加载中...</main>;
   }
 
   if (!user) {

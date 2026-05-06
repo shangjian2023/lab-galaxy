@@ -230,7 +230,7 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
                     />
                     <span
                       className={`text-xs transition-colors ${
-                        i === currentStage ? "font-medium text-gray-700" : "text-gray-600"
+                        i === currentStage ? "font-medium text-gray-700" : "text-black"
                       }`}
                     >
                       {stage.label}
@@ -249,7 +249,7 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
           <span className="text-xs font-medium text-gray-700">对话历史 ({items.length})</span>
           <button
             onClick={clearItems}
-            className="text-xs text-gray-600 transition-colors hover:text-red-500"
+            className="text-xs text-black transition-colors hover:text-red-500"
           >
             清空历史
           </button>
@@ -300,11 +300,11 @@ function HistoryItem({
         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600">问</span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-gray-800">{item.question}</p>
-          <p className="text-[10px] text-gray-600">{time}</p>
+          <p className="text-[10px] text-black">{time}</p>
         </div>
         <button
           onClick={() => onRemove(item.id)}
-          className="shrink-0 text-gray-500 transition-colors hover:text-red-400"
+          className="shrink-0 text-gray-800 transition-colors hover:text-red-400"
           title="删除此条"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -369,7 +369,7 @@ function HistoryItem({
               <button
                 key={s}
                 onClick={() => onRetry(s)}
-                className="rounded-full bg-white/40 px-3 py-1 text-xs text-gray-600 ring-1 ring-white/40 transition-all hover:bg-white/60"
+                className="rounded-full bg-white/40 px-3 py-1 text-xs text-black ring-1 ring-white/40 transition-all hover:bg-white/60"
               >
                 {s}
               </button>

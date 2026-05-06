@@ -26,7 +26,7 @@ const NODE_TYPE_COLORS: Record<string, string> = {
   Theory: "bg-purple-100 text-purple-700",
   Consumable: "bg-amber-100 text-amber-700",
   Tool: "bg-green-100 text-green-700",
-  Concept: "bg-gray-100 text-gray-600",
+  Concept: "bg-gray-100 text-black",
 };
 
 export default function ChatMentionInput({ value, onChange, onKeyDown, placeholder, disabled }: Props) {
@@ -56,7 +56,7 @@ export default function ChatMentionInput({ value, onChange, onKeyDown, placehold
       name: n.name,
       label: n.type,
       type: "node" as const,
-      color: NODE_TYPE_COLORS[n.type] || "bg-gray-100 text-gray-600",
+      color: NODE_TYPE_COLORS[n.type] || "bg-gray-100 text-black",
     }));
     setResults(combined);
   }, []);

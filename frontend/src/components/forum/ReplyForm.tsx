@@ -49,7 +49,7 @@ export default function ReplyForm({ threadId, onSuccess }: Props) {
         rows={3}
       />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-[10px] text-gray-600">
+        <span className="text-[10px] text-black">
           输入 @ 后输入节点名称，选择即可关联图谱节点
         </span>
         <button

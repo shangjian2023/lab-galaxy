@@ -35,7 +35,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[rgba(139,109,80,0.08)] px-3 py-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-600">文档树</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-black">文档树</h3>
       </div>
 
       {/* Favorite filter */}
@@ -57,13 +57,13 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
       {/* Tree */}
       <div className="flex-1 overflow-y-auto p-2 text-sm">
         {Object.keys(tree).length === 0 && (
-          <p className="py-6 text-center text-xs text-gray-600">暂无文档</p>
+          <p className="py-6 text-center text-xs text-black">暂无文档</p>
         )}
         {Object.entries(tree).map(([year, types]) => (
           <div key={year} className="mb-1">
             <button
               onClick={() => toggle(`y-${year}`)}
-              className="flex w-full items-center gap-1 rounded px-2 py-1 text-xs font-bold text-gray-600 hover:bg-[rgba(255,248,240,0.5)]"
+              className="flex w-full items-center gap-1 rounded px-2 py-1 text-xs font-bold text-black hover:bg-[rgba(255,248,240,0.5)]"
             >
               <svg className={`h-3 w-3 transition-transform ${expanded.has(`y-${year}`) ? "rotate-90" : ""}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
