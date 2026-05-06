@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CardItem } from "@/lib/api";
-import { deleteDocument } from "@/lib/api";
+import { deleteDocument, downloadDocument } from "@/lib/api";
 import { NODE_TYPE_COLORS } from "@/lib/constants";
 
 interface Props {
@@ -30,6 +30,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }: Props) {
   const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const handleDelete = async () => {
     if (!card || !onDelete) return;
@@ -43,6 +44,18 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
       alert("删除失败，请重试");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!card) return;
+    setDownloading(true);
+    try {
+      await downloadDocument(card.id, card.title);
+    } catch {
+      alert("下载失败，请重试");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -64,7 +77,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                  className="rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-500"
                   title="删除文档"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,7 +85,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                   </svg>
                 </button>
               )}
-              <button onClick={onClose} className="btn-secondary rounded p-1 text-gray-400 hover:text-gray-600">
+              <button onClick={onClose} className="btn-secondary rounded p-1 text-gray-600 hover:text-gray-600">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -92,10 +105,29 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
               <Meta label="状态" value={card.status} />
             </div>
 
+            {/* Download button */}
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="glass-button flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-gray-700 transition-colors disabled:opacity-50"
+            >
+              {downloading ? (
+                <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
+              {downloading ? "下载中..." : "查看原始文档"}
+            </button>
+
             {/* Subjects */}
             {card.subjects && card.subjects.length > 0 && (
               <div>
-                <h4 className="mb-1 text-xs font-medium text-gray-400">学科领域</h4>
+                <h4 className="mb-1 text-xs font-medium text-gray-600">学科领域</h4>
                 <div className="flex flex-wrap gap-1">
                   {card.subjects.map((s) => (
                     <span key={s} className="glass-button rounded-full px-2 py-0.5 text-xs text-gray-600">{s}</span>
@@ -115,7 +147,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
             {/* Entities */}
             {card.entities.length > 0 && (
               <div>
-                <h4 className="mb-2 text-xs font-medium text-gray-400">
+                <h4 className="mb-2 text-xs font-medium text-gray-600">
                   提取实体 ({card.entities.length})
                 </h4>
                 <div className="space-y-2">
@@ -133,7 +165,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-gray-800">{e.name}</p>
                         {e.summary && (
-                          <p className="mt-0.5 text-[10px] text-gray-500 line-clamp-2">{e.summary}</p>
+                          <p className="mt-0.5 text-[10px] text-gray-700 line-clamp-2">{e.summary}</p>
                         )}
                       </div>
                       <button
@@ -151,7 +183,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
             {/* Relations */}
             {card.relations.length > 0 && (
               <div>
-                <h4 className="mb-2 text-xs font-medium text-gray-400">
+                <h4 className="mb-2 text-xs font-medium text-gray-600">
                   关系 ({card.relations.length})
                 </h4>
                 <div className="space-y-1">
@@ -159,11 +191,11 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
                     const srcEntity = card.entities.find((e) => e.id === r.source_id);
                     const tgtEntity = card.entities.find((e) => e.id === r.target_id);
                     return (
-                      <div key={i} className="flex items-center gap-1 text-[10px] text-gray-500">
+                      <div key={i} className="flex items-center gap-1 text-[10px] text-gray-700">
                         <span className="font-medium">{srcEntity?.name || r.source_id.slice(0, 6)}</span>
                         <span className="rounded bg-gray-200 px-1 text-gray-600">{r.type}</span>
                         <span className="font-medium">{tgtEntity?.name || r.target_id.slice(0, 6)}</span>
-                        <span className="text-gray-400">({(r.confidence * 100).toFixed(0)}%)</span>
+                        <span className="text-gray-600">({(r.confidence * 100).toFixed(0)}%)</span>
                       </div>
                     );
                   })}
@@ -180,7 +212,7 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] text-gray-400">{label}</p>
+      <p className="text-[10px] text-gray-600">{label}</p>
       <p className="font-medium text-gray-700">{value}</p>
     </div>
   );

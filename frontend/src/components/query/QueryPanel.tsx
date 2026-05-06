@@ -181,7 +181,7 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
             className="w-full rounded-lg bg-white/50 px-4 py-2.5 pr-14 text-sm ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50 disabled:cursor-not-allowed disabled:opacity-50"
           />
           {remainingText && (
-            <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium ${quota?.query.unlimited ? "text-emerald-600" : (quota?.query.remaining ?? 0) <= 3 ? "text-red-500" : "text-gray-500"}`}>
+            <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium ${quota?.query.unlimited ? "text-emerald-600" : (quota?.query.remaining ?? 0) <= 3 ? "text-red-500" : "text-gray-700"}`}>
               剩余 {remainingText} 次
             </span>
           )}
@@ -205,13 +205,51 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
         </button>
       </div>
 
+      {/* Loading animation — right below input */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl bg-white/40 p-4 ring-1 ring-white/60">
+              <div className="space-y-2">
+                {STAGES.map((stage, i) => (
+                  <div
+                    key={stage.key}
+                    className={`flex items-center gap-3 transition-all duration-300 ${
+                      i > currentStage ? "opacity-30" : ""
+                    }`}
+                  >
+                    <StageIcon
+                      icon={stage.icon}
+                      active={i === currentStage}
+                      done={i < currentStage}
+                    />
+                    <span
+                      className={`text-xs transition-colors ${
+                        i === currentStage ? "font-medium text-gray-700" : "text-gray-600"
+                      }`}
+                    >
+                      {stage.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* History list */}
       {items.length > 0 && (
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-500">对话历史 ({items.length})</span>
+          <span className="text-xs font-medium text-gray-700">对话历史 ({items.length})</span>
           <button
             onClick={clearItems}
-            className="text-xs text-gray-400 transition-colors hover:text-red-500"
+            className="text-xs text-gray-600 transition-colors hover:text-red-500"
           >
             清空历史
           </button>
@@ -231,38 +269,6 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
             />
           ))}
         </AnimatePresence>
-
-        {loading && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-white/40 p-5 ring-1 ring-white/60"
-          >
-            <div className="space-y-2">
-              {STAGES.map((stage, i) => (
-                <div
-                  key={stage.key}
-                  className={`flex items-center gap-3 transition-all duration-300 ${
-                    i > currentStage ? "opacity-30" : ""
-                  }`}
-                >
-                  <StageIcon
-                    icon={stage.icon}
-                    active={i === currentStage}
-                    done={i < currentStage}
-                  />
-                  <span
-                    className={`text-xs transition-colors ${
-                      i === currentStage ? "font-medium text-gray-700" : i < currentStage ? "text-gray-400" : "text-gray-400"
-                    }`}
-                  >
-                    {stage.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );
@@ -294,11 +300,11 @@ function HistoryItem({
         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600">问</span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-gray-800">{item.question}</p>
-          <p className="text-[10px] text-gray-400">{time}</p>
+          <p className="text-[10px] text-gray-600">{time}</p>
         </div>
         <button
           onClick={() => onRemove(item.id)}
-          className="shrink-0 text-gray-300 transition-colors hover:text-red-400"
+          className="shrink-0 text-gray-500 transition-colors hover:text-red-400"
           title="删除此条"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -318,7 +324,7 @@ function HistoryItem({
       {/* Source documents */}
       {item.result.source_documents.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-medium text-gray-500">来源文档</p>
+          <p className="mb-2 text-xs font-medium text-gray-700">来源文档</p>
           <div className="flex flex-wrap gap-2">
             {item.result.source_documents.map((doc, i) => (
               <button
@@ -340,7 +346,7 @@ function HistoryItem({
       {/* Related entities */}
       {item.result.entities.length > 0 && (
         <div className="mt-2">
-          <p className="mb-2 text-xs font-medium text-gray-500">相关实体</p>
+          <p className="mb-2 text-xs font-medium text-gray-700">相关实体</p>
           <div className="flex flex-wrap gap-1.5">
             {item.result.entities.map((ent) => (
               <span
@@ -357,7 +363,7 @@ function HistoryItem({
       {/* Suggestions */}
       {item.result.suggestions.length > 0 && (
         <div className="mt-2">
-          <p className="mb-2 text-xs font-medium text-gray-500">探索建议</p>
+          <p className="mb-2 text-xs font-medium text-gray-700">探索建议</p>
           <div className="flex flex-wrap gap-2">
             {item.result.suggestions.map((s) => (
               <button
@@ -375,7 +381,7 @@ function HistoryItem({
       {/* Related queries */}
       {item.result.related_queries.length > 0 && (
         <div className="mt-2">
-          <p className="mb-1 text-xs font-medium text-gray-500">相关问题</p>
+          <p className="mb-1 text-xs font-medium text-gray-700">相关问题</p>
           <div className="space-y-1">
             {item.result.related_queries.map((q) => (
               <button

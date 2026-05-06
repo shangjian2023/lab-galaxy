@@ -6,6 +6,7 @@ import uuid
 from difflib import SequenceMatcher
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -282,7 +283,15 @@ async def upload_document(
     task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
     logger.info(f"Started background processing for document {doc.id}")
 
-    return doc
+    return DocumentResponse(
+        id=str(doc.id), title=doc.title, file_type=doc.file_type,
+        file_size=doc.file_size, file_path=doc.file_path, status=doc.status,
+        experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
+        subjects=doc.subjects, privacy=doc.privacy,
+        extraction_result=None, error_message=None, duplicate_info=None,
+        uploaded_by=str(doc.uploaded_by),
+        created_at=doc.created_at.isoformat() if doc.created_at else None,
+    )
 
 
 @router.post("/upload-batch", response_model=BatchUploadResponse, status_code=status.HTTP_201_CREATED)
@@ -360,7 +369,18 @@ async def upload_batch(
     logger.info(f"Started background processing queue for {len(pending_processing)} document(s)")
 
     return BatchUploadResponse(
-        documents=docs,
+        documents=[
+            DocumentResponse(
+                id=str(d.id), title=d.title, file_type=d.file_type,
+                file_size=d.file_size, file_path=d.file_path, status=d.status,
+                experiment_year=d.experiment_year, experiment_type=d.experiment_type,
+                subjects=d.subjects, privacy=d.privacy,
+                extraction_result=None, error_message=None, duplicate_info=None,
+                uploaded_by=str(d.uploaded_by),
+                created_at=d.created_at.isoformat() if d.created_at else None,
+            )
+            for d in docs
+        ],
         errors=errors,
     )
 
@@ -398,7 +418,7 @@ async def list_documents(
                 di = None
         items.append(DocumentResponse(
             id=str(row.id), title=row.title, file_type=row.file_type,
-            file_size=row.file_size, status=row.status,
+            file_size=row.file_size, file_path=row.file_path, status=row.status,
             experiment_year=row.experiment_year, experiment_type=row.experiment_type,
             subjects=row.subjects, privacy=row.privacy,
             extraction_result=er, error_message=row.error_message,
@@ -428,6 +448,7 @@ async def document_status(
         "title": doc.title,
         "file_type": doc.file_type,
         "file_size": doc.file_size,
+        "file_path": doc.file_path,
         "status": doc.status,
         "experiment_year": doc.experiment_year,
         "experiment_type": doc.experiment_type,
@@ -494,7 +515,7 @@ async def confirm_ingest(
         await db.commit()
         return DocumentResponse(
             id=str(doc.id), title=doc.title, file_type=doc.file_type,
-            file_size=doc.file_size, status="completed",
+            file_size=doc.file_size, file_path=doc.file_path, status="completed",
             experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
             subjects=doc.subjects, privacy=doc.privacy,
             extraction_result=extraction, error_message=None,
@@ -537,7 +558,7 @@ async def confirm_ingest(
 
     return DocumentResponse(
         id=str(doc.id), title=doc.title, file_type=doc.file_type,
-        file_size=doc.file_size, status="completed",
+        file_size=doc.file_size, file_path=doc.file_path, status="completed",
         experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
         subjects=doc.subjects, privacy=doc.privacy,
         extraction_result=extraction, error_message=None,
@@ -582,7 +603,7 @@ async def reprocess_document(
 
     return DocumentResponse(
         id=str(doc.id), title=doc.title, file_type=doc.file_type,
-        file_size=doc.file_size, status="parsing",
+        file_size=doc.file_size, file_path=doc.file_path, status="parsing",
         experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
         subjects=doc.subjects, privacy=doc.privacy,
         extraction_result=None, error_message=None, duplicate_info=None,
@@ -624,3 +645,26 @@ async def delete_document(
     # 3. Delete from PostgreSQL
     await db.delete(doc)
     await db.commit()
+
+
+@router.get("/{doc_id}/download")
+async def download_document(
+    doc_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download the original document file from MinIO."""
+    doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    if doc.uploaded_by != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无权访问此文档")
+
+    try:
+        from app.services.storage import get_file_content
+        file_data, content_type = get_file_content(doc.file_path)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="下载原始文档失败") from exc
+
+    headers = {"Content-Disposition": f'attachment; filename="{doc.title}"'}
+    return StreamingResponse(iter([file_data]), media_type=content_type, headers=headers)

@@ -24,7 +24,7 @@ function MentionHighlight({ content }: { content: string }) {
     parts.push(
       <Link
         key={match.index}
-        href={`/graph?node=${match[2]}`}
+        href={`/graph?highlight=${match[2]}`}
         className="rounded bg-white/40 px-1 py-0.5 font-medium underline decoration-1 underline-offset-2 hover:bg-white/60"
         title={`查看: ${match[1]}`}
       >
@@ -45,7 +45,7 @@ export default function ChatMessage({ msg, isOwn }: Props) {
   if (msg.message_type === "system") {
     return (
       <div className="flex justify-center py-1.5">
-        <span className="text-[11px] text-gray-400">{msg.content}</span>
+        <span className="text-[11px] text-gray-600">{msg.content}</span>
       </div>
     );
   }
@@ -60,7 +60,7 @@ export default function ChatMessage({ msg, isOwn }: Props) {
       {/* Bubble + info */}
       <div className={`max-w-[65%] ${isOwn ? "items-end" : "items-start"} flex flex-col`}>
         {!isOwn && (
-          <span className="mb-1 text-[11px] text-gray-500/70">{msg.nickname}</span>
+          <span className="mb-1 text-[11px] text-gray-700/70">{msg.nickname}</span>
         )}
 
         {/* Frosted glass bubble */}
@@ -82,16 +82,14 @@ export default function ChatMessage({ msg, isOwn }: Props) {
           {isOwn ? (
             <MentionHighlight content={msg.content} />
           ) : (
-            <span className="text-[11px] text-gray-400/80">
-              {new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
-            </span>
+            <MentionHighlight content={msg.content} />
           )}
         </div>
 
         {/* Timestamp */}
         <span
           className="mt-1 text-[10px]"
-          style={{ color: isOwn ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.2)" }}
+          style={{ color: isOwn ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.4)" }}
         >
           {new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
         </span>

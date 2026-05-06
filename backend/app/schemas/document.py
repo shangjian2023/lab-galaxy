@@ -16,6 +16,7 @@ class DocumentResponse(BaseModel):
     title: str
     file_type: str
     file_size: int
+    file_path: str
     status: str
     experiment_year: int | None = None
     experiment_type: str | None = None

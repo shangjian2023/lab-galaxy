@@ -197,7 +197,7 @@ async def ai_growth_analysis(
             "name": a.name,
             "type": a.achievement_type,
             "description": a.description or "",
-            "member": user_map.get(str(a.user_id), None) and (user_map[str(a.user_id)].nickname or str(a.user_id)),
+            "member": (user_map.get(str(a.user_id)) and (user_map[str(a.user_id)].nickname or str(a.user_id))) if a.user_id in user_map else "未知",
         }
         for a in achievements
     ]

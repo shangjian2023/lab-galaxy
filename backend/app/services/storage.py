@@ -48,3 +48,16 @@ def get_file_url(object_key: str) -> str:
 
     client = _get_client()
     return client.presigned_get_object(settings.MINIO_BUCKET, object_key, expires=timedelta(hours=1))
+
+
+def get_file_content(object_key: str) -> tuple[bytes, str]:
+    """Read file content and content-type directly from MinIO."""
+    client = _get_client()
+    response = client.get_object(settings.MINIO_BUCKET, object_key)
+    try:
+        data = response.read()
+        ct = response.headers.get("content-type", "application/octet-stream")
+        return data, ct
+    finally:
+        response.close()
+        response.release_conn()

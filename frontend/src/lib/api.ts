@@ -164,6 +164,23 @@ export function deleteDocument(docId: string) {
   return request<void>(`/documents/${docId}`, "DELETE");
 }
 
+export async function downloadDocument(docId: string, filename: string) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/documents/${docId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error("下载失败");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ========== Admin APIs ==========
 
 export function adminListUsers(page = 1, pageSize = 50, search?: string, role?: string, isActive?: boolean) {
@@ -369,6 +386,7 @@ export interface CardItem {
   title: string;
   file_type: string;
   file_size: number;
+  file_path: string;
   status: string;
   experiment_year: number | null;
   experiment_type: string | null;
