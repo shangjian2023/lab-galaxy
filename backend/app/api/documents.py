@@ -119,9 +119,9 @@ async def _check_duplicate_experiments(
     if not experiment_names:
         return []
 
-    from app.api.graph import _driver
+    from app.api.admin_graph import _get_driver
 
-    driver = _driver()
+    driver = _get_driver()
     existing_experiments: list[dict] = []
     try:
         async with driver.session() as session:
@@ -341,10 +341,23 @@ async def upload_batch(
         await db.commit()
 
     import asyncio
+
+    # Process documents sequentially via a queue to avoid overwhelming the AI service
+    process_queue = asyncio.Queue()
     for doc, content, filename in pending_processing:
-        task = asyncio.create_task(_process_single(str(doc.id), content, filename))
-        task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
-        logger.info(f"Started background processing for document {doc.id}")
+        await process_queue.put((doc, content, filename))
+
+    async def process_from_queue():
+        while not process_queue.empty():
+            doc, content, filename = await process_queue.get()
+            try:
+                await _process_single(str(doc.id), content, filename)
+            finally:
+                process_queue.task_done()
+
+    task = asyncio.create_task(process_from_queue())
+    task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+    logger.info(f"Started background processing queue for {len(pending_processing)} document(s)")
 
     return BatchUploadResponse(
         documents=docs,

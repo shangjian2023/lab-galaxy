@@ -50,9 +50,9 @@ export default function TeamSpacePage() {
     <div className="flex h-[calc(100vh-64px)] flex-col">
       <TeamSpaceHeader team={team} />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* Main area */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col" style={{ minHeight: 0 }}>
           {/* Tabs */}
           <div className="flex gap-1 border-b border-gray-100 bg-white px-4">
             {(["chat", "members", "growth"] as Tab[]).map((t) => (
@@ -71,7 +71,7 @@ export default function TeamSpacePage() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
             {tab === "chat" ? (
               <ChatRoom teamId={teamId} currentUserId={user.id} />
             ) : tab === "members" ? (

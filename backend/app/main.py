@@ -290,6 +290,30 @@ async def _apply_schema_updates():
         except Exception as e:
             logger.debug(f"Monthly usage migration may have partial issues: {e}")
 
+        # Add display_id to users
+        try:
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS display_id INTEGER UNIQUE"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_users_display_id ON users(display_id)"
+            ))
+            await conn.execute(text("""
+                WITH numbered AS (
+                    SELECT id, ROW_NUMBER() OVER (ORDER BY created_at) AS rn
+                    FROM users
+                    WHERE display_id IS NULL
+                )
+                UPDATE users
+                SET display_id = 100000 + numbered.rn
+                FROM numbered
+                WHERE users.id = numbered.id
+                  AND users.display_id IS NULL
+            """))
+            logger.info("User display_id column + backfill completed.")
+        except Exception as e:
+            logger.debug(f"Display_id migration may have partial issues: {e}")
+
 
 @app.get("/")
 async def root():

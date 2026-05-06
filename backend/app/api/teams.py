@@ -34,7 +34,8 @@ class TeamDetail(TeamInfo):
 
 
 class InviteRequest(BaseModel):
-    username: str
+    display_id: int | None = None  # short numeric ID (e.g. 100001)
+    username: str | None = None  # fallback to username search
 
 
 @router.post("/create", response_model=TeamInfo)
@@ -125,6 +126,7 @@ async def get_team(
         members=[
             {
                 "user_id": str(u.id),
+                "display_id": u.display_id,
                 "username": u.username,
                 "nickname": u.nickname or u.username,
                 "avatar": u.avatar,
@@ -153,9 +155,18 @@ async def invite_member(
     if not is_owner or is_owner.role not in ("owner", "admin"):
         raise HTTPException(status_code=403, detail="只有团队管理员可以邀请成员")
 
-    user = (await db.execute(select(User).where(User.username == body.username))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
+    # Look up by display_id first, then by username
+    user = None
+    if body.display_id:
+        user = (await db.execute(select(User).where(User.display_id == body.display_id))).scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="未找到该用户（请检查数字ID是否正确）")
+    elif body.username:
+        user = (await db.execute(select(User).where(User.username == body.username))).scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="用户不存在")
+    else:
+        raise HTTPException(status_code=400, detail="请提供用户ID或用户名")
 
     existing = (await db.execute(
         select(TeamMember).where(TeamMember.team_id == team.id, TeamMember.user_id == user.id)

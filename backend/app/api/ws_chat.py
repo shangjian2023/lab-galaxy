@@ -104,7 +104,7 @@ async def ws_team_chat(websocket: WebSocket, team_id: str, token: str = Query(..
 
             # Persist message
             msg_id = str(uuid.uuid4())
-            now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             async with async_session() as db:
                 msg = TeamMessage(
                     id=uuid.UUID(msg_id),

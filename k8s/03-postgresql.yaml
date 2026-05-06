@@ -1,0 +1,247 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: kg-platform
+  labels:
+    app: postgres
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: kg-platform
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: kg-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: kg-db-creds
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kg-db-creds
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: kg-platform
+data:
+  001_init.sql: |
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE TABLE users (
+        id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        username        VARCHAR(50) NOT NULL UNIQUE,
+        email           VARCHAR(255) NOT NULL UNIQUE,
+        hashed_password VARCHAR(255) NOT NULL,
+        nickname        VARCHAR(100),
+        avatar          VARCHAR(500),
+        role            VARCHAR(20) DEFAULT 'user',
+        level           INTEGER DEFAULT 1,
+        is_active       BOOLEAN DEFAULT TRUE,
+        points          INTEGER DEFAULT 0,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TYPE tpl_status AS ENUM ('draft', 'pending_review', 'published', 'rejected');
+    CREATE TABLE templates (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name        VARCHAR(100) NOT NULL,
+        description TEXT,
+        content     TEXT NOT NULL,
+        tags        VARCHAR(50)[],
+        category    VARCHAR(50),
+        status      tpl_status DEFAULT 'draft',
+        is_official BOOLEAN DEFAULT FALSE,
+        likes       INTEGER DEFAULT 0,
+        downloads   INTEGER DEFAULT 0,
+        adoptions   INTEGER DEFAULT 0,
+        created_by  UUID REFERENCES users(id),
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE template_comments (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        template_id UUID NOT NULL REFERENCES templates(id),
+        user_id     UUID NOT NULL REFERENCES users(id),
+        content     TEXT NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE template_likes (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id     UUID NOT NULL REFERENCES users(id),
+        template_id UUID NOT NULL REFERENCES templates(id),
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (user_id, template_id)
+    );
+    CREATE TYPE doc_status AS ENUM ('uploaded', 'parsing', 'extracting', 'completed', 'failed');
+    CREATE TABLE documents (
+        id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        title           VARCHAR(255) NOT NULL,
+        file_path       VARCHAR(500) NOT NULL,
+        file_type       VARCHAR(20) NOT NULL,
+        file_size       BIGINT DEFAULT 0,
+        status          doc_status DEFAULT 'uploaded',
+        experiment_year INTEGER,
+        experiment_type VARCHAR(50),
+        subjects        VARCHAR(100)[],
+        privacy         VARCHAR(20) DEFAULT 'public',
+        extraction_result TEXT,
+        error_message   TEXT,
+        uploaded_by     UUID REFERENCES users(id),
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE points_log (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id     UUID REFERENCES users(id),
+        change      INTEGER NOT NULL,
+        reason      VARCHAR(255) NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE favorites (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id     UUID NOT NULL REFERENCES users(id),
+        document_id UUID NOT NULL REFERENCES documents(id),
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (user_id, document_id)
+    );
+    CREATE INDEX idx_templates_created_by ON templates(created_by);
+    CREATE INDEX idx_templates_status ON templates(status);
+    CREATE INDEX idx_templates_category ON templates(category);
+    CREATE INDEX idx_template_comments_template ON template_comments(template_id);
+    CREATE INDEX idx_template_likes_template ON template_likes(template_id);
+    CREATE INDEX idx_documents_uploaded_by ON documents(uploaded_by);
+    CREATE INDEX idx_documents_status ON documents(status);
+    CREATE INDEX idx_documents_experiment_year ON documents(experiment_year);
+    CREATE INDEX idx_documents_experiment_type ON documents(experiment_type);
+    CREATE INDEX idx_points_log_user_id ON points_log(user_id);
+    CREATE INDEX idx_users_role ON users(role);
+    CREATE INDEX idx_favorites_user_id ON favorites(user_id);
+    INSERT INTO users (username, email, hashed_password, role, nickname)
+    VALUES (
+        'admin',
+        'admin@example.com',
+        '$2b$12$Dm4pgNmLO0Pszk/YQZfXqOouW70c/2OBGzI8ssLczkxYpLebB0c.W',
+        'admin',
+        'Administrator'
+    ) ON CONFLICT (username) DO NOTHING;
+    INSERT INTO templates (name, description, content, tags, category, status, is_official)
+    VALUES (
+        'Course Lab Report Template',
+        'Standard lab report structure',
+        '{"sections":[{"title":"Purpose","placeholder":"Describe goals"},{"title":"Principles","placeholder":"Theory and formulas"},{"title":"Equipment","placeholder":"List equipment"},{"title":"Procedure","placeholder":"Detailed steps"},{"title":"Data","placeholder":"Data tables"},{"title":"Results","placeholder":"Analysis"},{"title":"Conclusion","placeholder":"Summary"}]}',
+        ARRAY['course','report','general'],
+        'course',
+        'published',
+        true
+    ),(
+        'Innovation Experiment Plan Template',
+        'Complete innovation experiment plan',
+        '{"sections":[{"title":"Background","placeholder":"Motivation"},{"title":"Literature Review","placeholder":"Related work"},{"title":"Objectives","placeholder":"Specific goals"},{"title":"Technical Route","placeholder":"Implementation path"},{"title":"Design","placeholder":"Details"},{"title":"Expected Results","placeholder":"Deliverables"},{"title":"Risk Assessment","placeholder":"Potential issues"},{"title":"Timeline","placeholder":"Milestones"}]}',
+        ARRAY['innovation','plan','competition'],
+        'innovation',
+        'published',
+        true
+    );
+  002_forum.sql: |
+    CREATE TABLE forum_posts (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        title       VARCHAR(255) NOT NULL,
+        content     TEXT NOT NULL,
+        author_id   UUID NOT NULL REFERENCES users(id),
+        views       INTEGER DEFAULT 0,
+        likes       INTEGER DEFAULT 0,
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE forum_comments (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        post_id     UUID NOT NULL REFERENCES forum_posts(id),
+        user_id     UUID NOT NULL REFERENCES users(id),
+        content     TEXT NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX idx_forum_posts_author ON forum_posts(author_id);
+    CREATE INDEX idx_forum_posts_created ON forum_posts(created_at);
+    CREATE INDEX idx_forum_comments_post ON forum_comments(post_id);
+  003_usage.sql: |
+    CREATE TABLE usage_logs (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id     UUID REFERENCES users(id),
+        action      VARCHAR(50) NOT NULL,
+        details     TEXT,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX idx_usage_logs_user ON usage_logs(user_id);
+    CREATE INDEX idx_usage_logs_action ON usage_logs(action);

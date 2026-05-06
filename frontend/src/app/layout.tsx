@@ -8,6 +8,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "创新实验知识图谱平台",
   description: "知识图谱驱动的创新实验管理平台",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

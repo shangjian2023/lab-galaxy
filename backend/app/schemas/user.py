@@ -26,6 +26,7 @@ class TokenResponse(BaseModel):
 
 class UserProfile(BaseModel):
     id: uuid.UUID
+    display_id: int | None = None
     username: str
     email: str
     nickname: str | None = None

@@ -41,6 +41,7 @@ export function login(username: string, password: string) {
 
 export interface UserProfile {
   id: string;
+  display_id: number | null;
   username: string;
   email: string;
   nickname: string | null;
@@ -613,6 +614,7 @@ export interface TeamInfo {
 export interface TeamDetail extends TeamInfo {
   members: {
     user_id: string;
+    display_id: number | null;
     username: string;
     nickname: string;
     avatar: string | null;
@@ -633,8 +635,9 @@ export function getTeam(teamId: string) {
   return request<TeamDetail>(`/teams/${teamId}`);
 }
 
-export function inviteToTeam(teamId: string, username: string) {
-  return request<{ status: string; message: string }>(`/teams/${teamId}/invite`, "POST", { username });
+export function inviteToTeam(teamId: string, displayId?: number) {
+  const body = displayId ? { display_id: displayId } : {};
+  return request<{ status: string; message: string }>(`/teams/${teamId}/invite`, "POST", body);
 }
 
 export function leaveTeam(teamId: string) {

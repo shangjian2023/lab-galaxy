@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: kg-platform
+  labels:
+    app: backend
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: kg-platform
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done"]
+        - name: wait-for-neo4j
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until nc -z neo4j 7687; do echo waiting for neo4j; sleep 2; done"]
+        - name: wait-for-redis
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until nc -z redis 6379; do echo waiting for redis; sleep 2; done"]
+        - name: wait-for-minio
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until nc -z minio 9000; do echo waiting for minio; sleep 2; done"]
+        - name: wait-for-ai-service
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until nc -z ai-service 8001; do echo waiting for ai-service; sleep 2; done"]
+      containers:
+        - name: backend
+          image: kg-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: PROJECT_NAME
+              value: "Knowledge Graph Platform"
+            - name: DEBUG
+              value: "false"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kg-db-creds
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_URL
+              value: "postgresql+asyncpg://postgres:$(POSTGRES_PASSWORD)@postgres:5432/kg_platform"
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kg-secrets
+                  key: MINIO_SECRET_KEY
+            - name: NEO4J_URI
+              value: "bolt://neo4j:7687"
+            - name: NEO4J_USER
+              value: "neo4j"
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: MINIO_ENDPOINT
+              value: "minio:9000"
+            - name: ACCESS_TOKEN_EXPIRE_MINUTES
+              value: "1440"
+            - name: AI_SERVICE_URL
+              value: "http://ai-service:8001/api/v1"
+            - name: ALLOWED_ORIGINS
+              value: '["https://graph.mazhuoran.cloud"]'
+          envFrom:
+            - secretRef:
+                name: kg-secrets
+            - secretRef:
+                name: kg-db-creds
+            - configMapRef:
+                name: kg-config
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3

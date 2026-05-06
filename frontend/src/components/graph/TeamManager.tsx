@@ -71,9 +71,14 @@ export default function TeamManager({ open, onClose }: Props) {
 
   const handleInvite = async () => {
     if (!selectedTeam || !inviteName.trim()) return;
+    const displayId = parseInt(inviteName.trim(), 10);
+    if (!displayId || displayId < 100000) {
+      setMessage("请输入有效的数字ID（6位以上）");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await inviteToTeam(selectedTeam.id, inviteName.trim());
+      const res = await inviteToTeam(selectedTeam.id, displayId);
       setMessage(res.message);
       setInviteName("");
       await handleSelectTeam(selectedTeam);
@@ -299,24 +304,11 @@ export default function TeamManager({ open, onClose }: Props) {
                       <input
                         type="text"
                         value={inviteName}
-                        onChange={(e) => void handleSearch(e.target.value)}
-                        placeholder="输入用户名搜索..."
+                        onChange={(e) => { setInviteName(e.target.value.replace(/\D/g, "")); setSearchResults([]); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") void handleInvite(); }}
+                        placeholder="输入用户数字ID..."
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none"
                       />
-                      {searchResults.length > 0 && (
-                        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                          {searchResults.map((u) => (
-                            <button
-                              key={u.id}
-                              onClick={() => pickUser(u)}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-orange-50 hover:text-orange-700"
-                            >
-                              {u.nickname || u.username}
-                              <span className="ml-1 text-[10px] text-gray-300">({u.username})</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <button
                       onClick={handleInvite}
