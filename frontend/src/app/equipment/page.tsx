@@ -143,11 +143,10 @@ export default function EquipmentPage() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {catalog.map((item) => (
                 <button
-                  key={item.name}
+                  key={item.id}
                   onClick={() => {
                     setReqType("equipment");
                     setTitle(item.name);
-                    setActiveTab("my-requests");
                   }}
                   className="rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-orange-300 hover:shadow-md"
                 >
@@ -308,7 +307,7 @@ export default function EquipmentPage() {
                               ? ` × ${req.quantity}`
                               : ""}
                             {" · "}
-                            {new Date(req.created_at).toLocaleDateString("zh-CN")}
+                            {req.created_at ? new Date(req.created_at).toLocaleDateString("zh-CN") : "未知"}
                           </p>
                           {req.description && (
                             <p className="mt-1 text-xs text-black">{req.description}</p>

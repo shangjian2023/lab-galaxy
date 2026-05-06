@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { uploadBatch, getDocumentStatus, type DocumentItem } from "@/lib/api";
+import { uploadBatch, getDocumentStatus, adminReprocessDocument, type DocumentItem } from "@/lib/api";
 import {
   EXPERIMENT_TYPES,
   SUBJECT_OPTIONS,
@@ -88,6 +88,50 @@ export default function UploadPanel({ onUploaded }: Props) {
   const removeFile = (id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
   };
+
+  // --- Retry a failed file ---
+  const retryFile = useCallback(async (fileId: string) => {
+    const entry = files.find((f) => f.id === fileId);
+    if (!entry || !entry.docId) return;
+    const docId = entry.docId;
+    setFiles((prev) =>
+      prev.map((f) => (f.id === fileId ? { ...f, status: "parsing" as const, progress: 30, error: undefined } : f)),
+    );
+    try {
+      await adminReprocessDocument(docId);
+      // Re-start polling
+      const poll = async () => {
+        let shouldContinue = true;
+        try {
+          const doc = await getDocumentStatus(docId);
+          setFiles((prev) => {
+            const e = prev.find((f) => f.id === fileId);
+            if (!e || e.status === "completed" || e.status === "failed") {
+              shouldContinue = false;
+              return prev;
+            }
+            const statusMap: Record<string, FileEntry["status"]> = {
+              uploaded: "uploading", parsing: "parsing", extracting: "parsing",
+              awaiting_confirmation: "awaiting_confirmation", completed: "completed", failed: "failed",
+            };
+            const newStatus = statusMap[doc.status] || "parsing";
+            if (doc.status === "completed" || doc.status === "failed" || doc.status === "awaiting_confirmation") {
+              shouldContinue = false;
+            }
+            return prev.map((f) =>
+              f.id === fileId ? { ...f, status: newStatus, progress: doc.status === "completed" ? 100 : f.progress } : f,
+            );
+          });
+        } catch { /* retry */ }
+        if (shouldContinue) setTimeout(poll, 1500);
+      };
+      poll();
+    } catch {
+      setFiles((prev) =>
+        prev.map((f) => (f.id === fileId ? { ...f, status: "failed" as const, error: "重试失败，请刷新页面后重试" } : f)),
+      );
+    }
+  }, [files]);
 
   // --- Poll processing status for a file ---
   const processFile = useCallback((fileId: string, docId: string) => {
@@ -419,7 +463,7 @@ export default function UploadPanel({ onUploaded }: Props) {
             {files
               .filter((f) => f.status === "waiting" || f.status === "completed" || f.status === "failed" || f.status === "awaiting_confirmation" || (f.status === "uploading" && !f.docId))
               .map((entry) => (
-                <FileRow key={entry.id} entry={entry} onRemove={removeFile} />
+                <FileRow key={entry.id} entry={entry} onRemove={removeFile} onRetry={retryFile} />
               ))}
           </motion.div>
         )}
@@ -485,7 +529,7 @@ function formatSize(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-function FileRow({ entry, onRemove }: { entry: FileEntry; onRemove: (id: string) => void }) {
+function FileRow({ entry, onRemove, onRetry }: { entry: FileEntry; onRemove: (id: string) => void; onRetry?: (id: string) => void }) {
   const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.waiting;
 
   return (
@@ -543,6 +587,14 @@ function FileRow({ entry, onRemove }: { entry: FileEntry; onRemove: (id: string)
         </div>
         {entry.error && (
           <p className="mt-0.5 text-xs text-red-500">{entry.error}</p>
+        )}
+        {entry.status === "failed" && entry.docId && onRetry && (
+          <button
+            onClick={() => onRetry(entry.id)}
+            className="mt-1 text-xs text-orange-600 hover:underline"
+          >
+            重新处理
+          </button>
         )}
       </div>
     </motion.div>

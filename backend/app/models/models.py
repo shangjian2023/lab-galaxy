@@ -251,6 +251,18 @@ class MonthlyUsage(Base):
     growth_analysis_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class EquipmentCatalogItem(Base):
+    __tablename__ = "equipment_catalog"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100))
+    icon: Mapped[str] = mapped_column(String(10), default="🔧")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 # ── Equipment Requests ──
 
 class EquipmentRequest(Base):

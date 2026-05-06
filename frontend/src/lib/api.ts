@@ -1,6 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 async function request<T>(path: string, method: Method = "GET", body?: unknown): Promise<T> {
   const headers: HeadersInit = {};
@@ -940,9 +940,13 @@ export function getMyForumBookmarks(page = 1) {
 // ========== Equipment Requests ==========
 
 export interface EquipmentCatalogItem {
+  id: string;
   name: string;
   icon: string;
-  description: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string | null;
 }
 
 export interface EquipmentRequestItem {
@@ -960,6 +964,22 @@ export interface EquipmentRequestItem {
 
 export function getEquipmentCatalog() {
   return request<{ items: EquipmentCatalogItem[] }>("/equipment/catalog", "POST");
+}
+
+export function getAllCatalogItems() {
+  return request<{ items: EquipmentCatalogItem[] }>("/equipment/catalog/all");
+}
+
+export function createCatalogItem(data: { name: string; icon: string; description: string; sort_order: number }) {
+  return request<EquipmentCatalogItem>("/equipment/admin/catalog", "POST", data);
+}
+
+export function updateCatalogItem(id: string, data: { name?: string; icon?: string; description?: string; sort_order?: number; is_active?: boolean }) {
+  return request<EquipmentCatalogItem>(`/equipment/admin/catalog/${id}`, "PUT", data);
+}
+
+export function deleteCatalogItem(id: string) {
+  return request<{ message: string }>(`/equipment/admin/catalog/${id}`, "DELETE");
 }
 
 export function submitEquipmentRequest(data: {

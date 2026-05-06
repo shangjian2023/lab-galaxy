@@ -5,7 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   adminListEquipmentRequests,
   adminReplyEquipmentRequest,
+  getAllCatalogItems,
+  createCatalogItem,
+  updateCatalogItem,
+  deleteCatalogItem,
   type EquipmentRequestItem,
+  type EquipmentCatalogItem,
 } from "@/lib/api";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -28,14 +33,316 @@ const QUICK_REPLIES: Record<string, { status: string; reply: string }[]> = {
   ],
 };
 
+const COMMON_ICONS = ["🖥️", "🎮", "🖨️", "📈", "⚡", "🔍", "🔧", "🌐", "📡", "🥽", "⌨️", "🔌", "📊", "🔥", "💾", "🔋", "🔄", "📦", "🤖", "🎯", "📱", "🖱️", "💡", "🛠️"];
+
 export default function AdminEquipmentPage() {
+  const [activeTab, setActiveTab] = useState<"requests" | "catalog">("catalog");
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">器材管理</h1>
+        <p className="text-sm text-black">管理器材目录和审核用户申请</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-6 flex gap-1 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab("catalog")}
+          className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "catalog"
+              ? "border-orange-500 text-orange-600"
+              : "border-transparent text-black hover:text-orange-600"
+          }`}
+        >
+          器材目录
+        </button>
+        <button
+          onClick={() => setActiveTab("requests")}
+          className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "requests"
+              ? "border-orange-500 text-orange-600"
+              : "border-transparent text-black hover:text-orange-600"
+          }`}
+        >
+          申请审核
+        </button>
+      </div>
+
+      {activeTab === "catalog" ? <CatalogTab /> : <RequestsTab />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Catalog tab
+// ---------------------------------------------------------------------------
+
+function CatalogTab() {
+  const [items, setItems] = useState<EquipmentCatalogItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingItem, setEditingItem] = useState<EquipmentCatalogItem | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formIcon, setFormIcon] = useState("🔧");
+  const [formDesc, setFormDesc] = useState("");
+  const [formOrder, setFormOrder] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    getAllCatalogItems()
+      .then((res) => setItems(res.items))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const startEdit = (item: EquipmentCatalogItem) => {
+    setEditingItem(item);
+    setFormName(item.name);
+    setFormIcon(item.icon);
+    setFormDesc(item.description || "");
+    setFormOrder(item.sort_order);
+  };
+
+  const startAdd = () => {
+    setShowAddForm(true);
+    setEditingItem(null);
+    setFormName("");
+    setFormIcon("🔧");
+    setFormDesc("");
+    setFormOrder(items.length);
+  };
+
+  const handleSave = async () => {
+    if (!formName.trim()) return;
+    setSubmitting(true);
+    try {
+      if (editingItem) {
+        const updated = await updateCatalogItem(editingItem.id, {
+          name: formName,
+          icon: formIcon,
+          description: formDesc,
+          sort_order: formOrder,
+        });
+        setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      } else {
+        const created = await createCatalogItem({
+          name: formName,
+          icon: formIcon,
+          description: formDesc,
+          sort_order: formOrder,
+        });
+        setItems((prev) => [...prev, created]);
+      }
+      setEditingItem(null);
+      setShowAddForm(false);
+    } catch {
+      alert("保存失败，请重试");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleActive = async (item: EquipmentCatalogItem) => {
+    try {
+      const updated = await updateCatalogItem(item.id, { is_active: !item.is_active });
+      setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+    } catch {
+      alert("操作失败，请重试");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("确认删除该器材？")) return;
+    try {
+      await deleteCatalogItem(id);
+      setItems((prev) => prev.filter((it) => it.id !== id));
+    } catch {
+      alert("删除失败，请重试");
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-sm text-black">共 {items.length} 个器材</span>
+        <button
+          onClick={startAdd}
+          className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
+        >
+          + 添加器材
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="py-12 text-center text-sm text-black">加载中...</div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className={`rounded-xl border p-4 transition-all ${
+                item.is_active ? "border-gray-200 bg-white" : "border-gray-200 bg-gray-50 opacity-60"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">{item.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-black">{item.name}</h3>
+                  <p className="mt-1 text-xs text-black">{item.description || "暂无描述"}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-black">排序: {item.sort_order}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        item.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {item.is_active ? "启用" : "停用"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => startEdit(item)}
+                  className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-black transition-colors hover:border-orange-300 hover:text-orange-600"
+                >
+                  编辑
+                </button>
+                <button
+                  onClick={() => handleToggleActive(item)}
+                  className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-black transition-colors hover:border-orange-300 hover:text-orange-600"
+                >
+                  {item.is_active ? "停用" : "启用"}
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-black transition-colors hover:border-red-300 hover:text-red-600"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add/Edit modal */}
+      <AnimatePresence>
+        {(showAddForm || editingItem) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+            onClick={() => { setShowAddForm(false); setEditingItem(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-4 text-lg font-bold text-black">
+                {editingItem ? "编辑器材" : "添加器材"}
+              </h3>
+
+              {/* Icon picker */}
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium text-black">图标</label>
+                <div className="flex flex-wrap gap-1">
+                  {COMMON_ICONS.map((ic) => (
+                    <button
+                      key={ic}
+                      onClick={() => setFormIcon(ic)}
+                      className={`rounded p-1 text-lg transition-colors ${
+                        formIcon === ic ? "bg-orange-100 ring-1 ring-orange-400" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      {ic}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium text-black">名称</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="例如：高性能服务器"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-black focus:border-orange-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium text-black">描述</label>
+                <textarea
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="器材用途说明..."
+                  rows={2}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-black focus:border-orange-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Sort order */}
+              <div className="mb-4">
+                <label className="mb-1 block text-sm font-medium text-black">排序序号</label>
+                <input
+                  type="number"
+                  value={formOrder}
+                  onChange={(e) => setFormOrder(parseInt(e.target.value) || 0)}
+                  className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm text-black focus:border-orange-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => { setShowAddForm(false); setEditingItem(null); }}
+                  className="rounded-lg px-4 py-2 text-sm text-black hover:bg-gray-100"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={submitting || !formName.trim()}
+                  className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+                >
+                  {submitting ? "保存中..." : "保存"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Requests tab
+// ---------------------------------------------------------------------------
+
+function RequestsTab() {
   const [items, setItems] = useState<EquipmentRequestItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  // Reply modal state
   const [replyingTo, setReplyingTo] = useState<EquipmentRequestItem | null>(null);
   const [replyStatus, setReplyStatus] = useState("approved");
   const [replyText, setReplyText] = useState("");
@@ -72,7 +379,6 @@ export default function AdminEquipmentPage() {
         status: replyStatus,
         reply: replyText,
       });
-      // Update local list
       setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
       setReplyingTo(null);
     } catch {
@@ -89,11 +395,6 @@ export default function AdminEquipmentPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">器材申请管理</h1>
-        <p className="text-sm text-black">审核用户的器材和实验室场地申请</p>
-      </div>
-
       {/* Filters */}
       <div className="mb-4 flex items-center gap-3">
         <span className="text-sm font-medium text-black">状态：</span>
@@ -122,7 +423,7 @@ export default function AdminEquipmentPage() {
       </div>
 
       {/* Table */}
-      <div className="glass-card overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {loading ? (
           <div className="py-12 text-center text-sm text-black">加载中...</div>
         ) : items.length === 0 ? (
@@ -131,7 +432,7 @@ export default function AdminEquipmentPage() {
           <>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
+                <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="px-4 py-3 text-left text-xs font-semibold text-black">申请人</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-black">类型</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-black">名称</th>

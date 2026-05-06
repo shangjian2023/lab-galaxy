@@ -120,7 +120,7 @@ async def _check_duplicate_experiments(
     if not experiment_names:
         return []
 
-    from app.api.admin_graph import _get_driver
+    from app.services.admin_graph import _get_driver
 
     driver = _get_driver()
     existing_experiments: list[dict] = []
@@ -625,22 +625,26 @@ async def delete_document(
     if doc.uploaded_by != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="无权删除此文档")
 
-    # 1. Delete from MinIO
+    # 1. Delete from MinIO (non-blocking with timeout)
     try:
+        import asyncio
+        from app.core.config import settings as _settings
         from app.services.storage import _get_client
-        client = _get_client()
-        client.remove_object("documents", doc.file_path)
+        def _do_remove():
+            c = _get_client()
+            c.remove_object(_settings.MINIO_BUCKET, doc.file_path)
+        await asyncio.wait_for(asyncio.to_thread(_do_remove), timeout=5)
     except Exception:
-        pass  # MinIO file may already be gone
+        pass  # MinIO file may already be gone or service unavailable
 
-    # 2. Delete from Neo4j (entities & relations for this document)
+    # 2. Delete from Neo4j via AI service (short timeout)
     try:
         from app.services.ai_client import AI_SERVICE_URL
         import httpx
-        async with httpx.AsyncClient(timeout=30) as client:
-            await client.delete(f"{AI_SERVICE_URL}/graph/document/{doc_id}")
+        async with httpx.AsyncClient(timeout=10) as hclient:
+            await hclient.delete(f"{AI_SERVICE_URL}/graph/document/{doc_id}")
     except Exception:
-        pass  # AI service may be down
+        pass  # AI service may be down or slow; DB delete still proceeds
 
     # 3. Delete from PostgreSQL
     await db.delete(doc)

@@ -246,14 +246,14 @@ async def admin_list_documents(
             except (json.JSONDecodeError, TypeError):
                 di = None
         items.append(DocumentResponse(
-            id=str(row.id), title=row.title, file_type=row.file_type,
-            file_size=row.file_size, status=row.status,
+            id=row.id, title=row.title, file_type=row.file_type,
+            file_size=row.file_size, file_path=row.file_path, status=row.status,
             experiment_year=row.experiment_year, experiment_type=row.experiment_type,
             subjects=row.subjects, privacy=row.privacy,
             extraction_result=er, error_message=row.error_message,
             duplicate_info=di,
-            uploaded_by=str(row.uploaded_by),
-            created_at=row.created_at.isoformat() if row.created_at else None,
+            uploaded_by=row.uploaded_by,
+            created_at=row.created_at,
         ))
     return DocumentListResponse(total=total, items=items)
 
@@ -297,14 +297,14 @@ async def admin_update_document(
         except (json.JSONDecodeError, TypeError):
             er = None
     return DocumentResponse(
-        id=str(doc.id), title=doc.title, file_type=doc.file_type,
-        file_size=doc.file_size, status=doc.status,
+        id=doc.id, title=doc.title, file_type=doc.file_type,
+        file_size=doc.file_size, file_path=doc.file_path, status=doc.status,
         experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
         subjects=doc.subjects, privacy=doc.privacy,
         extraction_result=er, error_message=doc.error_message,
         duplicate_info=None,
-        uploaded_by=str(doc.uploaded_by),
-        created_at=doc.created_at.isoformat() if doc.created_at else None,
+        uploaded_by=doc.uploaded_by,
+        created_at=doc.created_at,
     )
 
 

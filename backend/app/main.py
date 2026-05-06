@@ -320,6 +320,32 @@ async def _apply_schema_updates():
         except Exception as e:
             logger.debug(f"Equipment requests migration may have partial issues: {e}")
 
+        # Equipment catalog table + seed data
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS equipment_catalog (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    name VARCHAR(100) NOT NULL,
+                    icon VARCHAR(10) NOT NULL DEFAULT '🔧',
+                    description TEXT,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    is_active BOOLEAN NOT NULL DEFAULT true,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            # Seed default items if table is empty
+            from app.api.equipment import _SEED_CATALOG
+            result = await conn.execute(text("SELECT COUNT(*) FROM equipment_catalog"))
+            count = result.scalar() or 0
+            if count == 0:
+                for name, icon, desc, order in _SEED_CATALOG:
+                    await conn.execute(text(
+                        "INSERT INTO equipment_catalog (name, icon, description, sort_order) VALUES (:name, :icon, :desc, :order)"
+                    ), {"name": name, "icon": icon, "desc": desc, "order": order})
+                logger.info("Equipment catalog seeded with 20 items.")
+        except Exception as e:
+            logger.debug(f"Equipment catalog migration may have partial issues: {e}")
+
         # Add display_id to users
         try:
             await conn.execute(text(
