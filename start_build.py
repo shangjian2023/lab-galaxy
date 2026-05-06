@@ -24,7 +24,7 @@ sudo docker build -f Dockerfile.ai_service --tag kg_ai_service:latest . >> $LOG 
 echo "  ai_service exit: $?" >> $LOG
 
 echo "[4/5] Building frontend..." >> $LOG
-sudo docker build -f Dockerfile.frontend --tag kg_frontend:latest . >> $LOG 2>&1
+sudo docker build -f Dockerfile.frontend --build-arg NEXT_PUBLIC_API_URL=https://graph.mazhuoran.cloud/api/v1 --tag kg_frontend:latest . >> $LOG 2>&1
 echo "  frontend exit: $?" >> $LOG
 
 echo "[5/5] Starting all services..." >> $LOG

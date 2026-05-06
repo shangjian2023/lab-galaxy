@@ -72,9 +72,9 @@ export default function NodeMentionInput({ value, onChange, placeholder, rows = 
     // Check if we're in a @mention context
     const lastAt = textBeforeCursor.lastIndexOf("@");
     if (lastAt !== -1) {
-      // Make sure the @ is at start or preceded by whitespace/newline
-      const charBeforeAt = lastAt > 0 ? textBeforeCursor[lastAt - 1] : " ";
-      if (/[\s\n]/.test(charBeforeAt) || lastAt === 0) {
+      // Trigger @mention when @ is at start or preceded by non-alphanumeric char
+      const charBeforeAt = lastAt > 0 ? textBeforeCursor[lastAt - 1] : "";
+      if (lastAt === 0 || /[^a-zA-Z0-9]/.test(charBeforeAt)) {
         const triggerText = textBeforeCursor.slice(lastAt + 1);
         // Don't trigger if there's already a completed @[name](id) mention
         if (!triggerText.includes("](") && triggerText.length <= 20) {
@@ -142,7 +142,7 @@ export default function NodeMentionInput({ value, onChange, placeholder, rows = 
           className="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
         >
           {searching && results.length === 0 && (
-            <div className="px-3 py-2 text-xs text-gray-400">搜索中...</div>
+            <div className="px-3 py-2 text-xs text-gray-600">搜索中...</div>
           )}
           {results.map((node, i) => {
             const TYPE_COLORS: Record<string, string> = {
@@ -165,7 +165,7 @@ export default function NodeMentionInput({ value, onChange, placeholder, rows = 
                 </span>
                 <span className="flex-1 truncate font-medium text-gray-800">{node.name}</span>
                 {node.summary && (
-                  <span className="truncate text-xs text-gray-400">{node.summary}</span>
+                  <span className="truncate text-xs text-gray-600">{node.summary}</span>
                 )}
               </button>
             );

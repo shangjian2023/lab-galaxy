@@ -87,8 +87,8 @@ export default function ProcessingChamber({ docId, filename, onComplete, onDupli
         const doc: DocumentItem = await getDocumentStatus(docId);
         if (cancelled) return;
 
-        if (doc.status !== status) {
-          prevStage.current = status;
+        if (doc.status !== prevStage.current) {
+          prevStage.current = doc.status;
           setStatus(doc.status);
           const idx = STAGE_MAP[doc.status] ?? 0;
           setStageIdx(idx >= 0 ? idx : 4);
@@ -258,16 +258,16 @@ export default function ProcessingChamber({ docId, filename, onComplete, onDupli
             initial={{ y: 4, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="mt-1 text-xs text-gray-400"
+            className="mt-1 text-xs text-gray-600"
           >
             {activeStage.description}
           </motion.p>
         </div>
 
         {/* Sample label */}
-        <div className="rounded-full border border-gray-700 bg-gray-800/60 px-3 py-1 text-[11px] text-gray-400">
-          <span className="text-gray-500">样本:</span>{" "}
-          <span className="text-gray-300 font-mono">{filename}</span>
+        <div className="rounded-full border border-gray-700 bg-gray-800/60 px-3 py-1 text-[11px] text-gray-600">
+          <span className="text-gray-700">样本:</span>{" "}
+          <span className="text-gray-500 font-mono">{filename}</span>
         </div>
 
         {/* Progress bar */}

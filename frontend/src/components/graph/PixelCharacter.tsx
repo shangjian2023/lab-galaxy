@@ -127,7 +127,7 @@ export default function PixelCharacter({ isFullscreen, onToggle, scared: externa
         height: 56,
         background: "rgba(255,248,230,0.85)",
         borderRadius: 8,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.3)",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.3)",
       }}
     >
       <motion.svg

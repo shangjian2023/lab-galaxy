@@ -64,13 +64,13 @@ export default function AdminAIConfigPage() {
 
   const toggleShow = (key: string) => setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  if (loading) return <main className="p-6 text-gray-400">加载中...</main>;
+  if (loading) return <main className="p-6 text-gray-600">加载中...</main>;
 
   return (
     <main className="mx-auto max-w-2xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">AI 服务配置</h1>
-        <p className="text-sm text-gray-500">配置 LLM 提供商、API Key 和模型名称，修改后自动生效</p>
+        <p className="text-sm text-gray-700">配置 LLM 提供商、API Key 和模型名称，修改后自动生效</p>
       </div>
 
       <div className="glass-card p-6 space-y-5">

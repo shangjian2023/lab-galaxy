@@ -71,7 +71,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
       {/* Thread header */}
       <div className="liquid-glass-card p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Link href={`/forum/${thread.board}`} className="rounded-full bg-white/50 px-2.5 py-0.5 text-[10px] font-medium text-gray-500 ring-1 ring-white/40 hover:bg-white/70">
+          <Link href={`/forum/${thread.board}`} className="rounded-full bg-white/50 px-2.5 py-0.5 text-[10px] font-medium text-gray-700 ring-1 ring-white/40 hover:bg-white/70">
             {boardInfo.icon} {boardInfo.label}
           </Link>
           <span className="rounded-full px-2.5 py-0.5 text-[10px] font-medium" style={{ color: postTypeInfo.color, backgroundColor: `${postTypeInfo.color}10` }}>
@@ -84,7 +84,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
             <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 ring-1 ring-amber-200/40">⭐ 精华</span>
           )}
           {thread.tags?.map((tag) => (
-            <span key={tag} className="rounded-full bg-white/40 px-2.5 py-0.5 text-[10px] text-gray-500 ring-1 ring-white/40">
+            <span key={tag} className="rounded-full bg-white/40 px-2.5 py-0.5 text-[10px] text-gray-700 ring-1 ring-white/40">
               #{tag}
             </span>
           ))}
@@ -115,7 +115,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
           </div>
         )}
 
-        <div className="mt-4 flex items-center gap-4 text-xs text-gray-400">
+        <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
           <span>{timeAgo(thread.created_at)}</span>
           <span>👁 {thread.view_count}</span>
         </div>
@@ -125,7 +125,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
           <button
             onClick={handleLike}
             className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-              liked ? "bg-red-50 text-red-500 ring-1 ring-red-200/40" : "bg-white/40 text-gray-500 ring-1 ring-white/40 hover:bg-white/60"
+              liked ? "bg-red-50 text-red-500 ring-1 ring-red-200/40" : "bg-white/40 text-gray-700 ring-1 ring-white/40 hover:bg-white/60"
             }`}
           >
             {liked ? "❤️" : "🤍"} {likeCount}
@@ -133,7 +133,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
           <button
             onClick={handleBookmark}
             className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-              bookmarked ? "bg-amber-50 text-amber-600 ring-1 ring-amber-200/40" : "bg-white/40 text-gray-500 ring-1 ring-white/40 hover:bg-white/60"
+              bookmarked ? "bg-amber-50 text-amber-600 ring-1 ring-amber-200/40" : "bg-white/40 text-gray-700 ring-1 ring-white/40 hover:bg-white/60"
             }`}
           >
             {bookmarked ? "⭐" : "☆"} 收藏
@@ -146,7 +146,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
         <h3 className="mb-4 text-sm font-bold text-gray-700">💬 回复 ({thread.reply_count})</h3>
 
         {replies.length === 0 && (
-          <p className="py-6 text-center text-sm text-gray-400">暂无回复，快来抢沙发吧！</p>
+          <p className="py-6 text-center text-sm text-gray-600">暂无回复，快来抢沙发吧！</p>
         )}
 
         <div className="space-y-3">
@@ -161,12 +161,12 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
               <div className="mt-2 text-sm leading-relaxed text-gray-700">
                 <MentionHighlight content={reply.content} />
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+              <div className="mt-2 flex items-center gap-3 text-xs text-gray-600">
                 <span>{timeAgo(reply.created_at)}</span>
                 <button
                   onClick={() => handleReplyLike(reply.id)}
                   className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-all ${
-                    replyLikes[reply.id] ? "text-red-500" : "text-gray-400 hover:text-red-400"
+                    replyLikes[reply.id] ? "text-red-500" : "text-gray-600 hover:text-red-400"
                   }`}
                 >
                   {replyLikes[reply.id] ? "❤️" : "🤍"} {replyLikeCounts[reply.id]}
@@ -180,7 +180,7 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
                     <div key={child.id} className="rounded-lg bg-white/20 p-2.5 ring-1 ring-white/30">
                       <div className="flex items-center gap-2">
                         <AuthorBadge nickname={child.author_nickname} level={child.author_level} avatar={child.author_avatar} />
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-gray-600">
                           {timeAgo(child.created_at)}
                         </span>
                       </div>

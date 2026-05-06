@@ -141,7 +141,7 @@ async def list_boards(db: AsyncSession = Depends(get_db), current_user: User = D
 async def list_threads(
     board: str | None = Query(None),
     post_type: str | None = Query(None),
-    sort: str = Query("hot", regex="^(newest|popular|latest_reply|hot)$"),
+    sort: str = Query("hot", pattern="^(newest|popular|latest_reply|hot)$"),
     keyword: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
@@ -470,7 +470,7 @@ async def toggle_reply_like(
 @router.patch("/threads/{thread_id}/status")
 async def change_thread_status(
     thread_id: uuid.UUID,
-    status: str = Query(..., regex="^(open|resolved|locked|featured)$"),
+    status: str = Query(..., pattern="^(open|resolved|locked|featured)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

@@ -92,8 +92,8 @@ export default function ChatMentionInput({ value, onChange, onKeyDown, placehold
     const lastAt = textBeforeCursor.lastIndexOf("@");
 
     if (lastAt !== -1) {
-      const charBeforeAt = lastAt > 0 ? textBeforeCursor[lastAt - 1] : " ";
-      if (/[\s\n]/.test(charBeforeAt) || lastAt === 0) {
+      const charBeforeAt = lastAt > 0 ? textBeforeCursor[lastAt - 1] : "";
+      if (lastAt === 0 || /[^a-zA-Z0-9]/.test(charBeforeAt)) {
         const triggerText = textBeforeCursor.slice(lastAt + 1);
         if (!triggerText.includes("](") && triggerText.length <= 20) {
           setMentionStart(lastAt);

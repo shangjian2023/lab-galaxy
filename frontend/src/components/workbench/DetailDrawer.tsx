@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CardItem } from "@/lib/api";
-import { deleteDocument, downloadDocument } from "@/lib/api";
+import { deleteDocument, downloadDocument, getDocumentPreviewBlob } from "@/lib/api";
 import { NODE_TYPE_COLORS } from "@/lib/constants";
 
 interface Props {
@@ -31,6 +31,26 @@ const TYPE_LABELS: Record<string, string> = {
 export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Load preview for PDF files when card changes
+  useEffect(() => {
+    if (!card || card.file_type !== "pdf") {
+      setPreviewUrl(null);
+      return;
+    }
+    setPreviewLoading(true);
+    getDocumentPreviewBlob(card.id)
+      .then((url) => {
+        setPreviewUrl(url);
+        setPreviewLoading(false);
+      })
+      .catch(() => setPreviewLoading(false));
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [card?.id]);
 
   const handleDelete = async () => {
     if (!card || !onDelete) return;
@@ -105,24 +125,59 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
               <Meta label="状态" value={card.status} />
             </div>
 
-            {/* Download button */}
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="glass-button flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-gray-700 transition-colors disabled:opacity-50"
-            >
-              {downloading ? (
-                <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : (
+            {/* Download / Preview buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="glass-button flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-gray-700 transition-colors disabled:opacity-50"
+              >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
+                {downloading ? "下载中..." : "下载"}
+              </button>
+              {card.file_type === "pdf" && (
+                <button
+                  onClick={() => {
+                    if (previewUrl) {
+                      setPreviewUrl(null);
+                    } else {
+                      setPreviewLoading(true);
+                      getDocumentPreviewBlob(card.id).then((url) => setPreviewUrl(url)).catch(() => setPreviewLoading(false));
+                    }
+                  }}
+                  disabled={previewLoading}
+                  className="glass-button flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-brand-600 transition-colors disabled:opacity-50"
+                >
+                  {previewLoading ? (
+                    <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : previewUrl ? (
+                    "收起预览"
+                  ) : (
+                    <>
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      在线预览
+                    </>
+                  )}
+                </button>
               )}
-              {downloading ? "下载中..." : "查看原始文档"}
-            </button>
+            </div>
+
+            {/* PDF inline preview */}
+            {previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="h-64 w-full rounded-lg border border-white/40"
+                title="文档预览"
+              />
+            )}
 
             {/* Subjects */}
             {card.subjects && card.subjects.length > 0 && (

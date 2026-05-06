@@ -3,36 +3,19 @@ FROM python:3.12-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 libglib2.0-0 curl \
+    libgl1 libglib2.0-0 curl libreoffice-writer libreoffice-calc libreoffice-impress \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ai_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# Pre-download fastembed embedding model (bge-small-zh-v1.5) from GCS
-# Stored in image layer; entrypoint copies to volume on first start
-RUN mkdir -p /app/model_staging && \
-    curl -L -o /tmp/fast-bge-small-zh-v1.5.tar.gz \
-      https://storage.googleapis.com/qdrant-fastembed/fast-bge-small-zh-v1.5.tar.gz && \
-    tar -xzf /tmp/fast-bge-small-zh-v1.5.tar.gz -C /app/model_staging && \
-    rm /tmp/fast-bge-small-zh-v1.5.tar.gz
+# Skip pre-downloading model (too slow from China); use local model files
+# Model files are copied to PVC and loaded via EMBEDDING_MODEL_PATH env var
 
 COPY ai_service/ .
-
-# Entrypoint: copy model to volume on first start, then run uvicorn
-RUN printf '#!/bin/sh\n\
-DEST=/app/data/fastembed_cache/fast-bge-small-zh-v1.5\n\
-if [ ! -d "$DEST" ]; then\n\
-  echo "Copying embedding model to persistent volume..."\n\
-  mkdir -p /app/data/fastembed_cache\n\
-  cp -r /app/model_staging/fast-bge-small-zh-v1.5 "$DEST"\n\
-  echo "Model ready."\n\
-fi\n\
-exec "$@"\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 ENV FASTEMBED_CACHE_PATH=/app/data/fastembed_cache
 
 EXPOSE 8001
 
-ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

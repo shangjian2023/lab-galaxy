@@ -25,7 +25,6 @@ import DraggablePixelChar from "@/components/graph/DraggablePixelChar";
 import InsightOverlay from "@/components/insight/InsightOverlay";
 import QueryPanel from "@/components/query/QueryPanel";
 import TeamManager from "@/components/graph/TeamManager";
-import RelationExplorer from "@/components/graph/RelationExplorer";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface SelectedNode {
@@ -175,7 +174,7 @@ function ExperimentListPanel({ open, onToggle, experiments, selectedId, onSelect
               <span className="text-xs font-bold text-gray-700">实验列表</span>
               <button
                 onClick={onToggle}
-                className="rounded-md p-0.5 text-gray-400 transition-colors hover:bg-orange-100 hover:text-orange-600"
+                className="rounded-md p-0.5 text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -209,6 +208,7 @@ function GraphPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const targetNodeId = searchParams.get("node");
+  const teamIdFromUrl = searchParams.get("team_id");
   const [viewType, setViewType] = useState<ViewMode>("galaxy");
   const [nodeType, setNodeType] = useState("");
   const [keyword, setKeyword] = useState("");
@@ -231,8 +231,16 @@ function GraphPageContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [expListOpen, setExpListOpen] = useState(false);
   const [graphScope, setGraphScope] = useState<"public" | "team" | "private">("public");
+  const [activeTeamId, setActiveTeamId] = useState<string | undefined>(teamIdFromUrl || undefined);
   const [showTeamManager, setShowTeamManager] = useState(false);
-  const [showRelationExplorer, setShowRelationExplorer] = useState(false);
+
+  // Auto-select team scope when team_id is in URL
+  useEffect(() => {
+    if (teamIdFromUrl) {
+      setActiveTeamId(teamIdFromUrl);
+      setGraphScope("team");
+    }
+  }, [teamIdFromUrl]);
 
   // Experiment list derived from graph data
   const experiments = useMemo(
@@ -281,13 +289,13 @@ function GraphPageContent() {
   // Load available years and default to latest
   useEffect(() => {
     if (!user) return;
-    getGraphYears(graphScope).then((res) => {
+    getGraphYears(graphScope, activeTeamId).then((res) => {
       setAvailableYears(res.years);
       if (res.years.length > 0) {
         setSelectedYears([res.years[0]]);
       }
     });
-  }, [user, graphScope]);
+  }, [user, graphScope, activeTeamId]);
 
   const applyGalaxyData = useCallback((data: CytoscapeData, fromPolling = false) => {
     const nextSignature = graphSignature(data);
@@ -300,19 +308,19 @@ function GraphPageContent() {
   }, []);
 
   const loadGalaxy = useCallback(async (fromPolling = false) => {
-    const data = await getGraphData(nodeType || undefined, keyword || undefined, undefined, fromDate, toDate, selectedYears.length > 0 ? selectedYears : undefined, graphScope);
+    const data = await getGraphData(nodeType || undefined, keyword || undefined, undefined, fromDate, toDate, selectedYears.length > 0 ? selectedYears : undefined, graphScope, activeTeamId);
     applyGalaxyData(data, fromPolling);
-  }, [nodeType, keyword, fromDate, toDate, selectedYears, graphScope, applyGalaxyData]);
+  }, [nodeType, keyword, fromDate, toDate, selectedYears, graphScope, activeTeamId, applyGalaxyData]);
 
   const loadTimeline = useCallback(async () => {
-    const data = await getTimelineData(graphScope);
+    const data = await getTimelineData(graphScope, activeTeamId);
     setTimelineData(data);
-  }, [graphScope]);
+  }, [graphScope, activeTeamId]);
 
   const loadMatrix = useCallback(async () => {
-    const data = await getMatrixData(graphScope);
+    const data = await getMatrixData(graphScope, activeTeamId);
     setMatrixData(data);
-  }, [graphScope]);
+  }, [graphScope, activeTeamId]);
 
   useEffect(() => {
     if (!user) return;
@@ -359,7 +367,7 @@ function GraphPageContent() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-400">加载中...</p>
+        <p className="text-gray-600">加载中...</p>
       </main>
     );
   }
@@ -368,7 +376,7 @@ function GraphPageContent() {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-gray-500">请先登录后查看知识图谱</p>
+          <p className="mb-4 text-gray-700">请先登录后查看知识图谱</p>
           <a href="/login" className="text-blue-600 hover:underline">去登录</a>
         </div>
       </main>
@@ -516,7 +524,7 @@ function GraphPageContent() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-800">知识图谱</h1>
-            <p className="text-[11px] text-gray-500">探索实验、设备、理论之间的关联</p>
+            <p className="text-[11px] text-gray-700">探索实验、设备、理论之间的关联</p>
           </div>
         </div>
       </div>
@@ -524,7 +532,7 @@ function GraphPageContent() {
       {/* Year filter */}
       {availableYears.length > 0 && (
         <div className="liquid-glass-compact mb-3 flex items-center gap-2 px-4 py-2.5">
-          <span className="text-xs font-semibold text-gray-500">年份筛选:</span>
+          <span className="text-xs font-semibold text-gray-700">年份筛选:</span>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={selectAllYears}
@@ -550,25 +558,14 @@ function GraphPageContent() {
               </button>
             ))}
           </div>
-          <span className="ml-auto text-xs text-gray-400">
+          <span className="ml-auto text-xs text-gray-600">
             已选 {selectedYears.length}/{availableYears.length}
           </span>
         </div>
       )}
 
-      {/* Toolbar + Relation Explorer button */}
+      {/* Toolbar */}
       <div className="liquid-glass-card mb-4 p-4">
-        <div className="mb-3 flex items-center justify-end">
-          <button
-            onClick={() => setShowRelationExplorer(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-opacity hover:opacity-90"
-          >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            关系探索
-          </button>
-        </div>
         <GraphToolbar
           viewType={viewType}
           onViewChange={setViewType}
@@ -597,11 +594,6 @@ function GraphPageContent() {
       {/* Team Manager Modal */}
       <TeamManager open={showTeamManager} onClose={() => setShowTeamManager(false)} />
 
-      {/* Relation Explorer Modal */}
-      {showRelationExplorer && (
-        <RelationExplorer onClose={() => setShowRelationExplorer(false)} />
-      )}
-
       {/* Fullscreen overlay */}
       <AnimatePresence>
         {isFullscreen && (
@@ -619,7 +611,7 @@ function GraphPageContent() {
               <span className="text-sm font-medium text-white/80">知识图谱 — 全屏模式</span>
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/20 hover:text-white"
+                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-white/90 transition-colors hover:bg-white/20 hover:text-white"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -645,7 +637,7 @@ function GraphPageContent() {
 
             <div className="flex items-center justify-center gap-5 px-5 py-2.5">
               {legendItems.map((t) => (
-                <span key={t.label} className="flex items-center gap-1.5 text-xs text-white/50">
+                <span key={t.label} className="flex items-center gap-1.5 text-xs text-white/90">
                   <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
                   {t.label}
                 </span>
@@ -677,14 +669,14 @@ function GraphPageContent() {
         )}
 
         {viewType === "galaxy" && galaxyData.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-600">
             上传文档后将自动生成知识图谱
           </div>
         )}
       </div>
 
       <div className="liquid-glass-compact mt-3 flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-4 text-xs text-gray-400">
+        <div className="flex items-center gap-4 text-xs text-gray-600">
           <span className="font-medium">图例:</span>
           {legendItems.map((t) => (
             <span key={t.label} className="flex items-center gap-1">
@@ -720,7 +712,7 @@ function GraphPageContent() {
 
 export default function GraphPage() {
   return (
-    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-gray-400">加载中...</p></main>}>
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-gray-600">加载中...</p></main>}>
       <GraphPageContent />
     </Suspense>
   );

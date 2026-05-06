@@ -94,7 +94,7 @@ export default function RegisterPage() {
           {busy ? "注册中..." : "注册"}
         </button>
 
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-gray-700">
           已有账号？
           <a href="/login" className="text-brand-600 hover:text-brand-700">登录</a>
         </p>

@@ -44,7 +44,7 @@ export default function MyForumPage() {
       <div className="mb-6">
         <div className="liquid-glass-card px-5 py-4">
           <h1 className="text-xl font-bold text-gray-800">我的帖子</h1>
-          <p className="text-xs text-gray-500">查看发布的帖子和收藏</p>
+          <p className="text-xs text-gray-700">查看发布的帖子和收藏</p>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export default function MyForumPage() {
         <button
           onClick={() => { setActiveTab("threads"); setPage(1); }}
           className={`rounded-md px-4 py-2 text-sm font-medium transition-all ${
-            activeTab === "threads" ? "bg-white text-orange-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            activeTab === "threads" ? "bg-white text-orange-700 shadow-sm" : "text-gray-700 hover:text-gray-700"
           }`}
         >
           我的帖子
@@ -61,7 +61,7 @@ export default function MyForumPage() {
         <button
           onClick={() => { setActiveTab("bookmarks"); setPage(1); }}
           className={`rounded-md px-4 py-2 text-sm font-medium transition-all ${
-            activeTab === "bookmarks" ? "bg-white text-orange-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            activeTab === "bookmarks" ? "bg-white text-orange-700 shadow-sm" : "text-gray-700 hover:text-gray-700"
           }`}
         >
           我的收藏
@@ -70,7 +70,7 @@ export default function MyForumPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-400">加载中...</p>
+          <p className="text-gray-600">加载中...</p>
         </div>
       ) : (
         <ThreadList

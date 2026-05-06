@@ -74,14 +74,14 @@ export default function AdminDocumentsPage() {
             <option value="">全部状态</option>
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <span className="text-sm text-gray-400">共 {total} 条</span>
+          <span className="text-sm text-gray-600">共 {total} 条</span>
         </div>
       </div>
 
       <div className="glass-card overflow-hidden rounded-xl">
         <table className="w-full text-sm">
           <thead className="glass-table-header">
-            <tr className="text-left text-gray-500">
+            <tr className="text-left text-gray-700">
               <th className="px-3 py-2 font-medium">文件名</th>
               <th className="px-3 py-2 font-medium">类型</th>
               <th className="px-3 py-2 font-medium">大小</th>
@@ -102,8 +102,8 @@ export default function AdminDocumentsPage() {
               return (
                 <tr key={doc.id} className="glass-table-row border-t">
                   <td className="max-w-[200px] truncate px-3 py-2 font-medium">{doc.title}</td>
-                  <td className="px-3 py-2 uppercase text-gray-500">{doc.file_type}</td>
-                  <td className="px-3 py-2 text-gray-500">{formatSize(doc.file_size)}</td>
+                  <td className="px-3 py-2 uppercase text-gray-700">{doc.file_type}</td>
+                  <td className="px-3 py-2 text-gray-700">{formatSize(doc.file_size)}</td>
                   <td className="px-3 py-2">
                     {isEditing ? (
                       <input type="number" defaultValue={doc.experiment_year ?? ""} min={2000} max={2030}
@@ -151,7 +151,7 @@ export default function AdminDocumentsPage() {
                       : "bg-yellow-100 text-yellow-700"
                     }`}>{doc.status === "awaiting_confirmation" ? "待确认" : doc.status}</span>
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">
+                  <td className="px-3 py-2 text-xs text-gray-700">
                     {entityCount > 0 ? `${entityCount}E / ${relCount}R` : "-"}
                   </td>
                   <td className="px-3 py-2 space-x-2">
@@ -177,7 +177,7 @@ export default function AdminDocumentsPage() {
       <div className="mt-4 flex justify-center gap-2">
         <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
           className="btn-secondary px-3 py-1 text-sm disabled:opacity-40">上一页</button>
-        <span className="px-3 py-1 text-sm text-gray-500">{page}</span>
+        <span className="px-3 py-1 text-sm text-gray-700">{page}</span>
         <button disabled={docs.length < 50} onClick={() => setPage((p) => p + 1)}
           className="btn-secondary px-3 py-1 text-sm disabled:opacity-40">下一页</button>
       </div>
@@ -198,7 +198,7 @@ function MultiSelect({ options, selected, onChange }: {
       {options.map((o) => (
         <button key={o.value} type="button" onClick={() => toggle(o.value)}
           className={`rounded-xl px-1.5 py-0.5 text-[10px] ${
-            selected.includes(o.value) ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"
+            selected.includes(o.value) ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-700"
           }`}>{o.label}</button>
       ))}
     </div>

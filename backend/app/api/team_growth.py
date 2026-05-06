@@ -207,7 +207,7 @@ async def ai_growth_analysis(
         user_docs = [d for d in docs if str(d.uploaded_by) == uid]
         member_info.append({
             "nickname": user.nickname if user else uid,
-            "level": user.level if user else 1,
+            "level": getattr(user, "level", 1) if user else 1,
             "document_count": len(user_docs),
         })
 

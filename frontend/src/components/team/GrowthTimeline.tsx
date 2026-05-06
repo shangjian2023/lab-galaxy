@@ -35,7 +35,7 @@ export default function GrowthTimeline({ teamId }: Props) {
     }
   };
 
-  if (loading) return <div className="p-6 text-gray-400">加载中...</div>;
+  if (loading) return <div className="p-6 text-gray-600">加载中...</div>;
   if (error && !data) return <div className="p-6 text-red-400">{error}</div>;
   if (!data) return null;
 
@@ -70,7 +70,7 @@ export default function GrowthTimeline({ teamId }: Props) {
       {/* Timeline */}
       <div className="flex-1 overflow-y-auto p-4">
         {timeline.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">暂无成长记录</p>
+          <p className="py-8 text-center text-sm text-gray-600">暂无成长记录</p>
         ) : (
           <div className="relative pl-6">
             {/* Vertical line */}
@@ -94,16 +94,16 @@ export default function GrowthTimeline({ teamId }: Props) {
                         ? entry.achievement_type || "成果"
                         : "文档"}
                     </span>
-                    <span className="text-xs text-gray-400">{entry.user_nickname}</span>
+                    <span className="text-xs text-gray-600">{entry.user_nickname}</span>
                     {entry.date && (
-                      <span className="ml-auto text-xs text-gray-400">
+                      <span className="ml-auto text-xs text-gray-600">
                         {new Date(entry.date).toLocaleDateString("zh-CN")}
                       </span>
                     )}
                   </div>
                   <p className="text-sm font-medium text-gray-800">{entry.title}</p>
                   {entry.details && (
-                    <p className="mt-1 text-xs text-gray-500">{entry.details}</p>
+                    <p className="mt-1 text-xs text-gray-700">{entry.details}</p>
                   )}
                 </div>
               </div>
@@ -121,7 +121,7 @@ function SummaryCard({ label, value, icon }: { label: string; value: number; ico
       <span className="text-lg">{icon}</span>
       <div>
         <p className="text-lg font-bold text-gray-800">{value}</p>
-        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xs text-gray-700">{label}</p>
       </div>
     </div>
   );
@@ -154,7 +154,7 @@ function AnalysisCard({ analysis }: { analysis: AIGrowthAnalysis }) {
         </div>
         <div>
           <p className="text-sm font-semibold text-gray-800">成长评分</p>
-          <p className="text-xs text-gray-500">AI 基于团队数据综合评估</p>
+          <p className="text-xs text-gray-700">AI 基于团队数据综合评估</p>
         </div>
       </div>
 
@@ -194,7 +194,7 @@ function AnalysisCard({ analysis }: { analysis: AIGrowthAnalysis }) {
       )}
 
       {analysis.quota && (
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-gray-600">
           本月剩余 {analysis.quota.remaining}/{analysis.quota.limit} 次
         </p>
       )}

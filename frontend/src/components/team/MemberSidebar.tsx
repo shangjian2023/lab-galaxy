@@ -17,7 +17,7 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLE_COLORS: Record<string, string> = {
   owner: "bg-orange-100 text-orange-600",
   admin: "bg-blue-100 text-blue-600",
-  member: "bg-gray-100 text-gray-500",
+  member: "bg-gray-100 text-gray-700",
 };
 
 export default function MemberSidebar({ team }: Props) {
@@ -95,7 +95,7 @@ export default function MemberSidebar({ team }: Props) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="truncate text-sm text-gray-700">{m.nickname || m.username}</span>
-                <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium text-gray-400 font-mono">
+                <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium text-gray-600 font-mono">
                   {m.display_id || "-"}
                 </span>
                 {m.role !== "member" && (

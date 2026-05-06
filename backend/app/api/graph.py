@@ -72,6 +72,7 @@ async def _visible_document_ids(
     current_user: User,
     years: list[int] | None = None,
     scope: str | None = None,
+    team_id: str | None = None,
 ) -> list[str]:
     """Return document IDs visible to the user based on scope.
 
@@ -80,6 +81,8 @@ async def _visible_document_ids(
       - "public": only public documents
       - "private": only the user's private documents
       - "team": documents from the user's team members
+    team_id:
+      - When scope="team", filter by this specific team. If None, uses all teams user belongs to.
     """
     stmt = select(Document.id)
 
@@ -89,14 +92,22 @@ async def _visible_document_ids(
         stmt = stmt.where(Document.uploaded_by == current_user.id, Document.privacy == "private")
     elif scope == "team":
         from app.models.models import TeamMember
-        team_ids_stmt = (
-            select(TeamMember.team_id)
-            .where(TeamMember.user_id == current_user.id)
-        )
-        team_user_ids_stmt = (
-            select(TeamMember.user_id)
-            .where(TeamMember.team_id.in_(team_ids_stmt))
-        )
+        if team_id:
+            # Filter by specific team
+            team_user_ids_stmt = (
+                select(TeamMember.user_id)
+                .where(TeamMember.team_id == team_id)
+            )
+        else:
+            # All teams user belongs to (backward compatible)
+            team_ids_stmt = (
+                select(TeamMember.team_id)
+                .where(TeamMember.user_id == current_user.id)
+            )
+            team_user_ids_stmt = (
+                select(TeamMember.user_id)
+                .where(TeamMember.team_id.in_(team_ids_stmt))
+            )
         stmt = stmt.where(Document.uploaded_by.in_(team_user_ids_stmt))
     else:
         # Default: own + public
@@ -143,6 +154,7 @@ async def get_graph_data(
     to_date: str | None = Query(None, description="ISO date, e.g. 2024-12-31"),
     years: str | None = Query(None, description="Comma-separated years, e.g. 2024,2025"),
     scope: str | None = Query(None, description="Document scope: public, private, team"),
+    team_id: str | None = Query(None, description="Specific team ID for team scope"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -154,7 +166,7 @@ async def get_graph_data(
             parsed_years = [int(y.strip()) for y in years.split(",") if y.strip()]
         except ValueError:
             parsed_years = None
-    visible_doc_ids = await _visible_document_ids(db, current_user, years=parsed_years, scope=scope)
+    visible_doc_ids = await _visible_document_ids(db, current_user, years=parsed_years, scope=scope, team_id=team_id)
 
     async with driver.session() as session:
         node_query = "MATCH (n)"
@@ -170,8 +182,10 @@ async def get_graph_data(
             conditions.append("(n.created_at IS NULL OR n.created_at >= $from_date)")
             params["from_date"] = from_date
         if to_date:
+            # Append end-of-day if only date is provided
+            to_date_param = to_date if "T" in to_date else f"{to_date}T23:59:59"
             conditions.append("(n.created_at IS NULL OR n.created_at <= $to_date)")
-            params["to_date"] = to_date
+            params["to_date"] = to_date_param
         if visible_doc_ids:
             conditions.append("(n.document_id IS NULL OR n.document_id IN $doc_ids)")
         else:
@@ -235,6 +249,7 @@ async def get_available_years(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     scope: str | None = Query(None, description="Document scope: public, private, team"),
+    team_id: str | None = Query(None, description="Specific team ID for team scope"),
 ):
     """Return distinct experiment years that have documents with graph data."""
     if scope == "public":
@@ -243,14 +258,20 @@ async def get_available_years(
         condition = (Document.uploaded_by == current_user.id) & (Document.privacy == "private")
     elif scope == "team":
         from app.models.models import TeamMember
-        team_ids_stmt = (
-            select(TeamMember.team_id)
-            .where(TeamMember.user_id == current_user.id)
-        )
-        team_user_ids_stmt = (
-            select(TeamMember.user_id)
-            .where(TeamMember.team_id.in_(team_ids_stmt))
-        )
+        if team_id:
+            team_user_ids_stmt = (
+                select(TeamMember.user_id)
+                .where(TeamMember.team_id == team_id)
+            )
+        else:
+            team_ids_stmt = (
+                select(TeamMember.team_id)
+                .where(TeamMember.user_id == current_user.id)
+            )
+            team_user_ids_stmt = (
+                select(TeamMember.user_id)
+                .where(TeamMember.team_id.in_(team_ids_stmt))
+            )
         condition = Document.uploaded_by.in_(team_user_ids_stmt)
     else:
         condition = (Document.uploaded_by == current_user.id) | (Document.privacy == "public")
@@ -270,10 +291,11 @@ async def get_timeline_data(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     scope: str | None = Query(None, description="Document scope: public, private, team"),
+    team_id: str | None = Query(None, description="Specific team ID for team scope"),
 ):
     driver = _driver()
     result: list[dict] = []
-    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope)
+    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope, team_id=team_id)
 
     async with driver.session() as session:
         if visible_doc_ids:
@@ -313,10 +335,11 @@ async def get_matrix_data(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     scope: str | None = Query(None, description="Document scope: public, private, team"),
+    team_id: str | None = Query(None, description="Specific team ID for team scope"),
 ):
     driver = _driver()
     result: list[dict] = []
-    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope)
+    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope, team_id=team_id)
 
     async with driver.session() as session:
         if visible_doc_ids:

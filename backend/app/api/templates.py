@@ -43,7 +43,7 @@ class CommentCreate(BaseModel):
 async def marketplace(
     keyword: str | None = Query(None),
     category: str | None = Query(None),
-    sort: str = Query("popular", regex="^(popular|newest|downloads)$"),
+    sort: str = Query("popular", pattern="^(popular|newest|downloads)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
@@ -155,7 +155,7 @@ async def publish_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/{tpl_id}/review")
-async def review_template(tpl_id: uuid.UUID, action: str = Query(..., regex="^(approve|reject)$"), db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)):
+async def review_template(tpl_id: uuid.UUID, action: str = Query(..., pattern="^(approve|reject)$"), db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)):
     tpl = (await db.execute(select(Template).where(Template.id == tpl_id))).scalar_one_or_none()
     if not tpl:
         raise HTTPException(404)
@@ -201,6 +201,9 @@ async def bookmark_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db
     # Award points to user
     current_user.points += 20
     db.add(PointsLog(user_id=current_user.id, change=20, reason=f"收藏模板「{tpl.name}」"))
+    new_level = calc_level(current_user.points)["level"]
+    if new_level > current_user.level:
+        current_user.level = new_level
     await db.commit()
     return {"status": "bookmarked", "bookmarks": tpl.adoptions}
 

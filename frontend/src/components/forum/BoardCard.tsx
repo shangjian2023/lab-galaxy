@@ -24,11 +24,11 @@ export default function BoardCard({ board, index }: Props) {
         <span className="text-3xl">{board.icon}</span>
         <div>
           <h3 className="text-base font-bold text-gray-800">{board.name}</h3>
-          <p className="text-[11px] text-gray-500">{board.description}</p>
+          <p className="text-[11px] text-gray-700">{board.description}</p>
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">{board.thread_count} 帖子</span>
+        <span className="text-xs text-gray-600">{board.thread_count} 帖子</span>
         <span
           className="h-2 w-2 rounded-full"
           style={{ backgroundColor: board.color }}

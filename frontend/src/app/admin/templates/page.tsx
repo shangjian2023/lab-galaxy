@@ -66,14 +66,14 @@ export default function AdminTemplatesPage() {
             <option value="">全部状态</option>
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <span className="text-sm text-gray-400">共 {total} 条</span>
+          <span className="text-sm text-gray-600">共 {total} 条</span>
         </div>
       </div>
 
       <div className="glass-card overflow-hidden rounded-xl">
         <table className="w-full text-sm">
           <thead className="glass-table-header">
-            <tr className="text-left text-gray-500">
+            <tr className="text-left text-gray-700">
               <th className="px-3 py-2 font-medium">模板名称</th>
               <th className="px-3 py-2 font-medium">分类</th>
               <th className="px-3 py-2 font-medium">标签</th>
@@ -92,8 +92,8 @@ export default function AdminTemplatesPage() {
               return (
                 <tr key={tpl.id} className="glass-table-row border-t">
                   <td className="max-w-[160px] truncate px-3 py-2 font-medium">{tpl.name}</td>
-                  <td className="px-3 py-2 text-gray-500">{tpl.category || "-"}</td>
-                  <td className="px-3 py-2 text-xs text-gray-400">
+                  <td className="px-3 py-2 text-gray-700">{tpl.category || "-"}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600">
                     {tpl.tags?.join("、") || "-"}
                   </td>
                   <td className="px-3 py-2">
@@ -127,7 +127,7 @@ export default function AdminTemplatesPage() {
                       <span className="rounded-xl bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">官方</span>
                     ) : "-"}
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-400">{tpl.created_by?.slice(0, 8)}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600">{tpl.created_by?.slice(0, 8)}</td>
                   <td className="px-3 py-2 text-xs">{tpl.likes}</td>
                   <td className="px-3 py-2 text-xs">{tpl.downloads}</td>
                   <td className="px-3 py-2 text-xs">{tpl.bookmarks}</td>
@@ -162,7 +162,7 @@ export default function AdminTemplatesPage() {
       <div className="mt-4 flex justify-center gap-2 text-sm">
         <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
           className="btn-secondary px-3 py-1 text-sm disabled:opacity-40">上一页</button>
-        <span className="px-3 py-1 text-sm text-gray-500">{page} / {Math.max(totalPages, 1)}</span>
+        <span className="px-3 py-1 text-sm text-gray-700">{page} / {Math.max(totalPages, 1)}</span>
         <button disabled={templates.length < pageSize} onClick={() => setPage((p) => p + 1)}
           className="btn-secondary px-3 py-1 text-sm disabled:opacity-40">下一页</button>
       </div>

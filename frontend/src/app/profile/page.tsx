@@ -18,14 +18,14 @@ export default function ProfilePage() {
   }, [user]);
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center text-gray-400">加载中...</main>;
+    return <main className="flex min-h-screen items-center justify-center text-gray-600">加载中...</main>;
   }
 
   if (!user) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-gray-500">请先登录</p>
+          <p className="mb-4 text-gray-700">请先登录</p>
           <Link href="/login" className="text-brand-600 hover:underline">去登录</Link>
         </div>
       </main>
@@ -84,7 +84,7 @@ export default function ProfilePage() {
                 </>
               )}
             </div>
-            <p className="mt-1 text-sm text-gray-500">@{displayUser.username}</p>
+            <p className="mt-1 text-sm text-gray-700">@{displayUser.username}</p>
             <div className="mt-2 flex items-center gap-3">
               <LevelBadge
                 level={displayUser.level}
@@ -95,7 +95,12 @@ export default function ProfilePage() {
                 points={displayUser.points}
                 size="sm"
               />
-              <span className="text-sm text-gray-500">{displayUser.points} 成长值</span>
+              <span className="text-sm text-gray-700">{displayUser.points} 成长值</span>
+              {displayUser.display_id && (
+                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-mono font-bold text-blue-700" title="分享此 ID 以便别人邀请你加入团队">
+                  ID: {displayUser.display_id}
+                </span>
+              )}
               {displayUser.role === "admin" && <span className="rounded bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">管理员</span>}
             </div>
           </div>
@@ -112,7 +117,7 @@ export default function ProfilePage() {
         ].map((s) => (
           <Link key={s.label} href={s.href} className="glass-card p-4 text-center hover:shadow-md transition-shadow">
             <p className="text-2xl font-bold text-gray-800">{s.value}</p>
-            <p className="mt-1 text-xs text-gray-500">{s.label}</p>
+            <p className="mt-1 text-xs text-gray-700">{s.label}</p>
           </Link>
         ))}
       </div>
@@ -127,7 +132,7 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="font-medium text-gray-800">成长中心</p>
-            <p className="text-xs text-gray-500">查看等级路线图和积分记录</p>
+            <p className="text-xs text-gray-700">查看等级路线图和积分记录</p>
           </div>
         </Link>
         <Link href="/documents" className="flex items-center gap-3 glass-card p-5 hover:shadow-md transition-shadow">
@@ -138,7 +143,7 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="font-medium text-gray-800">我的文档</p>
-            <p className="text-xs text-gray-500">管理上传的实验资料</p>
+            <p className="text-xs text-gray-700">管理上传的实验资料</p>
           </div>
         </Link>
       </div>
@@ -148,19 +153,23 @@ export default function ProfilePage() {
         <h2 className="mb-4 text-lg font-bold text-gray-800">账号信息</h2>
         <div className="space-y-3 text-sm">
           <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">用户名</span>
+            <span className="text-gray-700">用户名</span>
             <span className="text-gray-800">{displayUser.username}</span>
           </div>
           <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">邮箱</span>
+            <span className="text-gray-700">用户 ID</span>
+            <span className="text-gray-800 font-mono">{displayUser.display_id ?? "未分配"}</span>
+          </div>
+          <div className="flex justify-between border-b pb-2">
+            <span className="text-gray-700">邮箱</span>
             <span className="text-gray-800">{displayUser.email}</span>
           </div>
           <div className="flex justify-between border-b pb-2">
-            <span className="text-gray-500">角色</span>
+            <span className="text-gray-700">角色</span>
             <span className="text-gray-800">{displayUser.role === "admin" ? "管理员" : "普通用户"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">注册时间</span>
+            <span className="text-gray-700">注册时间</span>
             <span className="text-gray-800">{new Date(displayUser.created_at).toLocaleDateString("zh-CN")}</span>
           </div>
         </div>

@@ -868,7 +868,7 @@ export default function GalaxyView({
     <div ref={containerRef} className="relative h-full w-full rounded-xl border bg-black overflow-hidden">
       <canvas ref={canvasRef} className="h-full w-full" />
       {nodesRef.current.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">
+        <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-700">
           上传文档后将自动生成知识图谱
         </div>
       )}

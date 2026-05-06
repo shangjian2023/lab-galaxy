@@ -65,12 +65,12 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
       <h2 className="mb-4 text-lg font-bold">我的文档</h2>
 
       {docs.length === 0 ? (
-        <p className="py-10 text-center text-sm text-gray-400">暂无文档，点击上方区域上传</p>
+        <p className="py-10 text-center text-sm text-gray-600">暂无文档，点击上方区域上传</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left text-gray-500">
+              <tr className="border-b text-left text-gray-700">
                 <th className="py-2 pr-3 font-medium">文件名</th>
                 <th className="py-2 pr-3 font-medium">类型</th>
                 <th className="py-2 pr-3 font-medium">大小</th>
@@ -94,12 +94,12 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                       onClick={() => setExpanded(isExpanded ? null : doc.id)}
                     >
                       <td className="py-2.5 pr-3 font-medium text-gray-800">{doc.title}</td>
-                      <td className="py-2.5 pr-3 uppercase text-gray-500">{doc.file_type}</td>
-                      <td className="py-2.5 pr-3 text-gray-500">{formatSize(doc.file_size)}</td>
-                      <td className="py-2.5 pr-3 text-gray-500">
+                      <td className="py-2.5 pr-3 uppercase text-gray-700">{doc.file_type}</td>
+                      <td className="py-2.5 pr-3 text-gray-700">{formatSize(doc.file_size)}</td>
+                      <td className="py-2.5 pr-3 text-gray-700">
                         {lookupLabel(EXPERIMENT_TYPES, doc.experiment_type)}
                       </td>
-                      <td className="py-2.5 pr-3 text-gray-500">{doc.experiment_year ?? "-"}</td>
+                      <td className="py-2.5 pr-3 text-gray-700">{doc.experiment_year ?? "-"}</td>
                       <td className="py-2.5 pr-3">
                         <div className="flex flex-col gap-1">
                           <span className={`inline-flex w-fit items-center gap-1.5 rounded-xl px-2.5 py-0.5 text-xs font-medium ${s.color}`}>
@@ -112,13 +112,13 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                             {s.label}
                           </span>
                           {(doc.status === "parsing" || doc.status === "extracting") && doc.created_at && (
-                            <span className="text-[10px] text-gray-400">
+                            <span className="text-[10px] text-gray-600">
                               ⏱ {elapsedSince(doc.created_at)}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-2.5 text-gray-400">
+                      <td className="py-2.5 text-gray-600">
                         {new Date(doc.created_at).toLocaleString("zh-CN")}
                       </td>
                       <td className="py-2.5">
@@ -191,7 +191,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b text-gray-500">
+                      <tr className="border-b text-gray-700">
                         <th className="py-1 pr-2 text-left">类型</th>
                         <th className="py-1 pr-2 text-left">名称</th>
                         <th className="py-1 text-left">描述</th>
@@ -206,7 +206,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                             </span>
                           </td>
                           <td className="py-1 pr-2 font-medium">{e.name}</td>
-                          <td className="py-1 text-gray-500">{e.summary}</td>
+                          <td className="py-1 text-gray-700">{e.summary}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -230,7 +230,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
           >
             上一页
           </button>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-700">
             {page} / {totalPages}
           </span>
           <button

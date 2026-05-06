@@ -167,7 +167,7 @@ export default function AdminUsersPage() {
           <option value="pending">待审批</option>
           <option value="disabled">已禁用</option>
         </select>
-        <span className="ml-auto text-xs text-gray-400">共 {total} 个用户</span>
+        <span className="ml-auto text-xs text-gray-600">共 {total} 个用户</span>
       </div>
 
       <AnimatePresence>
@@ -179,7 +179,7 @@ export default function AdminUsersPage() {
               <Input name="password" label="密码" type="password" required />
               <Input name="nickname" label="昵称" />
               <div>
-                <label className="mb-1 block text-xs text-gray-500">角色</label>
+                <label className="mb-1 block text-xs text-gray-700">角色</label>
                 <select name="role" className="glass-input w-full px-3 py-2 text-sm">
                   <option value="user">普通用户</option>
                   <option value="admin">管理员</option>
@@ -224,7 +224,7 @@ export default function AdminUsersPage() {
       <div className="glass-card overflow-hidden rounded-xl">
         <table className="w-full text-sm">
           <thead className="glass-table-header">
-            <tr className="text-left text-gray-500">
+            <tr className="text-left text-gray-700">
               <th className="px-4 py-2 font-medium">用户名</th>
               <th className="px-4 py-2 font-medium">邮箱</th>
               <th className="px-4 py-2 font-medium">昵称</th>
@@ -241,8 +241,8 @@ export default function AdminUsersPage() {
             {users.map((u) => (
               <tr key={u.id} className="glass-table-row border-t">
                 <td className="px-4 py-2 font-medium">{u.username}</td>
-                <td className="px-4 py-2 text-gray-500">{u.email}</td>
-                <td className="px-4 py-2 text-gray-500">
+                <td className="px-4 py-2 text-gray-700">{u.email}</td>
+                <td className="px-4 py-2 text-gray-700">
                   {editing === u.id ? (
                     <input
                       type="text"
@@ -253,7 +253,7 @@ export default function AdminUsersPage() {
                     />
                   ) : (u.nickname || "-")}
                 </td>
-                <td className="px-4 py-2 text-gray-500">
+                <td className="px-4 py-2 text-gray-700">
                   {editing === u.id ? (
                     <input
                       type="text"
@@ -318,7 +318,7 @@ export default function AdminUsersPage() {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-gray-400">
+                <td className="px-4 py-2 text-gray-600">
                   {new Date(u.created_at).toLocaleDateString("zh-CN")}
                 </td>
                 <td className="px-4 py-2">
@@ -349,7 +349,7 @@ export default function AdminUsersPage() {
                     <button onClick={() => setEditing(editing === u.id ? null : u.id)} className="text-xs text-brand-600 hover:underline">
                       {editing === u.id ? "完成" : "编辑"}
                     </button>
-                    <button onClick={() => setShowPassword(u.id)} className="text-xs text-gray-500 hover:underline">
+                    <button onClick={() => setShowPassword(u.id)} className="text-xs text-gray-700 hover:underline">
                       改密
                     </button>
                     {u.role !== "admin" && (
@@ -373,7 +373,7 @@ export default function AdminUsersPage() {
         >
           上一页
         </button>
-        <span className="text-gray-500">{page} / {Math.max(totalPages, 1)}</span>
+        <span className="text-gray-700">{page} / {Math.max(totalPages, 1)}</span>
         <button
           disabled={page >= totalPages || totalPages === 0}
           onClick={() => setPage((p) => p + 1)}
@@ -404,7 +404,7 @@ function Modal({ children, onClose, title }: { children: ReactNode; onClose: () 
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">×</button>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-600">×</button>
         </div>
         {children}
       </motion.div>
@@ -415,7 +415,7 @@ function Modal({ children, onClose, title }: { children: ReactNode; onClose: () 
 function Input({ label, className, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-gray-500">{label}</label>
+      <label className="mb-1 block text-xs text-gray-700">{label}</label>
       <input {...props} className={className ?? "glass-input w-full px-3 py-2 text-sm"} />
     </div>
   );

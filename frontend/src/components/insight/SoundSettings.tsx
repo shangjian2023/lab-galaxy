@@ -60,7 +60,7 @@ export default function SoundSettings({ open, onClose }: Props) {
           <div className="mb-4">
             <div className="mb-1 flex items-center justify-between">
               <span className="text-xs text-gray-600">音量</span>
-              <span className="text-xs text-gray-400">{volume}%</span>
+              <span className="text-xs text-gray-600">{volume}%</span>
             </div>
             <input
               type="range" min={0} max={100} value={volume}
@@ -73,7 +73,7 @@ export default function SoundSettings({ open, onClose }: Props) {
           <div className="mb-4">
             <div className="mb-1 flex items-center justify-between">
               <span className="text-xs text-gray-600">动画强度</span>
-              <span className="text-xs text-gray-400">{intensity}%</span>
+              <span className="text-xs text-gray-600">{intensity}%</span>
             </div>
             <input
               type="range" min={0} max={100} value={intensity}
@@ -84,7 +84,7 @@ export default function SoundSettings({ open, onClose }: Props) {
 
           {/* Test sounds */}
           <div className="mb-3">
-            <span className="mb-2 block text-xs text-gray-500">试听音效</span>
+            <span className="mb-2 block text-xs text-gray-700">试听音效</span>
             <div className="grid grid-cols-2 gap-2">
               <TestBtn label="连接音" onClick={() => handleTest("connect")} />
               <TestBtn label="洞察音" onClick={() => handleTest("insight")} />

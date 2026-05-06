@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createForumThread } from "@/lib/api";
 import NodeMentionInput from "./NodeMentionInput";
+import { soundEngine } from "@/lib/audio/SoundEngine";
 
 const BOARDS = [
   { slug: "methodology", name: "方法论堂", icon: "🔬" },
@@ -66,6 +67,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
         tags: tags.length > 0 ? tags : undefined,
         graph_node_ids: graphNodeIds.length > 0 ? graphNodeIds : undefined,
       });
+      soundEngine.play("hover");
       router.push(`/forum/thread/${res.id}`);
     } catch (e: any) {
       setError(e.message || "发帖失败");
@@ -82,7 +84,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
         {/* Board & Type selector */}
         <div className="flex flex-wrap gap-2">
           <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-gray-500">板块</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">板块</label>
             <select
               value={board}
               onChange={(e) => setBoard(e.target.value)}
@@ -96,7 +98,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
             </select>
           </div>
           <div className="w-40">
-            <label className="mb-1 block text-xs font-medium text-gray-500">类型</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">类型</label>
             <select
               value={postType}
               onChange={(e) => setPostType(e.target.value)}
@@ -111,7 +113,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
 
         {/* Title */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">标题</label>
+          <label className="mb-1 block text-xs font-medium text-gray-700">标题</label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -119,12 +121,12 @@ export default function ThreadComposer({ defaultBoard }: Props) {
             maxLength={200}
             className="w-full rounded-lg bg-white/50 px-3 py-2 text-sm ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
           />
-          <div className="mt-1 text-right text-[10px] text-gray-400">{title.length}/200</div>
+          <div className="mt-1 text-right text-[10px] text-gray-600">{title.length}/200</div>
         </div>
 
         {/* Content */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">内容</label>
+          <label className="mb-1 block text-xs font-medium text-gray-700">内容</label>
           <NodeMentionInput
             value={content}
             onChange={setContent}
@@ -135,7 +137,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
 
         {/* Tags */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">
+          <label className="mb-1 block text-xs font-medium text-gray-700">
             标签（用逗号分隔）
           </label>
           <input
@@ -154,7 +156,7 @@ export default function ThreadComposer({ defaultBoard }: Props) {
 
         {/* Submit */}
         <div className="flex items-center justify-between border-t border-white/40 pt-3">
-          <span className="text-[10px] text-gray-400">发布帖子可获得 +3 积分</span>
+          <span className="text-[10px] text-gray-600">发布帖子可获得 +3 积分</span>
           <button
             onClick={handleSubmit}
             disabled={loading || !title.trim() || !content.trim()}

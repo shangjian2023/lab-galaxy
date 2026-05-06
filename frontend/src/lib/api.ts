@@ -181,6 +181,16 @@ export async function downloadDocument(docId: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export async function getDocumentPreviewBlob(docId: string): Promise<string> {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/documents/${docId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error("预览失败");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 // ========== Admin APIs ==========
 
 export function adminListUsers(page = 1, pageSize = 50, search?: string, role?: string, isActive?: boolean) {
@@ -323,7 +333,7 @@ export interface CytoscapeData {
   edges: CytoscapeEdge[];
 }
 
-export function getGraphData(nodeType?: string, keyword?: string, limit = 500, fromDate?: string, toDate?: string, years?: number[], scope?: string) {
+export function getGraphData(nodeType?: string, keyword?: string, limit = 500, fromDate?: string, toDate?: string, years?: number[], scope?: string, teamId?: string) {
   const params = new URLSearchParams();
   if (nodeType) params.set("node_type", nodeType);
   if (keyword) params.set("keyword", keyword);
@@ -332,12 +342,16 @@ export function getGraphData(nodeType?: string, keyword?: string, limit = 500, f
   if (toDate) params.set("to_date", toDate);
   if (years && years.length > 0) params.set("years", years.join(","));
   if (scope) params.set("scope", scope);
+  if (teamId) params.set("team_id", teamId);
   return request<CytoscapeData>(`/graph/data?${params}`);
 }
 
-export function getGraphYears(scope?: string) {
-  const params = scope ? `?scope=${scope}` : "";
-  return request<{ years: number[] }>(`/graph/years${params}`);
+export function getGraphYears(scope?: string, teamId?: string) {
+  const params = new URLSearchParams();
+  if (scope) params.set("scope", scope);
+  if (teamId) params.set("team_id", teamId);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return request<{ years: number[] }>(`/graph/years${q}`);
 }
 
 export function cleanupOrphanedNodes() {
@@ -352,9 +366,12 @@ export interface TimelineEntry {
   node: { id: string; name: string; type: string; summary: string; color: string };
 }
 
-export function getTimelineData(scope?: string) {
-  const params = scope ? `?scope=${scope}` : "";
-  return request<TimelineEntry[]>(`/graph/timeline${params}`);
+export function getTimelineData(scope?: string, teamId?: string) {
+  const params = new URLSearchParams();
+  if (scope) params.set("scope", scope);
+  if (teamId) params.set("team_id", teamId);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return request<TimelineEntry[]>(`/graph/timeline${q}`);
 }
 
 export interface MatrixEntry {
@@ -364,9 +381,12 @@ export interface MatrixEntry {
   count: number;
 }
 
-export function getMatrixData(scope?: string) {
-  const params = scope ? `?scope=${scope}` : "";
-  return request<MatrixEntry[]>(`/graph/matrix${params}`);
+export function getMatrixData(scope?: string, teamId?: string) {
+  const params = new URLSearchParams();
+  if (scope) params.set("scope", scope);
+  if (teamId) params.set("team_id", teamId);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return request<MatrixEntry[]>(`/graph/matrix${q}`);
 }
 
 // ========== Workbench APIs ==========

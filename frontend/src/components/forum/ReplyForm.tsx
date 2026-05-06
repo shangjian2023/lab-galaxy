@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createForumReply } from "@/lib/api";
 import NodeMentionInput from "./NodeMentionInput";
+import { soundEngine } from "@/lib/audio/SoundEngine";
 
 interface Props {
   threadId: string;
@@ -28,6 +29,7 @@ export default function ReplyForm({ threadId, onSuccess }: Props) {
         content: content.trim(),
         graph_node_ids: graphNodeIds.length > 0 ? graphNodeIds : undefined,
       });
+      soundEngine.play("hover");
       setContent("");
       onSuccess();
     } catch (e) {
@@ -47,7 +49,7 @@ export default function ReplyForm({ threadId, onSuccess }: Props) {
         rows={3}
       />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-[10px] text-gray-400">
+        <span className="text-[10px] text-gray-600">
           输入 @ 后输入节点名称，选择即可关联图谱节点
         </span>
         <button

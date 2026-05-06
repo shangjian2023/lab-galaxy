@@ -51,7 +51,7 @@ class AdminUserUpdate(BaseModel):
     nickname: str | None = None
     avatar: str | None = None
     role: str | None = Field(None, pattern="^(admin|user)$")
-    level: int | None = Field(None, ge=1)
+    level: int | None = Field(None, ge=1, le=9)
     is_active: bool | None = None
     password: str | None = Field(None, min_length=6, max_length=128)
 

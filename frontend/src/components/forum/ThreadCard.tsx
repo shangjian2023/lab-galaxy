@@ -27,7 +27,7 @@ export default function ThreadCard({ thread }: Props) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-white/50 px-2 py-0.5 text-[10px] font-medium text-gray-500 ring-1 ring-white/40">
+            <span className="rounded-full bg-white/50 px-2 py-0.5 text-[10px] font-medium text-gray-700 ring-1 ring-white/40">
               {boardInfo.label}
             </span>
             <span className="rounded-full px-2 py-0.5 text-[10px] font-medium ring-1" style={{ color: postTypeInfo.color, backgroundColor: `${postTypeInfo.color}10` }}>
@@ -49,7 +49,7 @@ export default function ThreadCard({ thread }: Props) {
 
           <div className="mt-1.5 flex items-center justify-between">
             <AuthorBadge nickname={thread.author_nickname} level={thread.author_level} avatar={thread.author_avatar} />
-            <div className="flex items-center gap-3 text-[10px] text-gray-400">
+            <div className="flex items-center gap-3 text-[10px] text-gray-600">
               <span>💬 {thread.reply_count}</span>
               <span>❤️ {thread.like_count}</span>
               <span>👁 {thread.view_count}</span>
@@ -60,7 +60,7 @@ export default function ThreadCard({ thread }: Props) {
           {thread.tags && thread.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {thread.tags.slice(0, 4).map((tag) => (
-                <span key={tag} className="rounded-full bg-white/30 px-2 py-0.5 text-[9px] text-gray-500 ring-1 ring-white/30">
+                <span key={tag} className="rounded-full bg-white/30 px-2 py-0.5 text-[9px] text-gray-700 ring-1 ring-white/30">
                   #{tag}
                 </span>
               ))}

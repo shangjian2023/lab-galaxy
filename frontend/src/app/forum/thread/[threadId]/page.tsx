@@ -41,7 +41,7 @@ export default function ThreadPage() {
     return (
       <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-400">加载中...</p>
+          <p className="text-gray-600">加载中...</p>
         </div>
       </main>
     );
@@ -51,7 +51,7 @@ export default function ThreadPage() {
     return (
       <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="liquid-glass-card py-16 text-center">
-          <p className="text-gray-400">帖子不存在</p>
+          <p className="text-gray-600">帖子不存在</p>
           <Link href="/forum" className="mt-2 text-sm text-orange-600 hover:underline">
             返回论坛
           </Link>

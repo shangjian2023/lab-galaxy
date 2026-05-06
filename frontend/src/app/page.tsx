@@ -14,14 +14,14 @@ export default function Home() {
   }, [user]);
 
   if (loading) {
-    return <main className="flex min-h-screen items-center justify-center text-gray-400">加载中...</main>;
+    return <main className="flex min-h-screen items-center justify-center text-gray-600">加载中...</main>;
   }
 
   if (!user) {
     return (
       <main className="flex min-h-[calc(100vh-53px)] flex-col items-center justify-center px-6">
         <h1 className="mb-2 text-4xl font-bold text-gray-800">创新实验知识图谱平台</h1>
-        <p className="mb-10 text-lg text-gray-500">AI 驱动的实验知识管理与发现</p>
+        <p className="mb-10 text-lg text-gray-700">AI 驱动的实验知识管理与发现</p>
         <div className="flex justify-center gap-4">
           <Link href="/login" className="btn-primary">
             登录
@@ -44,13 +44,13 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-gray-800">
             欢迎回来，{user.nickname || user.username}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">这里是你的知识图谱工作台概览</p>
+          <p className="mt-1 text-sm text-gray-700">这里是你的知识图谱工作台概览</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
             {stats.level}
           </span>
-          <span className="text-sm text-gray-500">{stats.points} 成长值</span>
+          <span className="text-sm text-gray-700">{stats.points} 成长值</span>
         </div>
       </div>
 
@@ -63,7 +63,7 @@ export default function Home() {
           { label: "当前等级", value: `Lv.${stats.level}`, href: "/growth", color: "bg-green-50 text-green-600" },
         ].map((s) => (
           <Link key={s.label} href={s.href} className="glass-card group p-5 transition-shadow hover:shadow-md">
-            <p className="text-sm text-gray-500">{s.label}</p>
+            <p className="text-sm text-gray-700">{s.label}</p>
             <p className={`mt-1 text-2xl font-bold ${s.color.split(" ")[1]}`}>{s.value}</p>
           </Link>
         ))}
@@ -93,7 +93,7 @@ export default function Home() {
         <div className="glass-card p-6">
           <h2 className="mb-4 text-lg font-bold text-gray-800">最近文档</h2>
           {(!dashboard?.recent_documents || dashboard.recent_documents.length === 0) ? (
-            <p className="text-sm text-gray-400">暂无文档，去<a href="/documents" className="text-brand-600 hover:underline">上传</a>吧</p>
+            <p className="text-sm text-gray-600">暂无文档，去<a href="/documents" className="text-brand-600 hover:underline">上传</a>吧</p>
           ) : (
             <div className="space-y-2">
               {dashboard.recent_documents.map((doc) => (
@@ -114,7 +114,7 @@ export default function Home() {
         <div className="glass-card p-6">
           <h2 className="mb-4 text-lg font-bold text-gray-800">最近积分变动</h2>
           {(!dashboard?.recent_points || dashboard.recent_points.length === 0) ? (
-            <p className="text-sm text-gray-400">暂无积分记录</p>
+            <p className="text-sm text-gray-600">暂无积分记录</p>
           ) : (
             <div className="space-y-2">
               {dashboard.recent_points.map((p, i) => (

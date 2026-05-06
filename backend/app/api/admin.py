@@ -40,8 +40,11 @@ from app.services.admin_graph import (
     update_relation,
 )
 from app.api.templates import calc_level
+from app.services.points import LEVEL_CONFIG
 
 logger = logging.getLogger(__name__)
+
+MAX_LEVEL = len(LEVEL_CONFIG)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -94,6 +97,8 @@ async def admin_update_user(
     if body.role is not None:
         user.role = body.role
     if body.level is not None:
+        if body.level < 1 or body.level > MAX_LEVEL:
+            raise HTTPException(status_code=400, detail=f"等级必须在 1~{MAX_LEVEL} 之间")
         user.level = body.level
     if body.is_active is not None:
         user.is_active = body.is_active
@@ -116,12 +121,18 @@ async def admin_create_user(
     if (await db.execute(select(User).where(User.email == body.email))).scalar_one_or_none():
         raise HTTPException(status_code=400, detail="邮箱已被注册")
 
+    # Auto-assign display_id
+    from sqlalchemy import func as sql_func
+    max_id = (await db.execute(select(sql_func.max(User.display_id)))).scalar()
+    display_id = (max_id + 1) if max_id else 100001
+
     user = User(
         username=body.username,
         email=body.email,
         hashed_password=hash_password(body.password),
         nickname=body.nickname,
         role=body.role,
+        display_id=display_id,
     )
     db.add(user)
     await db.commit()
@@ -146,6 +157,28 @@ async def admin_delete_user(
     await db.execute(delete(Favorite).where(Favorite.user_id == user_id))
     await db.execute(delete(TemplateLike).where(TemplateLike.user_id == user_id))
     await db.execute(delete(TemplateComment).where(TemplateComment.user_id == user_id))
+
+    # Delete user's team memberships and messages
+    from app.models.models import TeamMember, TeamMessage
+    await db.execute(delete(TeamMessage).where(TeamMessage.user_id == user_id))
+    await db.execute(delete(TeamMember).where(TeamMember.user_id == user_id))
+
+    # Delete user's achievements and monthly usage
+    from app.models.models import UserAchievement, MonthlyUsage
+    await db.execute(delete(UserAchievement).where(UserAchievement.user_id == user_id))
+    await db.execute(delete(MonthlyUsage).where(MonthlyUsage.user_id == user_id))
+
+    # Delete forum posts and related records
+    from app.models.models import ForumReply, ForumThread, ThreadBookmark, ThreadLike, ReplyLike
+    user_thread_ids = (await db.execute(select(ForumThread.id).where(ForumThread.created_by == user_id))).scalars().all()
+    if user_thread_ids:
+        await db.execute(delete(ThreadBookmark).where(ThreadBookmark.thread_id.in_(user_thread_ids)))
+        await db.execute(delete(ThreadLike).where(ThreadLike.thread_id.in_(user_thread_ids)))
+        await db.execute(delete(ForumThread).where(ForumThread.created_by == user_id))
+    user_reply_ids = (await db.execute(select(ForumReply.id).where(ForumReply.created_by == user_id))).scalars().all()
+    if user_reply_ids:
+        await db.execute(delete(ReplyLike).where(ReplyLike.reply_id.in_(user_reply_ids)))
+        await db.execute(delete(ForumReply).where(ForumReply.created_by == user_id))
 
     # Delete templates owned by user (clean their likes/comments first)
     user_tpl_ids = (await db.execute(select(Template.id).where(Template.created_by == user_id))).scalars().all()

@@ -67,7 +67,7 @@ export default function BoardPage() {
         <div className="liquid-glass-card px-5 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Link href="/forum" className="text-gray-400 hover:text-gray-600">
+              <Link href="/forum" className="text-gray-600 hover:text-gray-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
@@ -76,7 +76,7 @@ export default function BoardPage() {
                 <h1 className="text-xl font-bold text-gray-800">
                   {boardInfo ? `${boardInfo.icon} ${boardInfo.name}` : board}
                 </h1>
-                <p className="text-xs text-gray-500">{boardInfo?.description}</p>
+                <p className="text-xs text-gray-700">{boardInfo?.description}</p>
               </div>
             </div>
             <Link href={`/forum/new?board=${board}`} className="btn-primary rounded-lg px-4 py-2 text-xs font-medium">
@@ -99,7 +99,7 @@ export default function BoardPage() {
               key={s.value}
               onClick={() => { setSort(s.value); setPage(1); }}
               className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                sort === s.value ? "bg-white text-orange-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                sort === s.value ? "bg-white text-orange-700 shadow-sm" : "text-gray-700 hover:text-gray-700"
               }`}
             >
               {s.label}
@@ -118,7 +118,7 @@ export default function BoardPage() {
       {/* Thread List */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-400">加载中...</p>
+          <p className="text-gray-600">加载中...</p>
         </div>
       ) : (
         <ThreadList

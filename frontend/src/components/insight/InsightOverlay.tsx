@@ -135,7 +135,7 @@ export default function InsightOverlay({ insight, onDismiss, animationIntensity 
 
                   {/* Dismiss hint */}
                   <motion.p
-                    className="mt-6 text-xs text-white/30"
+                    className="mt-6 text-xs text-white/90"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.8 }}

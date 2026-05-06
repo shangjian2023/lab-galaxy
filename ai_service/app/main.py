@@ -18,6 +18,9 @@ setup_logging()
 async def lifespan(app: FastAPI):
     await init_neo4j()
     init_llm_clients()
+    # Rebuild FAISS index from Neo4j if missing
+    from app.services.vector import rebuild_index_from_neo4j
+    await rebuild_index_from_neo4j()
     yield
     await close_neo4j()
 

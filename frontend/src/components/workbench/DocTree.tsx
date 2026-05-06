@@ -35,7 +35,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-[rgba(139,109,80,0.08)] px-3 py-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">文档树</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-600">文档树</h3>
       </div>
 
       {/* Favorite filter */}
@@ -43,7 +43,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
         <button
           onClick={() => onFilterFavorites(!filterFavorites)}
           className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors ${
-            filterFavorites ? "bg-yellow-50 text-yellow-700" : "glass-button text-gray-500"
+            filterFavorites ? "bg-yellow-50 text-yellow-700" : "glass-button text-gray-700"
           }`}
         >
           <svg className="h-3.5 w-3.5" fill={filterFavorites ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
@@ -57,7 +57,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
       {/* Tree */}
       <div className="flex-1 overflow-y-auto p-2 text-sm">
         {Object.keys(tree).length === 0 && (
-          <p className="py-6 text-center text-xs text-gray-400">暂无文档</p>
+          <p className="py-6 text-center text-xs text-gray-600">暂无文档</p>
         )}
         {Object.entries(tree).map(([year, types]) => (
           <div key={year} className="mb-1">
@@ -79,7 +79,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
                     <div key={`${year}-${expType}`} className="ml-2">
                       <button
                         onClick={() => toggle(`t-${year}-${expType}`)}
-                        className="flex w-full items-center gap-1 rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-[rgba(255,248,240,0.5)]"
+                        className="flex w-full items-center gap-1 rounded px-2 py-0.5 text-xs text-gray-700 hover:bg-[rgba(255,248,240,0.5)]"
                       >
                         <svg className={`h-2.5 w-2.5 transition-transform ${expanded.has(`t-${year}-${expType}`) ? "rotate-90" : ""}`}
                           fill="none" viewBox="0 0 24 24" stroke="currentColor">

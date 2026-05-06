@@ -135,7 +135,7 @@ function WorkbenchPageContent() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-400">加载中...</p>
+        <p className="text-gray-600">加载中...</p>
       </main>
     );
   }
@@ -144,7 +144,7 @@ function WorkbenchPageContent() {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-gray-500">请先登录后使用工作台</p>
+          <p className="mb-4 text-gray-700">请先登录后使用工作台</p>
           <a href="/login" className="text-brand-600 hover:underline">去登录</a>
         </div>
       </main>
@@ -164,7 +164,7 @@ function WorkbenchPageContent() {
       <div className="flex items-center justify-between glass-light px-6 py-3">
         <div>
           <h1 className="text-lg font-bold text-gray-800">工作台</h1>
-          <p className="text-xs text-gray-400">文档与知识图谱联动浏览</p>
+          <p className="text-xs text-gray-600">文档与知识图谱联动浏览</p>
         </div>
         <div className="flex items-center gap-4">
           {insights.length > 0 && (
@@ -187,7 +187,7 @@ function WorkbenchPageContent() {
 
           <button
             onClick={() => setShowSoundSettings(true)}
-            className="glass-button rounded-lg p-1.5 text-gray-400"
+            className="glass-button rounded-lg p-1.5 text-gray-600"
             title="音效设置"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -196,7 +196,7 @@ function WorkbenchPageContent() {
             </svg>
           </button>
 
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-600">
             {total} 个文档 | {cards.filter((c) => c.is_favorite).length} 个收藏
           </span>
         </div>
@@ -215,7 +215,7 @@ function WorkbenchPageContent() {
 
         <div className="relative flex-1 overflow-hidden bg-transparent">
           {cards.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+            <div className="flex h-full items-center justify-center text-sm text-gray-600">
               暂无文档，上传后开始浏览
             </div>
           ) : (
@@ -240,7 +240,7 @@ function WorkbenchPageContent() {
               >
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-orange-700">AI 洞察</h3>
-                  <button onClick={() => setShowInsightPanel(false)} className="text-xs text-gray-400 hover:text-gray-600">
+                  <button onClick={() => setShowInsightPanel(false)} className="text-xs text-gray-600 hover:text-gray-600">
                     收起
                   </button>
                 </div>
@@ -272,7 +272,7 @@ function WorkbenchPageContent() {
 
 export default function WorkbenchPage() {
   return (
-    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-gray-400">加载中...</p></main>}>
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-gray-600">加载中...</p></main>}>
       <WorkbenchPageContent />
     </Suspense>
   );

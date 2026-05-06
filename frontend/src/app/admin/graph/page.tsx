@@ -117,17 +117,17 @@ export default function AdminGraphPage() {
               <Modal onClose={() => setShowCreateNode(false)} title="新建节点">
                 <form onSubmit={handleCreateNode} className="space-y-3">
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">类型</label>
+                    <label className="mb-1 block text-xs text-gray-700">类型</label>
                     <select name="type" className="glass-input w-full px-3 py-2 text-sm">
                       {NODE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">名称</label>
+                    <label className="mb-1 block text-xs text-gray-700">名称</label>
                     <input name="name" required className="glass-input w-full px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">描述</label>
+                    <label className="mb-1 block text-xs text-gray-700">描述</label>
                     <textarea name="summary" rows={3} className="glass-input w-full px-3 py-2 text-sm" />
                   </div>
                   <button type="submit" className="btn-primary w-full py-2 text-sm">创建</button>
@@ -139,7 +139,7 @@ export default function AdminGraphPage() {
           <div className="glass-card overflow-hidden rounded-xl">
             <table className="w-full text-sm">
               <thead className="glass-table-header">
-                <tr className="text-left text-gray-500">
+                <tr className="text-left text-gray-700">
                   <th className="px-3 py-2 font-medium">ID</th>
                   <th className="px-3 py-2 font-medium">类型</th>
                   <th className="px-3 py-2 font-medium">名称</th>
@@ -150,7 +150,7 @@ export default function AdminGraphPage() {
               <tbody>
                 {nodes.map((n) => (
                   <tr key={n.id} className="glass-table-row border-t">
-                    <td className="max-w-[120px] truncate px-3 py-2 font-mono text-xs text-gray-400">{n.id}</td>
+                    <td className="max-w-[120px] truncate px-3 py-2 font-mono text-xs text-gray-600">{n.id}</td>
                     <td className="px-3 py-2">
                       {editingNode === n.id ? (
                         <select value={editValues.type ?? n.type}
@@ -177,14 +177,14 @@ export default function AdminGraphPage() {
                           onChange={(e) => setEditValues({ ...editValues, summary: e.target.value })}
                           className="glass-input w-full px-2 py-1 text-xs" />
                       ) : (
-                        <span className="text-gray-500 truncate block">{n.summary || "-"}</span>
+                        <span className="text-gray-700 truncate block">{n.summary || "-"}</span>
                       )}
                     </td>
                     <td className="px-3 py-2 space-x-2">
                       {editingNode === n.id ? (
                         <>
                           <button onClick={() => handleUpdateNode(n.id)} className="text-xs text-green-600 hover:underline">保存</button>
-                          <button onClick={() => setEditingNode(null)} className="text-xs text-gray-500 hover:underline">取消</button>
+                          <button onClick={() => setEditingNode(null)} className="text-xs text-gray-700 hover:underline">取消</button>
                         </>
                       ) : (
                         <>
@@ -218,27 +218,27 @@ export default function AdminGraphPage() {
               <Modal onClose={() => setShowCreateRelation(false)} title="新建关系">
                 <form onSubmit={handleCreateRelation} className="space-y-3">
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">源节点 ID</label>
+                    <label className="mb-1 block text-xs text-gray-700">源节点 ID</label>
                     <select name="source_id" required className="glass-input w-full px-3 py-2 text-sm">
                       <option value="">选择源节点</option>
                       {nodes.map((n) => <option key={n.id} value={n.id}>{n.name} ({n.type})</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">目标节点 ID</label>
+                    <label className="mb-1 block text-xs text-gray-700">目标节点 ID</label>
                     <select name="target_id" required className="glass-input w-full px-3 py-2 text-sm">
                       <option value="">选择目标节点</option>
                       {nodes.map((n) => <option key={n.id} value={n.id}>{n.name} ({n.type})</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">关系类型</label>
+                    <label className="mb-1 block text-xs text-gray-700">关系类型</label>
                     <select name="type" className="glass-input w-full px-3 py-2 text-sm">
                       {REL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-gray-500">置信度</label>
+                    <label className="mb-1 block text-xs text-gray-700">置信度</label>
                     <input name="confidence" type="number" step="0.1" min="0" max="1" defaultValue={0.5}
                       className="glass-input w-full px-3 py-2 text-sm" />
                   </div>
@@ -251,7 +251,7 @@ export default function AdminGraphPage() {
           <div className="glass-card overflow-hidden rounded-xl">
             <table className="w-full text-sm">
               <thead className="glass-table-header">
-                <tr className="text-left text-gray-500">
+                <tr className="text-left text-gray-700">
                   <th className="px-3 py-2 font-medium">源节点</th>
                   <th className="px-3 py-2 font-medium">关系</th>
                   <th className="px-3 py-2 font-medium">目标节点</th>
@@ -267,17 +267,17 @@ export default function AdminGraphPage() {
                     <tr key={`${r.source_id}-${r.target_id}-${r.type}-${i}`} className="glass-table-row border-t">
                       <td className="px-3 py-2">
                         <span className="font-medium">{src?.name ?? r.source_id.slice(0, 8)}</span>
-                        {src && <span className="ml-1 text-xs text-gray-400">({src.type})</span>}
+                        {src && <span className="ml-1 text-xs text-gray-600">({src.type})</span>}
                       </td>
                       <td className="px-3 py-2">
                         <span className="rounded-xl bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">{r.type}</span>
                       </td>
                       <td className="px-3 py-2">
                         <span className="font-medium">{tgt?.name ?? r.target_id.slice(0, 8)}</span>
-                        {tgt && <span className="ml-1 text-xs text-gray-400">({tgt.type})</span>}
+                        {tgt && <span className="ml-1 text-xs text-gray-600">({tgt.type})</span>}
                       </td>
                       <td className="px-3 py-2">
-                        <span className="text-gray-500">{(r.confidence * 100).toFixed(0)}%</span>
+                        <span className="text-gray-700">{(r.confidence * 100).toFixed(0)}%</span>
                       </td>
                       <td className="px-3 py-2">
                         <button onClick={() => handleDeleteRelation(r)}

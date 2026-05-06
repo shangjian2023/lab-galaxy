@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { getTeam, getProfile } from "@/lib/api";
 import type { TeamDetail, UserProfile } from "@/lib/api";
 import TeamSpaceHeader from "@/components/team/TeamSpaceHeader";
@@ -13,6 +13,7 @@ type Tab = "chat" | "members" | "growth";
 
 export default function TeamSpacePage() {
   const params = useParams();
+  const router = useRouter();
   const teamId = params.teamId as string;
   const [team, setTeam] = useState<TeamDetail | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -33,7 +34,7 @@ export default function TeamSpacePage() {
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <p className="text-gray-400">加载中...</p>
+        <p className="text-gray-600">加载中...</p>
       </div>
     );
   }
@@ -41,7 +42,7 @@ export default function TeamSpacePage() {
   if (!team || !user) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <p className="text-gray-400">团队不存在或无权访问</p>
+        <p className="text-gray-600">团队不存在或无权访问</p>
       </div>
     );
   }
@@ -49,6 +50,19 @@ export default function TeamSpacePage() {
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col">
       <TeamSpaceHeader team={team} />
+
+      {/* Team graph quick link */}
+      <div className="flex justify-end border-b border-gray-100 bg-white px-4 py-1.5">
+        <button
+          onClick={() => router.push(`/graph?team_id=${teamId}&scope=team`)}
+          className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+          </svg>
+          查看团队图谱
+        </button>
+      </div>
 
       <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* Main area */}
@@ -62,7 +76,7 @@ export default function TeamSpacePage() {
                 className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                   tab === t
                     ? "border-orange-500 text-orange-600"
-                    : "border-transparent text-gray-400 hover:text-gray-600"
+                    : "border-transparent text-gray-600 hover:text-gray-600"
                 }`}
               >
                 {t === "chat" ? "聊天" : t === "members" ? "成员" : "成长历程"}

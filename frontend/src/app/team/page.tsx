@@ -46,7 +46,7 @@ export default function TeamListPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">团队空间</h1>
-              <p className="text-sm text-gray-500">管理你的团队，与成员实时协作</p>
+              <p className="text-sm text-gray-700">管理你的团队，与成员实时协作</p>
             </div>
             <button
               onClick={() => setShowCreate(!showCreate)}
@@ -87,7 +87,7 @@ export default function TeamListPage() {
               </button>
               <button
                 onClick={() => setShowCreate(false)}
-                className="rounded-xl bg-white px-5 py-2.5 text-sm text-gray-500 transition-colors hover:bg-gray-100"
+                className="rounded-xl bg-white px-5 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100"
               >
                 取消
               </button>
@@ -99,12 +99,12 @@ export default function TeamListPage() {
       {/* Team list */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-400">加载中...</p>
+          <p className="text-gray-600">加载中...</p>
         </div>
       ) : teams.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="text-gray-400">还没有加入任何团队</p>
-          <p className="mt-1 text-sm text-gray-300">点击上方按钮创建你的第一个团队</p>
+          <p className="text-gray-600">还没有加入任何团队</p>
+          <p className="mt-1 text-sm text-gray-500">点击上方按钮创建你的第一个团队</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -120,14 +120,14 @@ export default function TeamListPage() {
                     {t.name}
                   </h3>
                   {t.description && (
-                    <p className="mt-1 text-xs text-gray-400 line-clamp-2">{t.description}</p>
+                    <p className="mt-1 text-xs text-gray-600 line-clamp-2">{t.description}</p>
                   )}
                 </div>
                 <span className="shrink-0 rounded-full bg-orange-50 px-2.5 py-0.5 text-[11px] text-orange-500">
                   {t.member_count} 人
                 </span>
               </div>
-              <div className="mt-3 flex items-center justify-between text-[11px] text-gray-300">
+              <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500">
                 <span>创建者: {t.owner_nickname}</span>
                 <span>{new Date(t.created_at).toLocaleDateString("zh-CN")}</span>
               </div>

@@ -74,6 +74,51 @@ def _ensure_dir():
     Path(settings.FAISS_INDEX_PATH).parent.mkdir(parents=True, exist_ok=True)
 
 
+async def rebuild_index_from_neo4j():
+    """Rebuild FAISS index from Neo4j on startup if index is missing."""
+    import os
+    index_path = Path(settings.FAISS_INDEX_PATH)
+    if index_path.exists():
+        return  # Index already on disk, skip rebuild
+
+    try:
+        from neo4j import AsyncGraphDatabase
+    except ImportError:
+        return
+
+    valid_labels = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
+
+    driver = AsyncGraphDatabase.driver(
+        settings.NEO4J_URI,
+        auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
+    )
+    try:
+        texts, ids = [], []
+        async with driver.session() as session:
+            result = await session.run(
+                "MATCH (n) WHERE n.id IS NOT NULL "
+                "RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary"
+            )
+            async for r in result:
+                nid = r["id"]
+                name = r["name"] or ""
+                summary = r["summary"] or ""
+                lbls = r["labels"]
+                ntype = next((l for l in lbls if l in valid_labels), "Concept")
+                texts.append(f"[{ntype}] {name} {summary}")
+                ids.append(nid)
+
+        if texts:
+            await build_index(texts, ids)
+            import logging
+            logging.getLogger(__name__).info(f"Rebuilt FAISS index with {len(texts)} entries from Neo4j")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"FAISS index rebuild from Neo4j failed: {e}")
+    finally:
+        await driver.close()
+
+
 def _load_faiss_index():
     """Load FAISS index into memory (once, cached)."""
     global _faiss_index

@@ -21,7 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex min-h-[calc(100vh-53px)]">
         {/* Sidebar */}
         <aside className="w-56 flex-shrink-0 glass-warm border-r-0 p-4">
-          <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-400">管理后台</h2>
+          <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-600">管理后台</h2>
           <nav className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));

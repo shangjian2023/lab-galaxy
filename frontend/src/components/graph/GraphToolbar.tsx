@@ -64,11 +64,11 @@ export default function GraphToolbar({
 
   const gearCls = showSettings
     ? "bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
-    : "text-gray-400 hover:bg-white/40 hover:text-gray-600";
+    : "text-gray-600 hover:bg-white/40 hover:text-gray-600";
 
   const timelineCls = isAnimating
     ? "bg-orange-100 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
-    : "bg-white/40 text-gray-500 hover:bg-white/60 hover:text-orange-700 ring-1 ring-white/40";
+    : "bg-white/40 text-gray-700 hover:bg-white/60 hover:text-orange-700 ring-1 ring-white/40";
 
   return (
     <div className="space-y-3">
@@ -84,7 +84,7 @@ export default function GraphToolbar({
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                   graphScope === s.value
                     ? "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 shadow-md ring-1 ring-orange-300/40"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-white/50"
+                    : "text-gray-700 hover:text-gray-700 hover:bg-white/50"
                 }`}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -115,7 +115,7 @@ export default function GraphToolbar({
                 className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
                   viewType === v.value
                     ? "bg-white text-orange-700 shadow-md ring-1 ring-orange-200/50"
-                    : "text-gray-500 hover:text-gray-700"
+                    : "text-gray-700 hover:text-gray-700"
                 }`}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,7 +127,7 @@ export default function GraphToolbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-400">
+        <div className="flex items-center gap-3 text-xs text-gray-600">
           <span className="rounded-full bg-white/50 px-2.5 py-0.5 ring-1 ring-white/40">{nodeCount} 节点</span>
           <span className="rounded-full bg-white/50 px-2.5 py-0.5 ring-1 ring-white/40">{edgeCount} 关系</span>
           {liveCount !== undefined && liveCount > 0 && (
@@ -188,7 +188,7 @@ export default function GraphToolbar({
               className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-all ${
                 nodeType === t.value
                   ? "border border-orange-400 bg-orange-50 text-orange-700 shadow-sm"
-                  : "bg-white/40 text-gray-500 hover:bg-white/60 ring-1 ring-white/40"
+                  : "bg-white/40 text-gray-700 hover:bg-white/60 ring-1 ring-white/40"
               }`}
             >
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
@@ -208,7 +208,7 @@ export default function GraphToolbar({
                   className="rounded-lg bg-white/50 px-2 py-1 text-[10px] ring-1 ring-white/40 transition-all focus:bg-white/70 focus:ring-orange-300/50"
                   placeholder="起始日期"
                 />
-                <span className="text-[10px] text-gray-400">—</span>
+                <span className="text-[10px] text-gray-600">—</span>
                 <input
                   type="date"
                   value={toDate || ""}
@@ -258,7 +258,7 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, repel: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-400">{forceSettings.repel}</span>
+                  <span className="w-10 text-right text-gray-600">{forceSettings.repel}</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="w-16 shrink-0">连接距离</span>
@@ -271,7 +271,7 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, linkDistance: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-400">{forceSettings.linkDistance}px</span>
+                  <span className="w-10 text-right text-gray-600">{forceSettings.linkDistance}px</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="w-16 shrink-0">节点大小</span>
@@ -284,7 +284,7 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, nodeSize: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-400">{forceSettings.nodeSize.toFixed(1)}x</span>
+                  <span className="w-10 text-right text-gray-600">{forceSettings.nodeSize.toFixed(1)}x</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="w-16 shrink-0">实验节点</span>
@@ -297,7 +297,7 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, experimentSize: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-400">{forceSettings.experimentSize.toFixed(1)}x</span>
+                  <span className="w-10 text-right text-gray-600">{forceSettings.experimentSize.toFixed(1)}x</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   <span className="w-16 shrink-0">连接粗细</span>
@@ -310,7 +310,7 @@ export default function GraphToolbar({
                     onChange={(e) => onForceSettingsChange({ ...forceSettings, linkWidth: +e.target.value })}
                     className="flex-1 accent-orange-500"
                   />
-                  <span className="w-10 text-right text-gray-400">{forceSettings.linkWidth.toFixed(1)}x</span>
+                  <span className="w-10 text-right text-gray-600">{forceSettings.linkWidth.toFixed(1)}x</span>
                 </label>
               </div>
             </div>

@@ -45,14 +45,14 @@ export default function EditTemplatePage() {
   }, [tplId, user, router]);
 
   if (loading || dataLoading) {
-    return <main className="flex min-h-screen items-center justify-center text-gray-400">加载中...</main>;
+    return <main className="flex min-h-screen items-center justify-center text-gray-600">加载中...</main>;
   }
 
   if (!user) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-gray-500">请先登录</p>
+          <p className="mb-4 text-gray-700">请先登录</p>
           <a href="/login" className="text-brand-600 hover:underline">去登录</a>
         </div>
       </main>
@@ -104,7 +104,7 @@ export default function EditTemplatePage() {
     <main className="mx-auto max-w-6xl px-6 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">编辑模板</h1>
-        <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-700">
+        <button onClick={() => router.back()} className="text-sm text-gray-700 hover:text-gray-700">
           返回
         </button>
       </div>
@@ -197,7 +197,7 @@ export default function EditTemplatePage() {
             {content.trim() ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             ) : (
-              <p className="text-sm text-gray-300">预览区域</p>
+              <p className="text-sm text-gray-500">预览区域</p>
             )}
           </div>
         </div>

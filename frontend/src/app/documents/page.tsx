@@ -12,7 +12,7 @@ export default function DocumentsPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-400">加载中...</p>
+        <p className="text-gray-600">加载中...</p>
       </main>
     );
   }
@@ -21,7 +21,7 @@ export default function DocumentsPage() {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-gray-500">请先登录后查看文档</p>
+          <p className="mb-4 text-gray-700">请先登录后查看文档</p>
           <a href="/login" className="text-brand-600 hover:underline">去登录</a>
         </div>
       </main>

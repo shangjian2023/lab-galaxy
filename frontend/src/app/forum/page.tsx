@@ -75,7 +75,7 @@ export default function ForumPage() {
             <span className="text-4xl">🧪</span>
             <div>
               <h1 className="text-2xl font-bold text-gray-800">知识发酵池</h1>
-              <p className="text-sm text-gray-500">让静态的知识在这里产生化学反应</p>
+              <p className="text-sm text-gray-700">让静态的知识在这里产生化学反应</p>
             </div>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function ForumPage() {
       <div className="mb-8">
         {boardsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <p className="text-gray-400">加载板块...</p>
+            <p className="text-gray-600">加载板块...</p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -99,7 +99,7 @@ export default function ForumPage() {
       {/* Divider */}
       <div className="mb-6 flex items-center gap-3">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-        <span className="text-xs font-medium text-gray-400">全部帖子</span>
+        <span className="text-xs font-medium text-gray-600">全部帖子</span>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
       </div>
 
@@ -114,7 +114,7 @@ export default function ForumPage() {
               className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
                 postType === pt.value
                   ? "bg-orange-500 text-white shadow-sm"
-                  : "bg-white/50 text-gray-500 ring-1 ring-white/40 hover:bg-white/70"
+                  : "bg-white/50 text-gray-700 ring-1 ring-white/40 hover:bg-white/70"
               }`}
             >
               {pt.label}
@@ -131,7 +131,7 @@ export default function ForumPage() {
               className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
                 sort === opt.value
                   ? "bg-gray-800 text-white shadow-sm"
-                  : "bg-white/50 text-gray-500 ring-1 ring-white/40 hover:bg-white/70"
+                  : "bg-white/50 text-gray-700 ring-1 ring-white/40 hover:bg-white/70"
               }`}
             >
               {opt.label}
@@ -150,7 +150,7 @@ export default function ForumPage() {
       {/* Thread list */}
       {threadsLoading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-gray-400">加载中...</p>
+          <p className="text-gray-600">加载中...</p>
         </div>
       ) : (
         <ThreadList

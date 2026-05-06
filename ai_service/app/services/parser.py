@@ -1,18 +1,43 @@
 """Document parser — extract text from Word / PDF / PPT files."""
 
 import io
+import subprocess
+import tempfile
 from pathlib import Path
 
 from app.registries.parsers import parser_registry
 
 
 @parser_registry.register(".docx")
-@parser_registry.register(".doc")
 def parse_docx(data: bytes) -> str:
     from docx import Document
 
     doc = Document(io.BytesIO(data))
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+
+
+@parser_registry.register(".doc")
+def parse_doc(data: bytes) -> str:
+    """Parse legacy .doc files via libreoffice headless conversion."""
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = tmp.name
+        out_dir = Path(tmp_path).parent
+        result = subprocess.run(
+            ["libreoffice", "--headless", "--convert-to", "txt", "--outdir", str(out_dir), tmp_path],
+            capture_output=True, timeout=30,
+        )
+        txt_path = Path(tmp_path).with_suffix(".txt")
+        if txt_path.exists():
+            text = txt_path.read_text(errors="replace")
+            Path(tmp_path).unlink(missing_ok=True)
+            txt_path.unlink(missing_ok=True)
+            return "\n".join(line for line in text.splitlines() if line.strip())
+        raise RuntimeError("libreoffice conversion produced no output")
+    except (FileNotFoundError, subprocess.TimeoutExpired, RuntimeError):
+        # Fallback: try reading raw bytes as text (partial support)
+        return data.decode("utf-8", errors="replace")
 
 
 @parser_registry.register(".pdf")

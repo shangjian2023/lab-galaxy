@@ -24,7 +24,7 @@ export default function BoardNav({ activeBoard }: Props) {
         className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
           !activeBoard
             ? "bg-orange-50 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
-            : "text-gray-500 hover:bg-white/60"
+            : "text-gray-700 hover:bg-white/60"
         }`}
       >
         全部
@@ -36,7 +36,7 @@ export default function BoardNav({ activeBoard }: Props) {
           className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-all ${
             activeBoard === b.slug
               ? "bg-orange-50 text-orange-700 shadow-sm ring-1 ring-orange-200/50"
-              : "text-gray-500 hover:bg-white/60"
+              : "text-gray-700 hover:bg-white/60"
           }`}
         >
           <span>{b.icon}</span>
