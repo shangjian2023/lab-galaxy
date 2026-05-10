@@ -302,6 +302,69 @@ async def admin_delete_document(
     await db.commit()
 
 
+@router.post("/documents/{doc_id}/approve", response_model=DocumentResponse)
+async def admin_approve_document(
+    doc_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Approve a pending_review document and trigger AI processing."""
+    doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    if doc.status != "pending_review":
+        raise HTTPException(status_code=400, detail="该文档不处于待审核状态")
+
+    # Download file from MinIO
+    from app.services.storage import get_file_url
+    import httpx
+
+    file_url = get_file_url(doc.file_path)
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(file_url)
+            resp.raise_for_status()
+            file_data = resp.content
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="下载原始文档失败，无法审核") from exc
+
+    doc.status = "parsing"
+    await db.commit()
+
+    # Trigger AI processing
+    import asyncio
+    from app.api.documents import _process_single
+    task = asyncio.create_task(_process_single(str(doc.id), file_data, doc.title))
+    task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+
+    logger.info(f"Admin approved doc {doc_id}, started AI processing")
+
+    await db.refresh(doc)
+    return DocumentResponse.from_orm(doc)
+
+
+@router.post("/documents/{doc_id}/reject", response_model=DocumentResponse)
+async def admin_reject_document(
+    doc_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Reject a pending_review document, marking it as failed."""
+    doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    if doc.status != "pending_review":
+        raise HTTPException(status_code=400, detail="该文档不处于待审核状态")
+
+    doc.status = "failed"
+    doc.error_message = "管理员审核未通过"
+    await db.commit()
+    await db.refresh(doc)
+
+    logger.info(f"Admin rejected doc {doc_id}")
+    return DocumentResponse.from_orm(doc)
+
+
 @router.get("/graph/nodes", response_model=list[GraphNodeResponse])
 async def admin_list_graph_nodes(
     label: str | None = None,

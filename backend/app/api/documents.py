@@ -63,6 +63,7 @@ def _parse_upload_meta(
     experiment_type: str | None,
     subjects: str | None,
     privacy: str,
+    visible_teams: list[str] | None = None,
 ) -> DocumentUploadMeta:
     if privacy not in VALID_PRIVACY:
         raise HTTPException(status_code=400, detail="privacy 必须是 public、team 或 private")
@@ -71,6 +72,7 @@ def _parse_upload_meta(
         experiment_type=experiment_type,
         subjects=_parse_subjects(subjects),
         privacy=privacy,
+        visible_teams=visible_teams,
     )
 
 
@@ -221,7 +223,15 @@ async def _process_single(doc_id: str, file_data: bytes, filename: str):
                 await ach_db.commit()
 
         # Check for duplicate experiments
-        warnings = await _check_duplicate_experiments(entities, "")
+        from app.core.database import async_session as db_session
+        doc_owner = ""
+        async with db_session() as owner_db:
+            owner_row = (await owner_db.execute(
+                select(Document.uploaded_by).where(Document.id == doc_id)
+            )).scalar_one_or_none()
+            if owner_row:
+                doc_owner = str(owner_row)
+        warnings = await _check_duplicate_experiments(entities, doc_owner)
 
         from app.core.database import async_session
 
@@ -263,7 +273,8 @@ async def upload_document(
     experiment_year: int | None = Form(None),
     experiment_type: str | None = Form(None),
     subjects: str | None = Form(None),  # JSON array string
-    privacy: str = Form("public"),
+    privacy: str = Form("private"),
+    visible_teams: str | None = Form(None),  # JSON array string
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -281,7 +292,14 @@ async def upload_document(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    meta = _parse_upload_meta(experiment_year, experiment_type, subjects, privacy)
+    visible_teams_list = None
+    if visible_teams:
+        try:
+            visible_teams_list = json.loads(visible_teams)
+        except json.JSONDecodeError:
+            pass
+
+    meta = _parse_upload_meta(experiment_year, experiment_type, subjects, privacy, visible_teams_list)
     object_key = upload_file(content, filename, file.content_type or "application/octet-stream")
 
     doc = Document(
@@ -294,6 +312,7 @@ async def upload_document(
         experiment_type=meta.experiment_type,
         subjects=meta.subjects,
         privacy=meta.privacy,
+        visible_teams=meta.visible_teams,
         uploaded_by=current_user.id,
     )
     db.add(doc)
@@ -305,6 +324,14 @@ async def upload_document(
         await db.commit()
 
     # Trigger AI processing in the background
+    # Public uploads require admin approval — set to pending_review
+    if meta.privacy == "public":
+        doc.status = "pending_review"
+        await db.commit()
+        await db.refresh(doc)
+        logger.info(f"Public doc {doc.id} set to pending_review, awaiting admin approval")
+        return DocumentResponse.from_orm(doc)
+
     import asyncio
     task = asyncio.create_task(_process_single(str(doc.id), content, filename))
     task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
@@ -319,7 +346,8 @@ async def upload_batch(
     experiment_year: int | None = Form(None),
     experiment_type: str | None = Form(None),
     subjects: str | None = Form(None),
-    privacy: str = Form("public"),
+    privacy: str = Form("private"),
+    visible_teams: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -330,7 +358,14 @@ async def upload_batch(
             detail=f"今日上传次数已用完（{quota['limit']}/{quota['limit']}），请明天再试",
         )
 
-    meta = _parse_upload_meta(experiment_year, experiment_type, subjects, privacy)
+    visible_teams_list = None
+    if visible_teams:
+        try:
+            visible_teams_list = json.loads(visible_teams)
+        except json.JSONDecodeError:
+            pass
+
+    meta = _parse_upload_meta(experiment_year, experiment_type, subjects, privacy, visible_teams_list)
     docs: list[Document] = []
     pending_processing: list[tuple[Document, bytes, str]] = []
     errors: list[dict] = []
@@ -352,6 +387,7 @@ async def upload_batch(
                 experiment_type=meta.experiment_type,
                 subjects=meta.subjects,
                 privacy=meta.privacy,
+                visible_teams=meta.visible_teams,
                 uploaded_by=current_user.id,
             )
             db.add(doc)
@@ -370,7 +406,25 @@ async def upload_batch(
 
     import asyncio
 
-    # Process documents with bounded concurrency to avoid overwhelming the AI service
+    # Public uploads require admin approval — only process private/team docs immediately
+    docs_to_process = [
+        (doc, content, filename)
+        for doc, content, filename in pending_processing
+        if doc.privacy != "public"
+    ]
+    docs_pending_review = [
+        doc for doc, _, _ in pending_processing
+        if doc.privacy == "public"
+    ]
+
+    # Set public docs to pending_review
+    if docs_pending_review:
+        for doc in docs_pending_review:
+            doc.status = "pending_review"
+        await db.commit()
+        logger.info(f"Set {len(docs_pending_review)} public doc(s) to pending_review")
+
+    # Process non-public documents with bounded concurrency
     semaphore = asyncio.Semaphore(3)
 
     async def process_with_semaphore(doc: Document, content: bytes, filename: str):
@@ -379,7 +433,7 @@ async def upload_batch(
 
     tasks = [
         process_with_semaphore(doc, content, filename)
-        for doc, content, filename in pending_processing
+        for doc, content, filename in docs_to_process
     ]
     task = asyncio.gather(*tasks, return_exceptions=True)
 
@@ -638,6 +692,3 @@ async def download_document(
         "Content-Length": str(file_size),
     }
     return StreamingResponse(read_and_close(), media_type=content_type, headers=headers)
-
-    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc.title, safe='')}"}
-    return StreamingResponse(iter([file_data]), media_type=content_type, headers=headers)

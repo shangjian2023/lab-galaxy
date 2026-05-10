@@ -370,6 +370,18 @@ async def _apply_schema_updates():
         except Exception as e:
             logger.debug(f"Display_id migration may have partial issues: {e}")
 
+        # Document permissions: visible_teams + pending_review status
+        try:
+            await conn.execute(text(
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS visible_teams VARCHAR[]"
+            ))
+            await conn.execute(text(
+                "ALTER TYPE doc_status ADD VALUE IF NOT EXISTS 'pending_review'"
+            ))
+            logger.info("Document permissions schema (visible_teams + pending_review) completed.")
+        except Exception as e:
+            logger.debug(f"Document permissions migration may have partial issues: {e}")
+
 
 @app.get("/")
 async def root():

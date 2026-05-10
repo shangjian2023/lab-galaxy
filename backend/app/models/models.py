@@ -76,13 +76,14 @@ class Document(Base):
     file_type: Mapped[str] = mapped_column(String(20))
     file_size: Mapped[int] = mapped_column(BigInteger, default=0)
     status: Mapped[str] = mapped_column(
-        SAEnum("uploaded", "parsing", "extracting", "awaiting_confirmation", "completed", "failed", name="doc_status"),
+        SAEnum("uploaded", "pending_review", "parsing", "extracting", "awaiting_confirmation", "completed", "failed", name="doc_status"),
         default="uploaded",
     )
     experiment_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     experiment_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     subjects: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
-    privacy: Mapped[str] = mapped_column(String(20), default="public")
+    privacy: Mapped[str] = mapped_column(String(20), default="private")
+    visible_teams: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)  # team IDs that can see this doc
     extraction_result: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     duplicate_info: Mapped[str | None] = mapped_column(Text, nullable=True)

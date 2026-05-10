@@ -43,7 +43,7 @@ export default function ChatMentionInput({ value, onChange, onKeyDown, placehold
       setResults([]);
       return;
     }
-    const nodesPromise = searchGraphNodes(q, undefined, 5).catch(() => ({ nodes: [] }));
+    const nodesPromise = searchGraphNodes(q, undefined, 5, "team").catch(() => ({ nodes: [] }));
     let nodes: GraphNode[] = [];
     try {
       const res = await nodesPromise;

@@ -231,7 +231,7 @@ function GraphPageContent() {
   const appliedNodeParamRef = useRef<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [expListOpen, setExpListOpen] = useState(false);
-  const [graphScope, setGraphScope] = useState<"public" | "team" | "private">("public");
+  const [graphScope, setGraphScope] = useState<"public" | "team" | "private">("private");
   const [activeTeamId, setActiveTeamId] = useState<string | undefined>(teamIdFromUrl || undefined);
   const [showTeamManager, setShowTeamManager] = useState(false);
 

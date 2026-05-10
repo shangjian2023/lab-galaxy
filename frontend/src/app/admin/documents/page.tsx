@@ -6,11 +6,13 @@ import {
   adminUpdateDocument,
   adminDeleteDocument,
   adminReprocessDocument,
+  adminApproveDocument,
+  adminRejectDocument,
   type DocumentItem,
 } from "@/lib/api";
 import { EXPERIMENT_TYPES, SUBJECT_OPTIONS } from "@/lib/constants";
 
-const STATUS_OPTIONS = ["uploaded", "parsing", "extracting", "awaiting_confirmation", "completed", "failed"];
+const STATUS_OPTIONS = ["uploaded", "pending_review", "parsing", "extracting", "awaiting_confirmation", "completed", "failed"];
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return bytes + " B";
@@ -58,6 +60,26 @@ export default function AdminDocumentsPage() {
       load();
     } catch {
       alert("触发重新处理失败");
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    if (!confirm("确定通过审核？将开始 AI 解析。")) return;
+    try {
+      await adminApproveDocument(id);
+      load();
+    } catch {
+      alert("审核通过失败");
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!confirm("确定拒绝此文档？")) return;
+    try {
+      await adminRejectDocument(id);
+      load();
+    } catch {
+      alert("拒绝失败");
     }
   };
 
@@ -148,8 +170,13 @@ export default function AdminDocumentsPage() {
                       doc.status === "completed" ? "bg-green-100 text-green-700"
                       : doc.status === "failed" ? "bg-red-100 text-red-600"
                       : doc.status === "awaiting_confirmation" ? "bg-amber-100 text-amber-700"
+                      : doc.status === "pending_review" ? "bg-indigo-100 text-indigo-700"
                       : "bg-yellow-100 text-yellow-700"
-                    }`}>{doc.status === "awaiting_confirmation" ? "待确认" : doc.status}</span>
+                    }`}>{
+                      doc.status === "awaiting_confirmation" ? "待确认"
+                      : doc.status === "pending_review" ? "待审核"
+                      : doc.status
+                    }</span>
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-700">
                     {entityCount > 0 ? `${entityCount}E / ${relCount}R` : "-"}
@@ -159,6 +186,14 @@ export default function AdminDocumentsPage() {
                       className="text-xs text-brand-600 hover:underline">
                       {isEditing ? "完成" : "编辑"}
                     </button>
+                    {doc.status === "pending_review" && (
+                      <>
+                        <button onClick={() => handleApprove(doc.id)}
+                          className="text-xs text-green-600 hover:underline">通过</button>
+                        <button onClick={() => handleReject(doc.id)}
+                          className="text-xs text-red-600 hover:underline">拒绝</button>
+                      </>
+                    )}
                     {(doc.status === "failed" || doc.status === "completed") && (
                       <button onClick={() => handleReprocess(doc.id)}
                         className="text-xs text-orange-600 hover:underline">重新处理</button>

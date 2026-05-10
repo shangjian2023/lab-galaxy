@@ -68,11 +68,12 @@ export interface DocumentItem {
   title: string;
   file_type: string;
   file_size: number;
-  status: "uploaded" | "parsing" | "extracting" | "awaiting_confirmation" | "completed" | "failed";
+  status: "uploaded" | "pending_review" | "parsing" | "extracting" | "awaiting_confirmation" | "completed" | "failed";
   experiment_year: number | null;
   experiment_type: string | null;
   subjects: string[] | null;
   privacy: string;
+  visible_teams: string[] | null;
   extraction_result: {
     entity_count?: number;
     relation_count?: number;
@@ -119,6 +120,7 @@ export function uploadDocument(
     experiment_type?: string;
     subjects?: string[];
     privacy?: string;
+    visible_teams?: string[];
   },
 ) {
   const form = new FormData();
@@ -127,6 +129,7 @@ export function uploadDocument(
   if (meta.experiment_type) form.append("experiment_type", meta.experiment_type);
   if (meta.subjects?.length) form.append("subjects", JSON.stringify(meta.subjects));
   if (meta.privacy) form.append("privacy", meta.privacy);
+  if (meta.visible_teams?.length) form.append("visible_teams", JSON.stringify(meta.visible_teams));
   return request<DocumentItem>("/documents/upload", "POST", form);
 }
 
@@ -137,6 +140,7 @@ export function uploadBatch(
     experiment_type?: string;
     subjects?: string[];
     privacy?: string;
+    visible_teams?: string[];
   },
 ) {
   const form = new FormData();
@@ -145,6 +149,7 @@ export function uploadBatch(
   if (meta.experiment_type) form.append("experiment_type", meta.experiment_type);
   if (meta.subjects?.length) form.append("subjects", JSON.stringify(meta.subjects));
   if (meta.privacy) form.append("privacy", meta.privacy);
+  if (meta.visible_teams?.length) form.append("visible_teams", JSON.stringify(meta.visible_teams));
   return request<BatchUploadResponse>("/documents/upload-batch", "POST", form);
 }
 
@@ -235,6 +240,14 @@ export function adminDeleteDocument(docId: string) {
 
 export function adminReprocessDocument(docId: string) {
   return request<DocumentItem>(`/documents/${docId}/reprocess`, "POST");
+}
+
+export function adminApproveDocument(docId: string) {
+  return request<DocumentItem>(`/admin/documents/${docId}/approve`, "POST");
+}
+
+export function adminRejectDocument(docId: string) {
+  return request<DocumentItem>(`/admin/documents/${docId}/reject`, "POST");
 }
 
 // Knowledge Graph
@@ -470,6 +483,7 @@ export interface TemplateItem {
   is_official: boolean;
   likes: number;
   downloads: number;
+  adoptions: number;
   bookmarks: number;
   is_liked: boolean;
   created_by: string;
@@ -507,6 +521,10 @@ export function publishTemplate(id: string) {
 
 export function toggleTemplateLike(id: string) {
   return request<{ is_liked: boolean; likes: number }>(`/templates/${id}/like`, "POST");
+}
+
+export function adoptTemplate(id: string) {
+  return request<{ status: string; adoptions: number }>(`/templates/${id}/adopt`, "POST");
 }
 
 export function bookmarkTemplate(id: string) {
@@ -673,8 +691,8 @@ export function getTeam(teamId: string) {
   return request<TeamDetail>(`/teams/${teamId}`);
 }
 
-export function inviteToTeam(teamId: string, displayId?: number) {
-  const body = displayId ? { display_id: displayId } : {};
+export function inviteToTeam(teamId: string, usernameOrDisplayId?: string | number) {
+  const body = usernameOrDisplayId ? (typeof usernameOrDisplayId === 'number' ? { display_id: usernameOrDisplayId } : { username: usernameOrDisplayId }) : {};
   return request<{ status: string; message: string }>(`/teams/${teamId}/invite`, "POST", body);
 }
 
@@ -788,10 +806,16 @@ export function getTreeData(rootId: string, targetType?: string) {
   return request<TreeData>(`/graph/tree?${params}`);
 }
 
-export function searchGraphNodes(q: string, nodeType?: string, limit = 20) {
+export function searchGraphNodes(q: string, nodeType?: string, limit = 20, scope?: string, teamId?: string) {
   const params = new URLSearchParams({ q, limit: String(limit) });
   if (nodeType) params.set("node_type", nodeType);
+  if (scope) params.set("scope", scope);
+  if (teamId) params.set("team_id", teamId);
   return request<{ nodes: GraphNode[] }>(`/graph/search?${params}`);
+}
+
+export function getNodeContext(nodeId: string) {
+  return request<{ accessible: boolean; scope: string; node: { id: string; name: string; type: string; summary: string; document_id: string | null; created_by: string | null } }>(`/graph/node/${nodeId}/context`);
 }
 
 // ========== Forum ==========

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { uploadBatch, getDocumentStatus, adminReprocessDocument, deleteDocument, type DocumentItem } from "@/lib/api";
+import { uploadBatch, getDocumentStatus, adminReprocessDocument, deleteDocument, getMyTeams, type DocumentItem, type TeamInfo } from "@/lib/api";
 import {
   EXPERIMENT_TYPES,
   SUBJECT_OPTIONS,
@@ -18,7 +18,7 @@ interface FileEntry {
   file: File;
   id: string;
   docId?: string;
-  status: "waiting" | "uploading" | "parsing" | "awaiting_confirmation" | "completed" | "failed";
+  status: "waiting" | "uploading" | "parsing" | "pending_review" | "awaiting_confirmation" | "completed" | "failed";
   progress: number;
   error?: string;
 }
@@ -33,6 +33,25 @@ export default function UploadPanel({ onUploaded }: Props) {
   const [experimentType, setExperimentType] = useState<string>("");
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState("private");
+
+  // Team visibility state
+  const [myTeams, setMyTeams] = useState<TeamInfo[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [visibleTeams, setVisibleTeams] = useState<string[]>([]);
+
+  useEffect(() => {
+    setTeamsLoading(true);
+    getMyTeams()
+      .then((t) => setMyTeams(t))
+      .catch(() => {})
+      .finally(() => setTeamsLoading(false));
+  }, []);
+
+  const toggleVisibleTeam = (teamId: string) => {
+    setVisibleTeams((prev) =>
+      prev.includes(teamId) ? prev.filter((t) => t !== teamId) : [...prev, teamId],
+    );
+  };
 
   // File state
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -129,6 +148,7 @@ export default function UploadPanel({ onUploaded }: Props) {
           // Map backend status to FileEntry status
           const statusMap: Record<string, FileEntry["status"]> = {
             uploaded: "uploading",
+            pending_review: "pending_review",
             parsing: "parsing",
             extracting: "parsing",
             awaiting_confirmation: "awaiting_confirmation",
@@ -192,6 +212,7 @@ export default function UploadPanel({ onUploaded }: Props) {
           experiment_type: experimentType || undefined,
           subjects: selectedSubjects.length > 0 ? selectedSubjects : undefined,
           privacy,
+          visible_teams: visibleTeams.length > 0 ? visibleTeams : undefined,
         },
       );
 
@@ -350,6 +371,36 @@ export default function UploadPanel({ onUploaded }: Props) {
           <p className="mt-2 text-xs text-amber-600">
             ⚠️ 选择「公开」后，文档需经管理员审核通过后才会对所有用户可见
           </p>
+        )}
+        {privacy === "team" && (
+          <div className="mt-3 rounded-xl bg-white/50 p-4">
+            <p className="mb-2 text-xs font-medium text-gray-700">选择可见团队</p>
+            {teamsLoading ? (
+              <p className="text-xs text-black">加载中...</p>
+            ) : myTeams.length === 0 ? (
+              <p className="text-xs text-gray-500">你还没有加入任何团队</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {myTeams.map((team) => {
+                  const active = visibleTeams.includes(team.id);
+                  return (
+                    <button
+                      key={team.id}
+                      type="button"
+                      onClick={() => toggleVisibleTeam(team.id)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                        active
+                          ? "glass-warm text-orange-700"
+                          : "glass-button text-black"
+                      }`}
+                    >
+                      {team.name} ({team.member_count}人)
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

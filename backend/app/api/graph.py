@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.models import Document, User
+from app.models.models import Document, User, TeamMember
 from app.services.event_bus import graph_event_bus
 from app.services.ai_client import suggest_relations
 
@@ -74,28 +74,75 @@ async def _visible_document_ids(
     scope: str | None = None,
     team_id: str | None = None,
 ) -> list[str]:
-    """Return document IDs visible to the user based on scope.
-
-    scope:
-      - None (default): user's own docs + public docs (backward compatible)
-      - "public": only public documents
-      - "private": only the user's private documents
-      - "team": documents from the user's team members
-    team_id:
-      - When scope="team", filter by this specific team. If None, uses all teams user belongs to.
-    """
-    stmt = select(Document.id)
+    """Return document IDs visible to the user based on scope."""
+    from app.models.models import TeamMember
 
     if scope == "public":
-        stmt = stmt.where(Document.privacy == "public")
+        stmt = select(Document.id).where(
+            Document.privacy == "public",
+            Document.status == "completed",
+        )
     elif scope == "private":
-        stmt = stmt.where(Document.uploaded_by == current_user.id, Document.privacy == "private")
+        stmt = select(Document.id).where(
+            Document.uploaded_by == current_user.id,
+            Document.status != "pending_review",
+        )
     elif scope == "team":
-        from app.models.models import TeamMember
-        stmt = stmt.where(Document.uploaded_by.in_(_get_team_user_ids_query(current_user.id, team_id)))
+        # Verify membership
+        if team_id:
+            is_member = await _check_team_membership(db, current_user, team_id)
+            if not is_member:
+                return []
+            user_team_ids = [team_id]
+            team_user_rows = (await db.execute(
+                select(TeamMember.user_id).where(TeamMember.team_id == team_id)
+            )).scalars().all()
+        else:
+            user_team_rows = (await db.execute(
+                select(TeamMember.team_id).where(TeamMember.user_id == current_user.id)
+            )).scalars().all()
+            user_team_ids = [str(t) for t in user_team_rows]
+            team_user_rows = (await db.execute(
+                select(TeamMember.user_id).where(TeamMember.team_id.in_(user_team_ids))
+            )).scalars().all()
+
+        team_user_ids = [str(u) for u in team_user_rows]
+
+        # Build query: docs uploaded by team members where either:
+        # - current user is the uploader (always sees own docs)
+        # - doc's visible_teams includes one of user's teams
+        # - doc is public+completed
+        stmt = select(Document.id).where(Document.uploaded_by.in_(team_user_ids))
+
+        rows = (await db.execute(stmt)).scalars().all()
+        all_doc_ids = [str(d) for d in rows]
+
+        if not all_doc_ids:
+            return []
+
+        # Filter in Python for visibility check
+        docs = (await db.execute(
+            select(Document).where(Document.id.in_(all_doc_ids))
+        )).scalars().all()
+
+        visible = []
+        for doc in docs:
+            if doc.uploaded_by == current_user.id:
+                visible.append(str(doc.id))
+            elif doc.privacy == "public" and doc.status == "completed":
+                visible.append(str(doc.id))
+            elif doc.visible_teams:
+                doc_teams = [t for t in doc.visible_teams if t]
+                if any(t in user_team_ids for t in doc_teams):
+                    visible.append(str(doc.id))
+        return visible
     else:
-        # Default: own + public
-        stmt = stmt.where((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
+        # Default: own completed docs + public completed docs
+        stmt = select(Document.id).where(
+            (Document.uploaded_by == current_user.id) |
+            ((Document.privacy == "public") & (Document.status == "completed"))
+        )
+        stmt = stmt.where(Document.status != "pending_review")
 
     if years:
         stmt = stmt.where(Document.experiment_year.in_(years))
@@ -104,13 +151,18 @@ async def _visible_document_ids(
     return [str(doc_id) for doc_id in rows]
 
 
-def _get_team_user_ids_query(current_user_id: str, team_id: str | None = None):
-    """Build a subquery to get user IDs belonging to the team(s) of the current user."""
+def _get_team_user_ids_query(current_user_id, team_id: str | None = None):
+    """Build a subquery to get user IDs belonging to the team(s) of the current user.
+
+    SECURITY: When team_id is provided, verify the current user is actually a member.
+    """
     from app.models.models import TeamMember
     if team_id:
+        # Must verify current user belongs to this team
         return (
             select(TeamMember.user_id)
             .where(TeamMember.team_id == team_id)
+            # The caller must also verify current_user is a member separately
         )
     team_ids_stmt = (
         select(TeamMember.team_id)
@@ -120,6 +172,18 @@ def _get_team_user_ids_query(current_user_id: str, team_id: str | None = None):
         select(TeamMember.user_id)
         .where(TeamMember.team_id.in_(team_ids_stmt))
     )
+
+
+async def _check_team_membership(db: AsyncSession, current_user: User, team_id: str) -> bool:
+    """Verify that the current user is a member of the given team."""
+    from app.models.models import TeamMember
+    result = await db.execute(
+        select(TeamMember.id).where(
+            TeamMember.team_id == team_id,
+            TeamMember.user_id == current_user.id,
+        )
+    )
+    return result.scalar_one_or_none() is not None
 
 
 async def _visible_node_ids(db: AsyncSession, current_user: User) -> set[str]:
@@ -573,10 +637,12 @@ async def cleanup_orphaned_nodes(
 async def get_relation_tree(
     root_id: str = Query(...),
     target_type: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get a relation tree rooted at a specific node, optionally filtered by target type."""
     driver = _driver()
+    visible_node_ids = await _visible_node_ids(db, current_user)
     async with driver.session() as session:
         # Get root node
         root_result = await session.run(
@@ -586,6 +652,9 @@ async def get_relation_tree(
         root_record = await root_result.single()
         if not root_record:
             raise HTTPException(status_code=404, detail="节点不存在")
+
+        if root_record["id"] not in visible_node_ids:
+            raise HTTPException(status_code=403, detail="无权访问此节点")
 
         root_type = _node_type(root_record["labels"])
         root = {
@@ -600,6 +669,7 @@ async def get_relation_tree(
         if target_type and target_type in VALID_LABELS:
             rel_query = """
                 MATCH (n {id: $id})-[r]-(m:{target_type})
+                WHERE m.id IN $visible_ids
                 RETURN m.id AS id, m.name AS name, labels(m) AS labels, m.summary AS summary,
                        type(r) AS rel_type
                 LIMIT 50
@@ -607,13 +677,14 @@ async def get_relation_tree(
         else:
             rel_query = """
                 MATCH (n {id: $id})-[r]-(m)
-                WHERE m.id <> $id
+                WHERE m.id <> $id AND m.id IN $visible_ids
                 RETURN m.id AS id, m.name AS name, labels(m) AS labels, m.summary AS summary,
                        type(r) AS rel_type
                 LIMIT 50
             """
 
-        rel_result = await session.run(rel_query, id=root_id)
+        visible_list = list(visible_node_ids) if visible_node_ids else ["__none__"]
+        rel_result = await session.run(rel_query, id=root_id, visible_ids=visible_list)
         children = []
         async for record in rel_result:
             child_type = _node_type(record["labels"])
@@ -636,15 +707,20 @@ async def search_graph_nodes(
     q: str = Query(..., min_length=1),
     node_type: str | None = Query(None),
     limit: int = Query(20, ge=1, le=100),
+    scope: str | None = Query(None, description="Document scope: public, private, team"),
+    team_id: str | None = Query(None, description="Specific team ID for team scope"),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Search graph nodes by name keyword."""
+    """Search graph nodes by name keyword, filtered by visibility scope."""
     driver = _driver()
+    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope, team_id=team_id)
     async with driver.session() as session:
         if node_type and node_type in VALID_LABELS:
             cypher = """
                 MATCH (n:{label})
                 WHERE n.name CONTAINS $q
+                  AND (n.document_id IS NULL OR n.document_id IN $doc_ids)
                 RETURN n.id AS id, n.name AS name, labels(n) AS labels,
                        n.summary AS summary, n.document_id AS document_id
                 LIMIT $limit
@@ -653,12 +729,14 @@ async def search_graph_nodes(
             cypher = """
                 MATCH (n)
                 WHERE n.name CONTAINS $q
+                  AND (n.document_id IS NULL OR n.document_id IN $doc_ids)
                 RETURN n.id AS id, n.name AS name, labels(n) AS labels,
                        n.summary AS summary, n.document_id AS document_id
                 LIMIT $limit
             """
 
-        result = await session.run(cypher, q=q, limit=limit)
+        doc_ids_param = visible_doc_ids if visible_doc_ids else ["__none__"]
+        result = await session.run(cypher, q=q, limit=limit, doc_ids=doc_ids_param)
         nodes = []
         async for record in result:
             ntype = _node_type(record["labels"])
@@ -671,3 +749,74 @@ async def search_graph_nodes(
             })
 
     return {"nodes": nodes}
+
+
+@router.get("/node/{node_id}/context")
+async def get_node_context(
+    node_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Check if user can access a node and return its visibility context.
+
+    Returns: {accessible: bool, scope: str, node: {...}}
+    - scope is 'personal' if node belongs to a personal doc
+    - scope is 'team' if node is visible via team sharing
+    - scope is 'public' if node is from a public doc
+    """
+    driver = _driver()
+    async with driver.session() as session:
+        result = await session.run(
+            "MATCH (n {id: $id}) RETURN n.id AS id, n.name AS name, labels(n) AS labels, "
+            "n.summary AS summary, n.document_id AS document_id, n.created_by AS created_by",
+            id=node_id,
+        )
+        record = await result.single()
+        if not record:
+            raise HTTPException(status_code=404, detail="节点不存在")
+
+        ntype = _node_type(record["labels"])
+        node_data = {
+            "id": record["id"],
+            "name": record["name"] or "",
+            "type": ntype,
+            "summary": record["summary"] or "",
+            "document_id": record.get("document_id"),
+            "created_by": record.get("created_by"),
+        }
+
+    doc_id = record.get("document_id")
+    created_by = record.get("created_by")
+
+    # Check accessibility and determine scope
+    accessible = False
+    scope = "none"
+
+    if doc_id:
+        # Check document visibility
+        from sqlalchemy import text as sql_text
+        doc = (await db.execute(
+            select(Document).where(Document.id == doc_id)
+        )).scalar_one_or_none()
+        if doc:
+            if doc.privacy == "public" and doc.status == "completed":
+                accessible = True
+                scope = "public"
+            elif doc.uploaded_by == current_user.id and doc.status != "pending_review":
+                accessible = True
+                scope = "personal"
+            elif doc.visible_teams:
+                user_teams = (await db.execute(
+                    select(TeamMember.team_id).where(TeamMember.user_id == current_user.id)
+                )).scalars().all()
+                user_team_strs = [str(t) for t in user_teams]
+                doc_teams = [t for t in doc.visible_teams if t]
+                if any(t in user_team_strs for t in doc_teams):
+                    accessible = True
+                    scope = "team"
+    elif created_by == str(current_user.id):
+        # Document-less node created by current user
+        accessible = True
+        scope = "personal"
+
+    return {"accessible": accessible, "scope": scope, "node": node_data}

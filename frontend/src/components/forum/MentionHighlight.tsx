@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import React from "react";
+import SmartNodeLink from "../graph/SmartNodeLink";
 
 // Matches @[显示名称](nodeId) format
 const MENTION_REGEX = /@\[([^\]]+)\]\(([a-f0-9-]+)\)/g;
@@ -23,14 +24,13 @@ export default function MentionHighlight({ content }: Props) {
     const displayName = match[1];
     const nodeId = match[2];
     parts.push(
-      <Link
+      <SmartNodeLink
         key={match.index}
-        href={`/graph?node=${nodeId}`}
-        className="rounded bg-blue-50 px-1 text-blue-600 hover:bg-blue-100 hover:underline"
-        title={`跳转到图谱节点: ${displayName}`}
+        nodeId={nodeId}
+        displayName={displayName}
       >
         @{displayName}
-      </Link>
+      </SmartNodeLink>
     );
     lastIndex = match.index + match[0].length;
   }
