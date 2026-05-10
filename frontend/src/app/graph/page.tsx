@@ -9,11 +9,9 @@ import {
   getTimelineData,
   getMatrixData,
   cleanupOrphanedNodes,
-  discoverInsights,
   type CytoscapeData,
   type TimelineEntry,
   type MatrixEntry,
-  type InsightEvent,
 } from "@/lib/api";
 import { soundEngine } from "@/lib/audio/SoundEngine";
 import GalaxyView, { type ForceSettings } from "@/components/graph/GalaxyView";
@@ -22,7 +20,6 @@ import MatrixView from "@/components/graph/MatrixView";
 import NodeCard from "@/components/graph/NodeCard";
 import GraphToolbar, { type ViewMode } from "@/components/graph/GraphToolbar";
 import DraggablePixelChar from "@/components/graph/DraggablePixelChar";
-import InsightOverlay from "@/components/insight/InsightOverlay";
 import QueryPanel from "@/components/query/QueryPanel";
 import TeamManager from "@/components/graph/TeamManager";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -222,7 +219,6 @@ function GraphPageContent() {
   const [fromDate, setFromDate] = useState<string | undefined>();
   const [toDate, setToDate] = useState<string | undefined>();
   const [liveCount, setLiveCount] = useState(0);
-  const [activeInsight, setActiveInsight] = useState<InsightEvent | null>(null);
   const [forceSettings, setForceSettings] = useState<ForceSettings>(loadForceSettings);
   const [timelineMode, setTimelineMode] = useState(false);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
@@ -270,27 +266,6 @@ function GraphPageContent() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [isFullscreen]);
-
-  // Insight: only show once after document upload completes and new nodes appear
-  const initialNodeCountRef = useRef(0);
-
-  useEffect(() => {
-    if (galaxyData.nodes.length > 3 && user && galaxyData.nodes.length > initialNodeCountRef.current + 2) {
-      const alreadyShown = sessionStorage.getItem("insight_overlay_shown_graph");
-      if (!alreadyShown) {
-        initialNodeCountRef.current = galaxyData.nodes.length;
-        sessionStorage.setItem("insight_overlay_shown_graph", "1");
-        discoverInsights().then((res) => {
-          if (res.insights.length > 0 && res.insights[0].significance >= 0.5) {
-            setTimeout(() => {
-              setActiveInsight(res.insights[0]);
-              soundEngine.play("insight");
-            }, 2000);
-          }
-        });
-      }
-    }
-  }, [galaxyData.nodes.length, user]);
 
   // Load available years and default to latest
   useEffect(() => {
@@ -518,8 +493,6 @@ function GraphPageContent() {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
-      <InsightOverlay insight={activeInsight} onDismiss={() => setActiveInsight(null)} animationIntensity={0.7} />
-
       {/* Header */}
       <div className="liquid-glass-card mb-4 px-5 py-4">
         <div className="flex items-center gap-3">
