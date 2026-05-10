@@ -8,7 +8,7 @@ interface Props {
   isOwn: boolean;
 }
 
-const MENTION_REGEX = /@\[([^\]]+)\]\(([a-f0-9-]+)\)/g;
+const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F0-9-]+)\)/g;
 
 function MentionHighlight({ content }: { content: string }) {
   const parts: React.ReactNode[] = [];

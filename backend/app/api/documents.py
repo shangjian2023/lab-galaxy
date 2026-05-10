@@ -4,6 +4,7 @@ import json
 import logging
 import uuid
 from difflib import SequenceMatcher
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from fastapi.responses import StreamingResponse
@@ -92,24 +93,25 @@ async def _update_status(doc_id: str, status: str, error: str | None = None):
             await asyncio.sleep(1 * (attempt + 1))
 
 
-def _is_similar_name(a: str, b: str) -> bool:
-    """Check if two experiment names are similar enough to be considered duplicates."""
+def _compute_similarity(a: str, b: str) -> tuple[bool, float]:
+    """Check if two names are similar. Returns (is_similar, ratio)."""
     a = a.strip()
     b = b.strip()
     if not a or not b:
-        return False
+        return False, 0.0
     if a == b:
-        return True
+        return True, 1.0
     al, bl = a.lower(), b.lower()
     if al == bl:
-        return True
-    return SequenceMatcher(None, al, bl).ratio() >= SIMILARITY_THRESHOLD
+        return True, 1.0
+    ratio = SequenceMatcher(None, al, bl).ratio()
+    return ratio >= SIMILARITY_THRESHOLD, ratio
 
 
 async def _check_duplicate_experiments(
     entities: list[dict], user_id: str
 ) -> list[dict]:
-    """Check extracted Experiment entities against existing Neo4j nodes.
+    """Check extracted Experiment entities against existing Neo4j nodes for this user.
     Returns list of duplicate warnings: [{name, existing_name, existing_id, similarity}]
     """
     experiment_names = [
@@ -125,8 +127,33 @@ async def _check_duplicate_experiments(
     driver = _get_driver()
     existing_experiments: list[dict] = []
     try:
+        from app.core.database import async_session
+
+        # Get user's document IDs to filter experiments
+        user_doc_ids: list[str] = []
+        async with async_session() as db:
+            rows = (
+                await db.execute(
+                    select(Document.id).where(Document.uploaded_by == user_id)
+                )
+            ).scalars().all()
+            user_doc_ids = [str(d) for d in rows]
+
+        # Filter out empty strings before passing to Neo4j
+        valid_doc_ids = [uid for uid in user_doc_ids if uid.strip()]
+
         async with driver.session() as session:
-            result = await session.run("MATCH (e:Experiment) RETURN e.id AS id, e.name AS name")
+            if valid_doc_ids:
+                result = await session.run(
+                    "MATCH (e:Experiment) WHERE e.document_id IN $doc_ids "
+                    "RETURN e.id AS id, e.name AS name",
+                    doc_ids=valid_doc_ids,
+                )
+            else:
+                result = await session.run(
+                    "MATCH (e:Experiment) WHERE e.document_id IS NULL "
+                    "RETURN e.id AS id, e.name AS name"
+                )
             async for record in result:
                 existing_experiments.append({"id": record["id"], "name": record["name"] or ""})
     except Exception as e:
@@ -136,8 +163,8 @@ async def _check_duplicate_experiments(
     warnings = []
     for name in experiment_names:
         for existing in existing_experiments:
-            if _is_similar_name(name, existing["name"]):
-                ratio = SequenceMatcher(None, name.lower(), existing["name"].lower()).ratio()
+            similar, ratio = _compute_similarity(name, existing["name"])
+            if similar:
                 exact = name.strip() == existing["name"].strip()
                 warnings.append({
                     "new_name": name,
@@ -283,15 +310,7 @@ async def upload_document(
     task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
     logger.info(f"Started background processing for document {doc.id}")
 
-    return DocumentResponse(
-        id=str(doc.id), title=doc.title, file_type=doc.file_type,
-        file_size=doc.file_size, file_path=doc.file_path, status=doc.status,
-        experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
-        subjects=doc.subjects, privacy=doc.privacy,
-        extraction_result=None, error_message=None, duplicate_info=None,
-        uploaded_by=str(doc.uploaded_by),
-        created_at=doc.created_at.isoformat() if doc.created_at else None,
-    )
+    return DocumentResponse.from_orm(doc)
 
 
 @router.post("/upload-batch", response_model=BatchUploadResponse, status_code=status.HTTP_201_CREATED)
@@ -351,36 +370,29 @@ async def upload_batch(
 
     import asyncio
 
-    # Process documents sequentially via a queue to avoid overwhelming the AI service
-    process_queue = asyncio.Queue()
-    for doc, content, filename in pending_processing:
-        await process_queue.put((doc, content, filename))
+    # Process documents with bounded concurrency to avoid overwhelming the AI service
+    semaphore = asyncio.Semaphore(3)
 
-    async def process_from_queue():
-        while not process_queue.empty():
-            doc, content, filename = await process_queue.get()
-            try:
-                await _process_single(str(doc.id), content, filename)
-            finally:
-                process_queue.task_done()
+    async def process_with_semaphore(doc: Document, content: bytes, filename: str):
+        async with semaphore:
+            await _process_single(str(doc.id), content, filename)
 
-    task = asyncio.create_task(process_from_queue())
-    task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+    tasks = [
+        process_with_semaphore(doc, content, filename)
+        for doc, content, filename in pending_processing
+    ]
+    task = asyncio.gather(*tasks, return_exceptions=True)
+
+    def done_callback(t):
+        for exc in t.exception() if t.exception() else []:
+            if isinstance(exc, Exception):
+                logger.error(f"Batch processing error: {exc}")
+
+    task.add_done_callback(done_callback)
     logger.info(f"Started background processing queue for {len(pending_processing)} document(s)")
 
     return BatchUploadResponse(
-        documents=[
-            DocumentResponse(
-                id=str(d.id), title=d.title, file_type=d.file_type,
-                file_size=d.file_size, file_path=d.file_path, status=d.status,
-                experiment_year=d.experiment_year, experiment_type=d.experiment_type,
-                subjects=d.subjects, privacy=d.privacy,
-                extraction_result=None, error_message=None, duplicate_info=None,
-                uploaded_by=str(d.uploaded_by),
-                created_at=d.created_at.isoformat() if d.created_at else None,
-            )
-            for d in docs
-        ],
+        documents=[DocumentResponse.from_orm(d) for d in docs],
         errors=errors,
     )
 
@@ -402,30 +414,7 @@ async def list_documents(
     ).scalars().all()
 
     # Parse extraction_result JSON for each row
-    items = []
-    for row in rows:
-        er = None
-        if row.extraction_result:
-            try:
-                er = json.loads(row.extraction_result) if isinstance(row.extraction_result, str) else row.extraction_result
-            except (json.JSONDecodeError, TypeError):
-                er = None
-        di = None
-        if row.duplicate_info:
-            try:
-                di = json.loads(row.duplicate_info) if isinstance(row.duplicate_info, str) else row.duplicate_info
-            except (json.JSONDecodeError, TypeError):
-                di = None
-        items.append(DocumentResponse(
-            id=str(row.id), title=row.title, file_type=row.file_type,
-            file_size=row.file_size, file_path=row.file_path, status=row.status,
-            experiment_year=row.experiment_year, experiment_type=row.experiment_type,
-            subjects=row.subjects, privacy=row.privacy,
-            extraction_result=er, error_message=row.error_message,
-            duplicate_info=di,
-            uploaded_by=str(row.uploaded_by),
-            created_at=row.created_at.isoformat() if row.created_at else None,
-        ))
+    items = [DocumentResponse.from_orm(row) for row in rows]
 
     return DocumentListResponse(total=total, items=items)
 
@@ -442,35 +431,7 @@ async def document_status(
     if doc.uploaded_by != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="无权访问此文档")
 
-    # Parse extraction_result JSON before validation
-    data = {
-        "id": str(doc.id),
-        "title": doc.title,
-        "file_type": doc.file_type,
-        "file_size": doc.file_size,
-        "file_path": doc.file_path,
-        "status": doc.status,
-        "experiment_year": doc.experiment_year,
-        "experiment_type": doc.experiment_type,
-        "subjects": doc.subjects,
-        "privacy": doc.privacy,
-        "extraction_result": None,
-        "error_message": doc.error_message,
-        "uploaded_by": str(doc.uploaded_by),
-        "created_at": doc.created_at.isoformat() if doc.created_at else None,
-    }
-    if doc.extraction_result:
-        try:
-            data["extraction_result"] = json.loads(doc.extraction_result) if isinstance(doc.extraction_result, str) else doc.extraction_result
-        except (json.JSONDecodeError, TypeError):
-            data["extraction_result"] = None
-    # Include duplicate_info for frontend
-    if doc.duplicate_info:
-        try:
-            data["duplicate_info"] = json.loads(doc.duplicate_info) if isinstance(doc.duplicate_info, str) else doc.duplicate_info
-        except (json.JSONDecodeError, TypeError):
-            data["duplicate_info"] = None
-    return DocumentResponse(**data)
+    return DocumentResponse.from_orm(doc)
 
 
 @router.post("/{doc_id}/confirm-ingest", response_model=DocumentResponse)
@@ -512,16 +473,10 @@ async def confirm_ingest(
         # Remove duplicate_warnings from extraction_result
         extraction.pop("duplicate_warnings", None)
         doc.extraction_result = json.dumps(extraction, ensure_ascii=False)
+        doc.extraction_result = json.dumps(extraction, ensure_ascii=False)
         await db.commit()
-        return DocumentResponse(
-            id=str(doc.id), title=doc.title, file_type=doc.file_type,
-            file_size=doc.file_size, file_path=doc.file_path, status="completed",
-            experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
-            subjects=doc.subjects, privacy=doc.privacy,
-            extraction_result=extraction, error_message=None,
-            uploaded_by=str(doc.uploaded_by),
-            created_at=doc.created_at.isoformat() if doc.created_at else None,
-        )
+        await db.refresh(doc)
+        return DocumentResponse.from_orm(doc)
 
     if body.action == "overwrite":
         # Delete existing duplicate experiment nodes from Neo4j
@@ -665,10 +620,24 @@ async def download_document(
         raise HTTPException(status_code=403, detail="无权访问此文档")
 
     try:
-        from app.services.storage import get_file_content
-        file_data, content_type = get_file_content(doc.file_path)
+        from app.services.storage import stream_file_content
+        response, content_type, file_size = stream_file_content(doc.file_path)
     except Exception as exc:
         raise HTTPException(status_code=502, detail="下载原始文档失败") from exc
 
-    headers = {"Content-Disposition": f'attachment; filename="{doc.title}"'}
+    def read_and_close():
+        try:
+            while chunk := response.read(65536):
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
+
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc.title, safe='')}",
+        "Content-Length": str(file_size),
+    }
+    return StreamingResponse(read_and_close(), media_type=content_type, headers=headers)
+
+    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc.title, safe='')}"}
     return StreamingResponse(iter([file_data]), media_type=content_type, headers=headers)

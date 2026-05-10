@@ -76,22 +76,13 @@ def _ensure_dir():
 
 async def rebuild_index_from_neo4j():
     """Rebuild FAISS index from Neo4j on startup if index is missing."""
-    import os
+    from app.core.connections import get_neo4j_driver
+
     index_path = Path(settings.FAISS_INDEX_PATH)
     if index_path.exists():
         return  # Index already on disk, skip rebuild
 
-    try:
-        from neo4j import AsyncGraphDatabase
-    except ImportError:
-        return
-
-    valid_labels = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
-
-    driver = AsyncGraphDatabase.driver(
-        settings.NEO4J_URI,
-        auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
-    )
+    driver = get_neo4j_driver()
     try:
         texts, ids = [], []
         async with driver.session() as session:
@@ -104,7 +95,7 @@ async def rebuild_index_from_neo4j():
                 name = r["name"] or ""
                 summary = r["summary"] or ""
                 lbls = r["labels"]
-                ntype = next((l for l in lbls if l in valid_labels), "Concept")
+                ntype = next((l for l in lbls if l in settings.VALID_LABELS), "Concept")
                 texts.append(f"[{ntype}] {name} {summary}")
                 ids.append(nid)
 
@@ -115,8 +106,6 @@ async def rebuild_index_from_neo4j():
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning(f"FAISS index rebuild from Neo4j failed: {e}")
-    finally:
-        await driver.close()
 
 
 def _load_faiss_index():

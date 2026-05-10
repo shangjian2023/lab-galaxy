@@ -75,10 +75,11 @@ async def natural_language_query(question: str, history: list[dict] | None = Non
     logger.info(f"QUERY DEBUG: messages count={len(messages)}, roles={[m['role'] for m in messages]}")
 
     # Step 5: LLM synthesis with structured multi-turn messages
+    # Qwen3.6 uses CoT reasoning, needs more tokens for reasoning + content
     response = await call_llm(
         prompt=current_message,
         system=RAG_SYSTEM_PROMPT,
-        max_tokens=2048,
+        max_tokens=8192,
         messages=messages,
     )
 
@@ -212,6 +213,12 @@ def _parse_response(response: str, vector_results: list, graph_context: dict) ->
         else:
             result = {}
 
+    answer = result.get("answer")
+    logger.info(f"PARSE DEBUG: llm_raw_response_len={len(response)}, parsed_keys={list(result.keys())}, answer_empty={not answer}, answer_preview={repr((answer or '')[:80])}")
+    if not answer:
+        # Fallback: use raw response if answer is missing/empty
+        answer = response[:500]
+
     # Build fallback if LLM didn't provide highlighted_nodes
     highlighted = result.get("highlighted_nodes", [eid for eid, _ in vector_results[:5]])
     all_nodes = {n["id"]: n for n in graph_context["nodes"]}
@@ -233,7 +240,7 @@ def _parse_response(response: str, vector_results: list, graph_context: dict) ->
             entities.append(all_nodes[eid])
 
     return {
-        "answer": result.get("answer", response[:500]),
+        "answer": result.get("answer") or response[:500],
         "highlighted_nodes": highlighted,
         "source_documents": source_docs,
         "suggestions": result.get("suggestions", []),

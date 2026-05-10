@@ -112,7 +112,7 @@ function WorkbenchPageContent() {
 
   const handleJumpToGraph = useCallback((nodeId: string) => {
     soundEngine.play("hover");
-    router.push(`/graph?node=${nodeId}`);
+    router.push(`/graph?node=${nodeId}&scope=private`);
   }, [router]);
 
   const handleDeleteDoc = useCallback((id: string) => {

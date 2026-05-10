@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: list[str] = ["*"]
 
+    VALID_LABELS: set[str] = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
+    VALID_REL_TYPES: set[str] = {"USES", "BASED_ON", "SIMILAR_TO", "REQUIRES", "RELATED_TO"}
+
     class Config:
         env_file = ".env"
 

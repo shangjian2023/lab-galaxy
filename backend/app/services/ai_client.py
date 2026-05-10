@@ -22,7 +22,7 @@ async def trigger_processing(
     params = {"document_id": document_id, "filename": filename}
     if skip_graph:
         params["skip_graph"] = "true"
-    async with httpx.AsyncClient(timeout=300) as client:
+    async with httpx.AsyncClient(timeout=900) as client:
         try:
             resp = await client.post(
                 f"{AI_SERVICE_URL}/process-sync",

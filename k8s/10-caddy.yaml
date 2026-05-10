@@ -99,10 +99,14 @@ data:
         }
 
         handle /api/* {
-            reverse_proxy 127.0.0.1:30080
+            reverse_proxy 127.0.0.1:30080 {
+                header_up Content-Type {>Content-Type}
+            }
         }
         handle /docs* {
-            reverse_proxy 127.0.0.1:30080
+            reverse_proxy 127.0.0.1:30080 {
+                header_up Content-Type {>Content-Type}
+            }
         }
         handle /openapi.json* {
             reverse_proxy 127.0.0.1:30080

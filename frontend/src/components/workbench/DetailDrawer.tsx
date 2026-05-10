@@ -31,26 +31,35 @@ const TYPE_LABELS: Record<string, string> = {
 export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Load preview for PDF files when card changes
+  // Clean up preview URL when modal closes
   useEffect(() => {
-    if (!card || card.file_type !== "pdf") {
+    if (!showPreview && previewUrl) {
+      URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
-      return;
     }
+  }, [showPreview, previewUrl]);
+
+  const openPreview = async () => {
+    if (!card) return;
     setPreviewLoading(true);
-    getDocumentPreviewBlob(card.id)
-      .then((url) => {
-        setPreviewUrl(url);
-        setPreviewLoading(false);
-      })
-      .catch(() => setPreviewLoading(false));
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [card?.id]);
+    setShowPreview(true);
+    try {
+      const url = await getDocumentPreviewBlob(card.id);
+      setPreviewUrl(url);
+    } catch {
+      setPreviewUrl(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setShowPreview(false);
+  };
 
   const handleDelete = async () => {
     if (!card || !onDelete) return;
@@ -80,9 +89,10 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
   };
 
   return (
-    <AnimatePresence>
-      {card && (
-        <motion.aside
+    <>
+      <AnimatePresence>
+        {card && (
+          <motion.aside
           initial={{ x: "100%" }}
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
@@ -125,58 +135,31 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
               <Meta label="状态" value={card.status} />
             </div>
 
-            {/* Download / Preview buttons */}
-            <div className="flex gap-2">
+            {/* Download button */}
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="glass-button w-full flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-gray-700 transition-colors disabled:opacity-50"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {downloading ? "下载中..." : "下载原始文件"}
+            </button>
+
+            {/* Preview button (click to open modal) */}
+            {card.file_type === "pdf" && (
               <button
-                onClick={handleDownload}
-                disabled={downloading}
-                className="glass-button flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-gray-700 transition-colors disabled:opacity-50"
+                onClick={openPreview}
+                disabled={previewLoading}
+                className="glass-button w-full flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-brand-600 transition-colors disabled:opacity-50"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                {downloading ? "下载中..." : "下载"}
+                在线预览
               </button>
-              {card.file_type === "pdf" && (
-                <button
-                  onClick={() => {
-                    if (previewUrl) {
-                      setPreviewUrl(null);
-                    } else {
-                      setPreviewLoading(true);
-                      getDocumentPreviewBlob(card.id).then((url) => setPreviewUrl(url)).catch(() => setPreviewLoading(false));
-                    }
-                  }}
-                  disabled={previewLoading}
-                  className="glass-button flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-brand-600 transition-colors disabled:opacity-50"
-                >
-                  {previewLoading ? (
-                    <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : previewUrl ? (
-                    "收起预览"
-                  ) : (
-                    <>
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      在线预览
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-
-            {/* PDF inline preview */}
-            {previewUrl && (
-              <iframe
-                src={previewUrl}
-                className="h-64 w-full rounded-lg border border-white/40"
-                title="文档预览"
-              />
             )}
 
             {/* Subjects */}
@@ -261,6 +244,66 @@ export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }:
         </motion.aside>
       )}
     </AnimatePresence>
+
+    {/* Fullscreen PDF preview modal */}
+    <AnimatePresence>
+      {showPreview && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex flex-col bg-black/70 backdrop-blur-sm"
+          onClick={closePreview}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="relative mx-auto my-6 flex h-[calc(100vh-48px)] w-[calc(100vw-48px)] max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-3">
+              <h3 className="text-sm font-bold text-black">
+                {card?.title || "文档预览"}
+              </h3>
+              <button
+                onClick={closePreview}
+                className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-black"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* PDF iframe */}
+            <div className="relative flex-1">
+              {previewLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white">
+                  <div className="text-center">
+                    <svg className="mx-auto h-8 w-8 animate-spin text-orange-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <p className="mt-2 text-sm text-black">加载中...</p>
+                  </div>
+                </div>
+              )}
+              {previewUrl && (
+                <iframe
+                  src={previewUrl}
+                  className="h-full w-full"
+                  title="文档预览"
+                />
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
 

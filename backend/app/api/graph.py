@@ -92,23 +92,7 @@ async def _visible_document_ids(
         stmt = stmt.where(Document.uploaded_by == current_user.id, Document.privacy == "private")
     elif scope == "team":
         from app.models.models import TeamMember
-        if team_id:
-            # Filter by specific team
-            team_user_ids_stmt = (
-                select(TeamMember.user_id)
-                .where(TeamMember.team_id == team_id)
-            )
-        else:
-            # All teams user belongs to (backward compatible)
-            team_ids_stmt = (
-                select(TeamMember.team_id)
-                .where(TeamMember.user_id == current_user.id)
-            )
-            team_user_ids_stmt = (
-                select(TeamMember.user_id)
-                .where(TeamMember.team_id.in_(team_ids_stmt))
-            )
-        stmt = stmt.where(Document.uploaded_by.in_(team_user_ids_stmt))
+        stmt = stmt.where(Document.uploaded_by.in_(_get_team_user_ids_query(current_user.id, team_id)))
     else:
         # Default: own + public
         stmt = stmt.where((Document.uploaded_by == current_user.id) | (Document.privacy == "public"))
@@ -118,6 +102,24 @@ async def _visible_document_ids(
 
     rows = (await db.execute(stmt)).scalars().all()
     return [str(doc_id) for doc_id in rows]
+
+
+def _get_team_user_ids_query(current_user_id: str, team_id: str | None = None):
+    """Build a subquery to get user IDs belonging to the team(s) of the current user."""
+    from app.models.models import TeamMember
+    if team_id:
+        return (
+            select(TeamMember.user_id)
+            .where(TeamMember.team_id == team_id)
+        )
+    team_ids_stmt = (
+        select(TeamMember.team_id)
+        .where(TeamMember.user_id == current_user_id)
+    )
+    return (
+        select(TeamMember.user_id)
+        .where(TeamMember.team_id.in_(team_ids_stmt))
+    )
 
 
 async def _visible_node_ids(db: AsyncSession, current_user: User) -> set[str]:
@@ -257,22 +259,7 @@ async def get_available_years(
     elif scope == "private":
         condition = (Document.uploaded_by == current_user.id) & (Document.privacy == "private")
     elif scope == "team":
-        from app.models.models import TeamMember
-        if team_id:
-            team_user_ids_stmt = (
-                select(TeamMember.user_id)
-                .where(TeamMember.team_id == team_id)
-            )
-        else:
-            team_ids_stmt = (
-                select(TeamMember.team_id)
-                .where(TeamMember.user_id == current_user.id)
-            )
-            team_user_ids_stmt = (
-                select(TeamMember.user_id)
-                .where(TeamMember.team_id.in_(team_ids_stmt))
-            )
-        condition = Document.uploaded_by.in_(team_user_ids_stmt)
+        condition = Document.uploaded_by.in_(_get_team_user_ids_query(current_user.id, team_id))
     else:
         condition = (Document.uploaded_by == current_user.id) | (Document.privacy == "public")
 

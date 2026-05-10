@@ -1,7 +1,19 @@
+import json
 import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+
+
+def _parse_json_field(value: str | None) -> dict | list | None:
+    if not value:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 class DocumentUploadMeta(BaseModel):
@@ -29,6 +41,26 @@ class DocumentResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_orm(cls, doc) -> "DocumentResponse":
+        return cls(
+            id=str(doc.id) if isinstance(doc.id, uuid.UUID) else doc.id,
+            title=doc.title,
+            file_type=doc.file_type,
+            file_size=doc.file_size,
+            file_path=doc.file_path,
+            status=doc.status,
+            experiment_year=doc.experiment_year,
+            experiment_type=doc.experiment_type,
+            subjects=doc.subjects,
+            privacy=doc.privacy,
+            extraction_result=_parse_json_field(doc.extraction_result),
+            error_message=doc.error_message,
+            duplicate_info=_parse_json_field(doc.duplicate_info),
+            uploaded_by=str(doc.uploaded_by) if isinstance(doc.uploaded_by, uuid.UUID) else doc.uploaded_by,
+            created_at=doc.created_at,
+        )
 
 
 class DocumentListResponse(BaseModel):

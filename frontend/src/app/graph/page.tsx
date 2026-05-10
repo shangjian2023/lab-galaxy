@@ -209,6 +209,7 @@ function GraphPageContent() {
   const searchParams = useSearchParams();
   const targetNodeId = searchParams.get("node");
   const teamIdFromUrl = searchParams.get("team_id");
+  const scopeFromUrl = searchParams.get("scope");
   const [viewType, setViewType] = useState<ViewMode>("galaxy");
   const [nodeType, setNodeType] = useState("");
   const [keyword, setKeyword] = useState("");
@@ -234,13 +235,18 @@ function GraphPageContent() {
   const [activeTeamId, setActiveTeamId] = useState<string | undefined>(teamIdFromUrl || undefined);
   const [showTeamManager, setShowTeamManager] = useState(false);
 
-  // Auto-select team scope when team_id is in URL
+  // Auto-select team scope when team_id is in URL; auto-select scope from URL param
   useEffect(() => {
     if (teamIdFromUrl) {
       setActiveTeamId(teamIdFromUrl);
       setGraphScope("team");
+    } else if (scopeFromUrl === "private" || scopeFromUrl === "public" || scopeFromUrl === "team") {
+      setGraphScope(scopeFromUrl);
+      if (scopeFromUrl === "team" && teamIdFromUrl) {
+        setActiveTeamId(teamIdFromUrl);
+      }
     }
-  }, [teamIdFromUrl]);
+  }, [teamIdFromUrl, scopeFromUrl]);
 
   // Experiment list derived from graph data
   const experiments = useMemo(

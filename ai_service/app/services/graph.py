@@ -2,6 +2,7 @@
 
 import logging
 
+from app.core.config import settings
 from app.core.connections import get_neo4j_driver
 from app.core.exceptions import GraphWriteError
 
@@ -9,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 import re
 
-VALID_LABELS = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
-VALID_REL_TYPES = {"USES", "BASED_ON", "SIMILAR_TO", "REQUIRES", "RELATED_TO"}
+VALID_LABELS = settings.VALID_LABELS
+VALID_REL_TYPES = settings.VALID_REL_TYPES
 
 
 def _normalize_name(name: str) -> str:

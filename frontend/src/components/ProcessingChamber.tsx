@@ -37,6 +37,8 @@ interface Props {
   docId: string;
   filename: string;
   onComplete: () => void;
+  onRetry?: () => void;
+  onDelete?: () => void;
   onDuplicateDetected?: (duplicates: DuplicateWarning[]) => void;
 }
 
@@ -71,7 +73,7 @@ function randomParticle(baseColor: string) {
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
 
-export default function ProcessingChamber({ docId, filename, onComplete, onDuplicateDetected }: Props) {
+export default function ProcessingChamber({ docId, filename, onComplete, onRetry, onDelete, onDuplicateDetected }: Props) {
   const [status, setStatus] = useState<string>("uploaded");
   const [stageIdx, setStageIdx] = useState(0);
   const [particles] = useState(() => Array.from({ length: 18 }, () => randomParticle("#3b82f6")));
@@ -279,6 +281,28 @@ export default function ProcessingChamber({ docId, filename, onComplete, onDupli
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
         </div>
+
+        {/* Retry / Delete buttons for failed or stuck states */}
+        {(isFailed || status === "awaiting_confirmation") && (onRetry || onDelete) && (
+          <div className="flex gap-2">
+            {onRetry && (
+              <button
+                onClick={() => { soundEngine.play("connect"); onRetry(); }}
+                className="rounded-lg bg-orange-500 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-orange-600"
+              >
+                重试
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => { soundEngine.play("error"); onDelete(); }}
+                className="rounded-lg bg-red-500/90 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-600"
+              >
+                删除
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Stage dots */}
         <div className="flex items-center gap-2">

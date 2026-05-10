@@ -15,6 +15,7 @@ async def _call_anthropic(prompt: str, system: str, max_tokens: int, messages: l
     resp = await client.messages.create(
         model=get_setting("ANTHROPIC_MODEL"),
         max_tokens=max_tokens,
+        temperature=0,
         system=system,
         messages=msg_list,
     )
@@ -23,6 +24,8 @@ async def _call_anthropic(prompt: str, system: str, max_tokens: int, messages: l
 
 @llm_provider_registry.register("openai")
 async def _call_openai(prompt: str, system: str, max_tokens: int, messages: list[dict] | None = None) -> str:
+    import logging
+    _log = logging.getLogger(__name__)
     client = get_llm_client("openai")
     if messages:
         msg_list = [{"role": "system", "content": system}, *messages]
@@ -34,9 +37,12 @@ async def _call_openai(prompt: str, system: str, max_tokens: int, messages: list
     resp = await client.chat.completions.create(
         model=get_setting("OPENAI_MODEL"),
         max_tokens=max_tokens,
+        temperature=0,
         messages=msg_list,
     )
-    return resp.choices[0].message.content
+    content = resp.choices[0].message.content
+    _log.info(f"OpenAI DEBUG: raw_content_len={len(content) if content else 0}, finish_reason={resp.choices[0].finish_reason}, model={get_setting('OPENAI_MODEL')}")
+    return content or ""
 
 
 async def call_llm(
@@ -52,6 +58,10 @@ async def call_llm(
     history (list of {"role": "user"|"assistant", "content": "..."} dicts).
     Otherwise falls back to single-turn using `prompt`.
     """
+    import logging
+    logger = logging.getLogger(__name__)
     prov = provider or get_setting("LLM_PROVIDER")
     fn = llm_provider_registry.get(prov)
-    return await fn(prompt, system, max_tokens, messages)
+    result = await fn(prompt, system, max_tokens, messages)
+    logger.info(f"LLM DEBUG: provider={prov}, result_len={len(result) if result else 0}, result_preview={repr((result or '')[:100])}")
+    return result

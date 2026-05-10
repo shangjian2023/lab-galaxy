@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE = "/api/v1";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -166,7 +166,7 @@ export function deleteDocument(docId: string) {
 
 export async function downloadDocument(docId: string, filename: string) {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/documents/${docId}/download`, {
+  const res = await fetch(`${API_BASE}/documents/${docId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error("下载失败");
@@ -183,7 +183,7 @@ export async function downloadDocument(docId: string, filename: string) {
 
 export async function getDocumentPreviewBlob(docId: string): Promise<string> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/documents/${docId}/download`, {
+  const res = await fetch(`${API_BASE}/documents/${docId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error("预览失败");
@@ -720,7 +720,7 @@ export function getRecentMessages(teamId: string, limit = 50) {
 
 export function createTeamChatWS(teamId: string): WebSocket {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
-  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(/^http/, "ws");
+  const base = API_BASE.replace(/^http/, "ws");
   return new WebSocket(`${base}/ws/team/${teamId}?token=${token}`);
 }
 

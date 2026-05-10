@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { uploadBatch, getDocumentStatus, adminReprocessDocument, type DocumentItem } from "@/lib/api";
+import { uploadBatch, getDocumentStatus, adminReprocessDocument, deleteDocument, type DocumentItem } from "@/lib/api";
 import {
   EXPERIMENT_TYPES,
   SUBJECT_OPTIONS,
@@ -39,7 +39,7 @@ export default function UploadPanel({ onUploaded }: Props) {
   const [dragActive, setDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Duplicate dialog state
   const [duplicateDialog, setDuplicateDialog] = useState<{
@@ -65,10 +65,11 @@ export default function UploadPanel({ onUploaded }: Props) {
 
   // --- Add files (dedup by filename+size) ---
   const addFiles = useCallback((incoming: FileList | File[]) => {
+    const fileArray = Array.from(incoming);
     setFiles((prev) => {
       const existingKeys = new Set(prev.map((f) => `${f.file.name}|${f.file.size}`));
       const newEntries: FileEntry[] = [];
-      for (const file of Array.from(incoming)) {
+      for (const file of fileArray) {
         const key = `${file.name}|${file.size}`;
         if (existingKeys.has(key)) continue;
         existingKeys.add(key);
@@ -85,52 +86,32 @@ export default function UploadPanel({ onUploaded }: Props) {
     });
   }, []);
 
-  const removeFile = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-  };
-
   // --- Retry a failed file ---
   const retryFile = useCallback(async (fileId: string) => {
     const entry = files.find((f) => f.id === fileId);
     if (!entry || !entry.docId) return;
     const docId = entry.docId;
+    // Reset to parsing state — ProcessingChamber will poll for us
     setFiles((prev) =>
-      prev.map((f) => (f.id === fileId ? { ...f, status: "parsing" as const, progress: 30, error: undefined } : f)),
+      prev.map((f) => (f.id === fileId ? { ...f, status: "parsing" as const, progress: 10, error: undefined } : f)),
     );
     try {
       await adminReprocessDocument(docId);
-      // Re-start polling
-      const poll = async () => {
-        let shouldContinue = true;
-        try {
-          const doc = await getDocumentStatus(docId);
-          setFiles((prev) => {
-            const e = prev.find((f) => f.id === fileId);
-            if (!e || e.status === "completed" || e.status === "failed") {
-              shouldContinue = false;
-              return prev;
-            }
-            const statusMap: Record<string, FileEntry["status"]> = {
-              uploaded: "uploading", parsing: "parsing", extracting: "parsing",
-              awaiting_confirmation: "awaiting_confirmation", completed: "completed", failed: "failed",
-            };
-            const newStatus = statusMap[doc.status] || "parsing";
-            if (doc.status === "completed" || doc.status === "failed" || doc.status === "awaiting_confirmation") {
-              shouldContinue = false;
-            }
-            return prev.map((f) =>
-              f.id === fileId ? { ...f, status: newStatus, progress: doc.status === "completed" ? 100 : f.progress } : f,
-            );
-          });
-        } catch { /* retry */ }
-        if (shouldContinue) setTimeout(poll, 1500);
-      };
-      poll();
     } catch {
       setFiles((prev) =>
         prev.map((f) => (f.id === fileId ? { ...f, status: "failed" as const, error: "重试失败，请刷新页面后重试" } : f)),
       );
     }
+  }, [files]);
+
+  // --- Remove file (also from backend if already uploaded) ---
+  const removeFile = useCallback(async (id: string) => {
+    const entry = files.find((f) => f.id === id);
+    if (entry?.docId) {
+      // Delete from backend
+      try { await deleteDocument(entry.docId); } catch { /* best effort */ }
+    }
+    setFiles((prev) => prev.filter((f) => f.id !== id));
   }, [files]);
 
   // --- Poll processing status for a file ---
@@ -373,53 +354,59 @@ export default function UploadPanel({ onUploaded }: Props) {
       </div>
 
       {/* ---- Drop Zone ---- */}
-      <motion.div
-        onDragOver={(e: React.DragEvent) => {
-          e.preventDefault();
-          setDragActive(true);
-        }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={(e: React.DragEvent) => {
-          e.preventDefault();
-          setDragActive(false);
-          if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-        }}
-        onClick={() => inputRef.current?.click()}
-        animate={{
-          borderColor: dragActive ? "#3b82f6" : "#d1d5db",
-          backgroundColor: dragActive ? "#eff6ff" : "#f9fafb",
-          scale: dragActive ? 1.01 : 1,
-        }}
-        transition={{ duration: 0.2 }}
-        className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white/30 backdrop-blur-sm p-10"
-      >
-        <motion.svg
-          animate={{ y: dragActive ? -4 : 0 }}
-          transition={{ duration: 0.3 }}
-          className="mb-3 h-12 w-12 text-black"
-          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+      <div className="relative rounded-xl">
+        <motion.div
+          onDragOver={(e: React.DragEvent) => {
+            e.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={(e: React.DragEvent) => {
+            e.preventDefault();
+            setDragActive(false);
+            if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+          }}
+          animate={{
+            borderColor: dragActive ? "#3b82f6" : "#d1d5db",
+            backgroundColor: dragActive ? "#eff6ff" : "#f9fafb",
+            scale: dragActive ? 1.01 : 1,
+          }}
+          transition={{ duration: 0.2 }}
+          className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white/30 backdrop-blur-sm p-10"
+          onClick={() => fileInputRef.current?.click()}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16" />
-        </motion.svg>
-        <p className="text-sm text-gray-700">
-          拖拽文件到此处，或<span className="text-brand-600">点击选择</span>
-        </p>
-        <p className="mt-1 text-xs text-black">
-          支持 PDF / Word / PPT | 最大 50MB | 可多选
-        </p>
+          <motion.svg
+            animate={{ y: dragActive ? -4 : 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-3 h-12 w-12 text-black"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16" />
+          </motion.svg>
+          <p className="text-sm text-gray-700">
+            拖拽文件到此处，或<span className="text-brand-600">点击选择</span>
+          </p>
+          <p className="mt-1 text-xs text-black">
+            支持 PDF / Word / PPT | 最大 50MB | 可多选
+          </p>
+        </motion.div>
+        {/* Hidden file input */}
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
-          className="hidden"
           multiple
           accept=".pdf,.doc,.docx,.ppt,.pptx"
+          style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", borderWidth: 0 }}
           onChange={(e) => {
-            if (e.target.files?.length) addFiles(e.target.files);
-            e.target.value = "";
+            const selectedFiles = e.target.files;
+            if (selectedFiles && selectedFiles.length > 0) {
+              addFiles(Array.from(selectedFiles));
+              e.target.value = "";
+            }
           }}
         />
-      </motion.div>
+      </div>
 
       {/* ---- Processing Chambers (creative progress display) ---- */}
       <AnimatePresence>
@@ -437,7 +424,18 @@ export default function UploadPanel({ onUploaded }: Props) {
                   key={entry.id}
                   docId={entry.docId!}
                   filename={entry.file.name}
-                  onComplete={() => {}}
+                  onRetry={() => retryFile(entry.id)}
+                  onDelete={() => removeFile(entry.id)}
+                  onComplete={() => {
+                    // Ensure file status is set to completed so it appears in FileRow
+                    setFiles((prev) =>
+                      prev.map((f) =>
+                        f.id === entry.id && (f.status === "parsing" || f.status === "uploading" || f.status === "awaiting_confirmation")
+                          ? { ...f, status: "completed" as const, progress: 100 }
+                          : f,
+                      ),
+                    );
+                  }}
                   onDuplicateDetected={(dups) => {
                     setDuplicateDialog({
                       docId: entry.docId!,
@@ -452,22 +450,15 @@ export default function UploadPanel({ onUploaded }: Props) {
       </AnimatePresence>
 
       {/* ---- File List ---- */}
-      <AnimatePresence>
-        {files.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-4 space-y-2"
-          >
-            {files
-              .filter((f) => f.status === "waiting" || f.status === "completed" || f.status === "failed" || f.status === "awaiting_confirmation" || (f.status === "uploading" && !f.docId))
-              .map((entry) => (
-                <FileRow key={entry.id} entry={entry} onRemove={removeFile} onRetry={retryFile} />
-              ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {files.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {files
+            .filter((f) => f.status !== "parsing" && !(f.status === "uploading" && f.docId) && !(f.status === "awaiting_confirmation" && f.docId))
+            .map((entry) => (
+              <FileRow key={entry.id} entry={entry} onRemove={removeFile} onRetry={retryFile} />
+            ))}
+        </div>
+      )}
 
       {/* ---- Global Error ---- */}
       <AnimatePresence>

@@ -90,7 +90,7 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/users/me/dashboard`, {
+      const res = await fetch(`/api/v1/users/me/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

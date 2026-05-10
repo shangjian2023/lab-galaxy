@@ -50,6 +50,15 @@ def get_file_url(object_key: str) -> str:
     return client.presigned_get_object(settings.MINIO_BUCKET, object_key, expires=timedelta(hours=1))
 
 
+def stream_file_content(object_key: str) -> tuple[io.BufferedReader, str, int]:
+    """Stream file from MinIO without loading entirely into memory."""
+    client = _get_client()
+    response = client.get_object(settings.MINIO_BUCKET, object_key)
+    content_length = int(response.headers.get("content-length", 0))
+    ct = response.headers.get("content-type", "application/octet-stream")
+    return response, ct, content_length
+
+
 def get_file_content(object_key: str) -> tuple[bytes, str]:
     """Read file content and content-type directly from MinIO."""
     client = _get_client()
