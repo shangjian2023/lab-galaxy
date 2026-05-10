@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import Link from "next/link";
+import { useState, useCallback, useEffect } from "react";
 import { getNodeContext } from "@/lib/api";
 
 interface Props {
