@@ -53,8 +53,26 @@ export default function UploadPanel({ onUploaded }: Props) {
     );
   };
 
+  // --- Restore processing files from localStorage on mount ---
+  const initFiles = (): FileEntry[] => {
+    try {
+      const saved = localStorage.getItem("upload_panel_active");
+      if (saved) {
+        const items: { docId: string; filename: string; status: string }[] = JSON.parse(saved);
+        return items.map((item) => ({
+          file: new File([""], item.filename) as File,
+          id: `restored-${item.docId}`,
+          docId: item.docId,
+          status: item.status as FileEntry["status"],
+          progress: 30,
+        }));
+      }
+    } catch { /* ignore */ }
+    return [];
+  };
+
   // File state
-  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [files, setFiles] = useState<FileEntry[]>(initFiles);
   const [dragActive, setDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState("");
@@ -268,6 +286,26 @@ export default function UploadPanel({ onUploaded }: Props) {
     );
   }, [duplicateDialog]);
 
+  // --- Persist active (processing) files to localStorage ---
+  useEffect(() => {
+    const active = files
+      .filter((f) => f.docId && ["uploading", "parsing", "awaiting_confirmation"].includes(f.status))
+      .map((f) => ({ docId: f.docId!, filename: f.file.name, status: f.status }));
+    if (active.length > 0) {
+      localStorage.setItem("upload_panel_active", JSON.stringify(active));
+    } else {
+      localStorage.removeItem("upload_panel_active");
+    }
+  }, [files]);
+
+  // --- Restore polling for restored files on mount ---
+  useEffect(() => {
+    const restored = files.filter((f) => f.id.startsWith("restored-") && f.docId);
+    for (const entry of restored) {
+      processFile(entry.id, entry.docId!);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const waitingCount = files.filter((f) => f.status === "waiting").length;
   const activeCount = files.filter((f) => f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation").length;
   const completedCount = files.filter((f) => f.status === "completed").length;
@@ -461,7 +499,7 @@ export default function UploadPanel({ onUploaded }: Props) {
 
       {/* ---- Processing Chambers (creative progress display) ---- */}
       <AnimatePresence>
-        {files.some((f) => f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation") && (
+        {files.some((f) => f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation" || f.status === "failed") && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -469,7 +507,7 @@ export default function UploadPanel({ onUploaded }: Props) {
             className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2"
           >
             {files
-              .filter((f) => (f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation") && f.docId)
+              .filter((f) => (f.status === "uploading" || f.status === "parsing" || f.status === "awaiting_confirmation" || f.status === "failed") && f.docId)
               .map((entry) => (
                 <ProcessingChamber
                   key={entry.id}
@@ -504,7 +542,7 @@ export default function UploadPanel({ onUploaded }: Props) {
       {files.length > 0 && (
         <div className="mt-4 space-y-2">
           {files
-            .filter((f) => f.status !== "parsing" && !(f.status === "uploading" && f.docId) && !(f.status === "awaiting_confirmation" && f.docId))
+            .filter((f) => f.status !== "parsing" && !(f.status === "uploading" && f.docId) && !(f.status === "awaiting_confirmation" && f.docId) && !(f.status === "failed" && f.docId))
             .map((entry) => (
               <FileRow key={entry.id} entry={entry} onRemove={removeFile} onRetry={retryFile} />
             ))}

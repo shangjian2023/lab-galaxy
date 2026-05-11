@@ -6,6 +6,9 @@ WORKDIR /build
 ARG NEXT_PUBLIC_API_URL=https://graph.mazhuoran.cloud/api/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+ARG BACKEND_URL=http://localhost:8000
+ENV BACKEND_URL=${BACKEND_URL}
+
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 

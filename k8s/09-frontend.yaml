@@ -48,6 +48,8 @@ spec:
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
+            - name: BACKEND_URL
+              value: "http://backend:8000"
           resources:
             requests:
               cpu: 100m
