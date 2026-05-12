@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   adminListDocuments,
@@ -46,7 +46,7 @@ export default function AdminDocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [editing, setEditing] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [graphData, setGraphData] = useState<{ nodes: CytoscapeNode[]; edges: CytoscapeEdge[] } | null>(null);
+  const [graphDataByDoc, setGraphDataByDoc] = useState<Record<string, { nodes: CytoscapeNode[]; edges: CytoscapeEdge[] }>>({});
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -108,14 +108,12 @@ export default function AdminDocumentsPage() {
   const handleExpand = async (id: string) => {
     const isExpanded = expanded === id;
     setExpanded(isExpanded ? null : id);
-    if (!isExpanded) {
-      setGraphData(null);
+    if (!isExpanded && !graphDataByDoc[id]) {
       try {
         const res = await adminGetDocGraphData(id);
-        const edges: CytoscapeEdge[] = (res.relations || []).map((r) => ({ data: r.data }));
-        setGraphData({ nodes: res.nodes, edges });
+        setGraphDataByDoc((prev) => ({ ...prev, [id]: res }));
       } catch {
-        setGraphData({ nodes: [], edges: [] });
+        setGraphDataByDoc((prev) => ({ ...prev, [id]: { nodes: [], edges: [] } }));
       }
     }
   };
@@ -163,8 +161,8 @@ export default function AdminDocumentsPage() {
               const relCount = doc.extraction_result?.relations?.length ?? 0;
               const uploaderName = doc.uploader_nickname || doc.uploader_username || "-";
               return (
-                <>
-                  <tr key={doc.id} className="glass-table-row border-t">
+                <Fragment key={doc.id}>
+                  <tr className="glass-table-row border-t">
                     <td className="max-w-[200px] truncate px-3 py-2 font-medium">{doc.title}</td>
                     <td className="px-3 py-2 uppercase text-gray-700">{doc.file_type}</td>
                     <td className="px-3 py-2 text-gray-700">{formatSize(doc.file_size)}</td>
@@ -293,8 +291,8 @@ export default function AdminDocumentsPage() {
                             <div>
                               <h3 className="mb-2 text-sm font-semibold text-gray-700">节点图预览</h3>
                               <MiniGraph
-                                nodes={graphData?.nodes ?? []}
-                                edges={graphData?.edges ?? []}
+                                nodes={graphDataByDoc[doc.id]?.nodes ?? []}
+                                edges={graphDataByDoc[doc.id]?.edges ?? []}
                               />
                             </div>
                           </div>
@@ -302,7 +300,7 @@ export default function AdminDocumentsPage() {
                       </motion.tr>
                     )}
                   </AnimatePresence>
-                </>
+                </Fragment>
               );
             })}
           </tbody>

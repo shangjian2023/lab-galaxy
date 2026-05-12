@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   forceSimulation,
   forceCenter,
@@ -47,13 +47,32 @@ export default function MiniGraph({ nodes: cyNodes, edges: cyEdges, width = 400,
   const [hoveredNode, setHoveredNode] = useState<SimNode | null>(null);
   const [hoveredPos, setHoveredPos] = useState({ x: 0, y: 0 });
 
+  const graphIndex = useMemo(() => {
+    const degreeById = new Map<string, number>();
+    const adjacentById = new Map<string, Set<string>>();
+    for (const n of cyNodes) {
+      degreeById.set(n.data.id, 0);
+      adjacentById.set(n.data.id, new Set([n.data.id]));
+    }
+    for (const e of cyEdges) {
+      const { source, target } = e.data;
+      degreeById.set(source, (degreeById.get(source) ?? 0) + 1);
+      degreeById.set(target, (degreeById.get(target) ?? 0) + 1);
+      adjacentById.get(source)?.add(target);
+      adjacentById.get(target)?.add(source);
+    }
+    return { degreeById, adjacentById };
+  }, [cyNodes, cyEdges]);
+
   // Resize observer
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const { width: w, height: h } = entries[0].contentRect;
-      if (w > 0 && h > 0) setDims({ w, h });
+      if (w > 0 && h > 0) {
+        setDims((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+      }
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -98,7 +117,7 @@ export default function MiniGraph({ nodes: cyNodes, edges: cyEdges, width = 400,
       type: n.data.type,
       summary: n.data.summary,
       color: n.data.color || "#6b7280",
-      degree: 0,
+      degree: graphIndex.degreeById.get(n.data.id) ?? 0,
       opacity: 1,
     }));
 
@@ -109,52 +128,28 @@ export default function MiniGraph({ nodes: cyNodes, edges: cyEdges, width = 400,
       edgeType: e.data.type,
     }));
 
-    // Compute degree
-    const deg: Record<string, number> = {};
-    for (const n of nodes) deg[n.id] = 0;
-    for (const l of links) {
-      const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
-      const t = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
-      if (deg[s] !== undefined) deg[s]++;
-      if (deg[t] !== undefined) deg[t]++;
-    }
-    for (const n of nodes) n.degree = deg[n.id] || 0;
-
+    const nodeById = new Map(nodes.map((n) => [n.id, n]));
     const sim = buildSim(nodes, links);
-
-    // Build connected set for hovered node
-    const connectedMap = new Map<string, Set<string>>();
-    for (const n of nodes) connectedMap.set(n.id, new Set([n.id]));
-    for (const l of links) {
-      const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
-      const t = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
-      if (connectedMap.has(s)) connectedMap.get(s)!.add(t);
-      if (connectedMap.has(t)) connectedMap.get(t)!.add(s);
-    }
 
     sim.on("tick", () => {
       const sel = (sel: string) => svg.querySelectorAll(sel);
-      // Update node positions
       sel(".mg-node").forEach((el) => {
-        const n = nodes.find((n) => n.id === el.getAttribute("data-id"));
+        const n = nodeById.get(el.getAttribute("data-id") || "");
         if (n && n.x != null && n.y != null) {
           el.setAttribute("cx", String(n.x));
           el.setAttribute("cy", String(n.y));
         }
       });
       sel(".mg-label").forEach((el) => {
-        const n = nodes.find((n) => n.id === el.getAttribute("data-id"));
+        const n = nodeById.get(el.getAttribute("data-id") || "");
         if (n && n.x != null && n.y != null) {
           el.setAttribute("x", String(n.x));
           el.setAttribute("y", String(n.y + nodeRadius(n) + 14));
         }
       });
-      // Update edges
       sel(".mg-edge").forEach((el) => {
-        const sId = el.getAttribute("data-source");
-        const tId = el.getAttribute("data-target");
-        const s = nodes.find((n) => n.id === sId);
-        const t = nodes.find((n) => n.id === tId);
+        const s = nodeById.get(el.getAttribute("data-source") || "");
+        const t = nodeById.get(el.getAttribute("data-target") || "");
         if (s?.x != null && s?.y != null && t?.x != null && t?.y != null) {
           el.setAttribute("x1", String(s.x));
           el.setAttribute("y1", String(s.y));
@@ -165,7 +160,7 @@ export default function MiniGraph({ nodes: cyNodes, edges: cyEdges, width = 400,
     });
 
     return () => { sim.stop(); };
-  }, [cyNodes, cyEdges, buildSim]);
+  }, [cyNodes, cyEdges, graphIndex, buildSim]);
 
   if (!cyNodes.length) {
     return (
@@ -192,15 +187,7 @@ export default function MiniGraph({ nodes: cyNodes, edges: cyEdges, width = 400,
         {/* Nodes */}
         {cyNodes.map((n) => {
           const isHovered = hoveredNode?.id === n.data.id;
-          const relatedIds = new Set<string>();
-          relatedIds.add(n.data.id);
-          for (const e of cyEdges) {
-            const s = typeof e.data.source === "string" ? e.data.source : "";
-            const t = typeof e.data.target === "string" ? e.data.target : "";
-            if (s === n.data.id) relatedIds.add(t);
-            if (t === n.data.id) relatedIds.add(s);
-          }
-          const isConnected = !hoveredNode || relatedIds.has(hoveredNode.id);
+          const isConnected = !hoveredNode || graphIndex.adjacentById.get(n.data.id)?.has(hoveredNode.id);
 
           return (
             <g key={n.data.id}>
@@ -209,7 +196,7 @@ export default function MiniGraph({ nodes: cyNodes, edges: cyEdges, width = 400,
                 data-id={n.data.id}
                 cx={dims.w / 2}
                 cy={dims.h / 2}
-                r={RADIUS + (cyEdges.filter((e) => e.data.source === n.data.id || e.data.target === n.data.id).length) * 1.5}
+                r={RADIUS + (graphIndex.degreeById.get(n.data.id) ?? 0) * 1.5}
                 fill={n.data.color || "#6b7280"}
                 opacity={isConnected ? 1 : 0.15}
                 stroke={isHovered ? "#fff" : "rgba(255,255,255,0.6)"}

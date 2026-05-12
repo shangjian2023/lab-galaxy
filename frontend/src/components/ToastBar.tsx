@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Toast {
@@ -13,18 +13,24 @@ let nextId = 0;
 
 export default function ToastBar() {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as { msg: string; type: Toast["type"] };
       const id = nextId++;
       setToasts((prev) => [...prev, { id, msg: detail.msg, type: detail.type }]);
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 3500);
+      timersRef.current.push(timer);
     };
     window.addEventListener("kg-notify", handler);
-    return () => window.removeEventListener("kg-notify", handler);
+    return () => {
+      window.removeEventListener("kg-notify", handler);
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+    };
   }, []);
 
   const colors: Record<Toast["type"], string> = {

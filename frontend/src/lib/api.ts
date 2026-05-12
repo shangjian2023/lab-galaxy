@@ -253,9 +253,7 @@ export function adminRejectDocument(docId: string) {
 }
 
 export function adminGetDocGraphData(docId: string) {
-  return request<{ nodes: CytoscapeNode[]; relations: { data: { id: string; source: string; target: string; type: string; confidence: number } }[] }>(
-    `/admin/documents/${docId}/graph-data`,
-  );
+  return request<CytoscapeData>(`/admin/documents/${docId}/graph-data`);
 }
 
 // Knowledge Graph

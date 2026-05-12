@@ -12,6 +12,47 @@ from app.registries.extractors import extractor_registry
 
 logger = logging.getLogger(__name__)
 
+ORPHAN_RELATION_BY_TYPE = {
+    "Equipment": "uses",
+    "Tool": "uses",
+    "Consumable": "uses",
+    "Theory": "based_on",
+}
+ORPHAN_RELATION_CONFIDENCE = 0.3
+
+
+def connect_orphan_entities(entities: list[dict], relations: list[dict]) -> list[dict]:
+    connected_ids = set()
+    for relation in relations:
+        connected_ids.add(relation.get("source_id"))
+        connected_ids.add(relation.get("target_id"))
+
+    orphans = [entity for entity in entities if entity.get("id") not in connected_ids]
+    if not orphans or not connected_ids:
+        return relations
+
+    degree: dict[str, int] = {}
+    for relation in relations:
+        source_id = relation.get("source_id", "")
+        target_id = relation.get("target_id", "")
+        degree[source_id] = degree.get(source_id, 0) + 1
+        degree[target_id] = degree.get(target_id, 0) + 1
+
+    hub_id = max(degree, key=degree.get) if degree else next(iter(connected_ids))
+    logger.info(f"Connecting {len(orphans)} isolated entity/entities to existing graph")
+    return [
+        *relations,
+        *[
+            {
+                "source_id": hub_id,
+                "target_id": orphan["id"],
+                "type": ORPHAN_RELATION_BY_TYPE.get(orphan.get("type", "Concept"), "related_to"),
+                "confidence": ORPHAN_RELATION_CONFIDENCE,
+            }
+            for orphan in orphans
+        ],
+    ]
+
 SYSTEM_PROMPT_ENTITIES = """你是一个专业的实验文档分析助手。从实验文档中抽取实体。
 
 ## 实体类型
@@ -422,31 +463,7 @@ async def extract_entities_llm(text: str) -> dict:
         filtered.append(relation)
     relations = filtered
 
-    # Ensure no entity is left isolated — connect orphans to the nearest entity
-    connected_ids = set()
-    for r in relations:
-        if isinstance(r, dict):
-            connected_ids.add(r.get("source_id"))
-            connected_ids.add(r.get("target_id"))
-    orphans = [e for e in entities if isinstance(e, dict) and e.get("id") not in connected_ids]
-    if orphans and connected_ids:
-        logger.info(f"Connecting {len(orphans)} isolated entity/entities to existing graph")
-        # Pick the highest-degree node as the hub
-        degree: dict[str, int] = {}
-        for r in relations:
-            if isinstance(r, dict):
-                degree[r.get("source_id", "")] = degree.get(r.get("source_id", ""), 0) + 1
-                degree[r.get("target_id", "")] = degree.get(r.get("target_id", ""), 0) + 1
-        hub_id = max(degree, key=degree.get) if degree else next(iter(connected_ids))
-        for orphan in orphans:
-            otype = orphan.get("type", "Concept")
-            rel_type = "related_to"
-            if otype in ("Equipment", "Tool", "Consumable"):
-                rel_type = "uses"
-            elif otype == "Theory":
-                rel_type = "based_on"
-            relations.append({"source_id": hub_id, "target_id": orphan["id"], "type": rel_type, "confidence": 0.3})
-        logger.info(f"Added {len(orphans)} orphan-connecting relations")
+    relations = connect_orphan_entities(entities, relations)
 
     logger.info(f"Final result: {len(entities)} entities, {len(relations)} relations, {len(achievements)} achievements")
 

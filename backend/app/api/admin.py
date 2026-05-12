@@ -547,7 +547,7 @@ async def admin_doc_graph_data(
                     }
                 })
 
-    return {"nodes": nodes, "relations": edges}
+    return {"nodes": nodes, "edges": edges}
 
 
 # ========== Admin Template Management ==========

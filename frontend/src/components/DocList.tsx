@@ -56,7 +56,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
 
   // Auto-refresh for docs that are still processing
   useEffect(() => {
-    const hasProcessing = docs.some((d) => d.status === "parsing" || d.status === "extracting" || d.status === "uploaded" || d.status === "awaiting_confirmation");
+    const hasProcessing = docs.some((d) => d.status === "parsing" || d.status === "extracting" || d.status === "uploaded");
     if (!hasProcessing) return;
     const timer = setTimeout(() => { loadDocs(); }, 2000);
     return () => clearTimeout(timer);

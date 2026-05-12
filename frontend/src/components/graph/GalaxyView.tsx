@@ -228,11 +228,10 @@ export default function GalaxyView({
   }
 
   function radius(n: SimNode) {
-    // Clamp degree to prevent runaway sizing, use logarithmic scale
-    const d = Math.min(n.degree, 8);
-    const logSize = 6 + Math.log2(d + 1) * 4;
-    const sizeMultiplier = n.type === "Experiment" ? fsRef.current.experimentSize : fsRef.current.nodeSize;
-    return Math.max(5, Math.min(logSize * sizeMultiplier, 28));
+    const d = Math.min(n.degree, 10);
+    const base = n.type === "Experiment" ? 4.8 : 3.8;
+    const scale = n.type === "Experiment" ? fsRef.current.experimentSize : fsRef.current.nodeSize;
+    return Math.max(3.5, Math.min((base + Math.log2(d + 1) * 1.45) * scale, 13));
   }
 
   // ── Load data into simulation (preserving positions) ──
@@ -588,6 +587,20 @@ export default function GalaxyView({
 
       ctx.clearRect(0, 0, dims.w, dims.h);
 
+      const bg = ctx.createRadialGradient(
+        dims.w * 0.5,
+        dims.h * 0.45,
+        0,
+        dims.w * 0.5,
+        dims.h * 0.5,
+        Math.max(dims.w, dims.h) * 0.75,
+      );
+      bg.addColorStop(0, "#111827");
+      bg.addColorStop(0.55, "#080d16");
+      bg.addColorStop(1, "#020617");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, dims.w, dims.h);
+
       ctx.save();
       ctx.translate(t.x, t.y);
       ctx.scale(t.k, t.k);
@@ -607,33 +620,33 @@ export default function GalaxyView({
           highlightSet.has(s.id) && highlightSet.has(tg.id);
         const isDimmedEdge = dimmed?.has(s.id) && dimmed?.has(tg.id);
 
-        const alpha = isDimmedEdge ? 0.06 : isHighlighted ? 0.9 : 0.25;
-        const w = (1 + l.confidence * 3) * currentFS.linkWidth;
+        const alpha = isDimmedEdge ? 0.035 : isHighlighted ? 0.78 : 0.16;
+        const w = isHighlighted ? 1.25 + currentFS.linkWidth * 0.45 : Math.max(0.55, 0.7 * currentFS.linkWidth);
 
         ctx.beginPath();
         ctx.moveTo(sx, sy);
 
         const mx = (sx + tx) / 2;
-        const my = (sy + ty2) / 2 - 8;
+        const my = (sy + ty2) / 2 - 4;
         ctx.quadraticCurveTo(mx, my, tx, ty2);
 
         ctx.strokeStyle = isHighlighted
-          ? `rgba(249,115,22,${alpha})`
-          : `rgba(156,163,175,${alpha})`;
-        ctx.lineWidth = isHighlighted ? w + 1.5 : w;
+          ? `rgba(236,198,132,${alpha})`
+          : `rgba(148,163,184,${alpha})`;
+        ctx.lineWidth = w;
         ctx.stroke();
 
         if (isHighlighted) {
           const angle = Math.atan2(ty2 - my, tx - mx);
-          const arrLen = 8;
+          const arrLen = 5;
           const ax = tx - Math.cos(angle) * radius(tg);
           const ay = ty2 - Math.sin(angle) * radius(tg);
           ctx.beginPath();
           ctx.moveTo(ax, ay);
-          ctx.lineTo(ax - arrLen * Math.cos(angle - 0.4), ay - arrLen * Math.sin(angle - 0.4));
-          ctx.lineTo(ax - arrLen * Math.cos(angle + 0.4), ay - arrLen * Math.sin(angle + 0.4));
+          ctx.lineTo(ax - arrLen * Math.cos(angle - 0.42), ay - arrLen * Math.sin(angle - 0.42));
+          ctx.lineTo(ax - arrLen * Math.cos(angle + 0.42), ay - arrLen * Math.sin(angle + 0.42));
           ctx.closePath();
-          ctx.fillStyle = `rgba(249,115,22,${alpha})`;
+          ctx.fillStyle = `rgba(236,198,132,${alpha})`;
           ctx.fill();
         }
       }
@@ -650,39 +663,45 @@ export default function GalaxyView({
         const isHovered = hoveredRef.current?.id === n.id;
         const globalAlpha = isDimmed ? 0.15 : n.opacity;
 
-        if (n.type === "Experiment" && !isDimmed) {
-          const grad = ctx.createRadialGradient(px, py, r, px, py, r * 2.5);
-          grad.addColorStop(0, `${n.color}33`);
-          grad.addColorStop(1, `${n.color}00`);
+        if (!isDimmed) {
+          const glow = ctx.createRadialGradient(px, py, 0, px, py, r * 3.2);
+          glow.addColorStop(0, `${n.color}66`);
+          glow.addColorStop(0.35, `${n.color}24`);
+          glow.addColorStop(1, `${n.color}00`);
           ctx.beginPath();
-          ctx.arc(px, py, r * 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = grad;
-          ctx.globalAlpha = globalAlpha;
+          ctx.arc(px, py, r * 3.2, 0, Math.PI * 2);
+          ctx.fillStyle = glow;
+          ctx.globalAlpha = isHighlighted || isHovered ? 0.95 : n.type === "Experiment" ? 0.5 : 0.34;
           ctx.fill();
         }
 
         ctx.globalAlpha = globalAlpha;
         ctx.beginPath();
         ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(15,23,42,0.92)";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(1.8, r * 0.58), 0, Math.PI * 2);
         ctx.fillStyle = n.color;
         ctx.fill();
 
-        ctx.lineWidth = isHovered ? 3 : isHighlighted ? 3 : isQueryHL ? 3 : 1.5;
+        ctx.lineWidth = isHovered ? 1.9 : isHighlighted ? 1.7 : isQueryHL ? 1.6 : 0.9;
         ctx.strokeStyle = isHighlighted
-          ? "#f97316"
+          ? "rgba(252,211,77,0.95)"
           : isQueryHL
-          ? "#f59e0b"
+          ? "rgba(251,191,36,0.9)"
           : isHovered
-          ? "#fff"
-          : "rgba(255,255,255,0.6)";
+          ? "rgba(226,232,240,0.9)"
+          : "rgba(148,163,184,0.38)";
         ctx.stroke();
 
         if (isHighlighted || isQueryHL) {
-          const pulse = 1 + Math.sin(now / 300) * 0.15;
+          const pulse = 1 + Math.sin(now / 340) * 0.12;
           ctx.beginPath();
           ctx.arc(px, py, r * pulse + 4, 0, Math.PI * 2);
-          ctx.strokeStyle = isHighlighted ? "rgba(249,115,22,0.5)" : "rgba(245,158,11,0.5)";
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = isHighlighted ? "rgba(252,211,77,0.48)" : "rgba(251,191,36,0.42)";
+          ctx.lineWidth = 1.15;
           ctx.stroke();
         }
 
@@ -691,13 +710,13 @@ export default function GalaxyView({
 
       // ── Draw labels ──
       const zoomLevel = t.k;
-      const showLabels = zoomLevel > 0.45;
+      const showLabels = zoomLevel > 0.52;
 
       if (showLabels) {
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        const fontSize = Math.max(9, Math.min(13, 12 / zoomLevel * 1.1));
-        ctx.font = `500 ${fontSize}px system-ui, sans-serif`;
+        const fontSize = Math.max(9, Math.min(12, 11 / zoomLevel * 1.05));
+        ctx.font = `500 ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
 
         for (const n of nodesRef.current) {
           if (n.x == null || n.y == null) continue;
@@ -705,18 +724,20 @@ export default function GalaxyView({
           const lx = n.x + off[0], ly = n.y + off[1];
           const isDimmedN = dimmed?.has(n.id);
           const isHoveredN = hoveredRef.current?.id === n.id;
-          const isImportant = n.type === "Experiment" || n.degree > 2;
+          const isImportant = n.type === "Experiment" || n.degree > 3;
 
-          const shouldShow = isHoveredN || highlightedRef.current === n.id || querySet.has(n.id) || isImportant || zoomLevel > 0.7;
+          const shouldShow = isHoveredN || highlightedRef.current === n.id || querySet.has(n.id) || isImportant || zoomLevel > 0.82;
           if (!shouldShow && !isDimmedN) continue;
           if (isDimmedN && !shouldShow) continue;
 
           const r = radius(n);
-          const labelAlpha = isDimmedN ? 0.15 : isHoveredN || highlightedRef.current === n.id ? 1 : Math.min(1, (zoomLevel - 0.45) * 3);
+          const labelAlpha = isDimmedN ? 0.12 : isHoveredN || highlightedRef.current === n.id ? 1 : Math.min(0.82, (zoomLevel - 0.52) * 2.4);
           ctx.globalAlpha = labelAlpha;
-
-          ctx.fillStyle = isDimmedN ? "rgba(156,163,175,0.6)" : "rgba(255,255,255,0.9)";
-          ctx.fillText(n.name || n.label, lx, ly + r + 4);
+          ctx.shadowColor = "rgba(2,6,23,0.95)";
+          ctx.shadowBlur = 5;
+          ctx.fillStyle = isDimmedN ? "rgba(148,163,184,0.42)" : "rgba(226,232,240,0.86)";
+          ctx.fillText(n.name || n.label, lx, ly + r + 6);
+          ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         }
       }
@@ -729,9 +750,9 @@ export default function GalaxyView({
         const htx = hov.x + off[0];
         const hty = hov.y + off[1] - r - 10;
         const text = `${hov.name} (${hov.type})`;
-        ctx.font = "12px system-ui, sans-serif";
+        ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
         const tw = ctx.measureText(text).width;
-        ctx.fillStyle = "rgba(0,0,0,0.8)";
+        ctx.fillStyle = "rgba(15,23,42,0.9)";
         const pad = 8, pady = 4;
         const rx = htx - tw / 2 - pad, ry = hty - 14 - pady, rw = tw + pad * 2, rh = 20 + pady * 2, rr = 6;
         ctx.beginPath();
@@ -881,10 +902,10 @@ export default function GalaxyView({
   }, [timelineMode, timelineData, data, dims, buildSim, onTimelineDone]);
 
   return (
-    <div ref={containerRef} className="relative h-full w-full rounded-xl border bg-black overflow-hidden">
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
       <canvas ref={canvasRef} className="h-full w-full" />
       {nodesRef.current.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-700">
+        <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
           上传文档后将自动生成知识图谱
         </div>
       )}
