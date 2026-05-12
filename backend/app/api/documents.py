@@ -564,16 +564,9 @@ async def confirm_ingest(
     extraction.pop("duplicate_warnings", None)
     doc.extraction_result = json.dumps(extraction, ensure_ascii=False)
     await db.commit()
+    await db.refresh(doc)
 
-    return DocumentResponse(
-        id=str(doc.id), title=doc.title, file_type=doc.file_type,
-        file_size=doc.file_size, file_path=doc.file_path, status="completed",
-        experiment_year=doc.experiment_year, experiment_type=doc.experiment_type,
-        subjects=doc.subjects, privacy=doc.privacy,
-        extraction_result=extraction, error_message=None,
-        uploaded_by=str(doc.uploaded_by),
-        created_at=doc.created_at.isoformat() if doc.created_at else None,
-    )
+    return DocumentResponse.from_orm(doc)
 
 
 @router.post("/{doc_id}/reprocess", response_model=DocumentResponse)

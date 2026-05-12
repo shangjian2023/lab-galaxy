@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listDocuments, reprocessDocument, deleteDocument, confirmIngest, type DocumentItem } from "@/lib/api";
 import { EXPERIMENT_TYPES, SUBJECT_OPTIONS, PRIVACY_OPTIONS } from "@/lib/constants";
@@ -32,32 +32,75 @@ function lookupLabel(list: readonly { value: string; label: string }[], val: str
   return list.find((i) => i.value === val)?.label ?? val ?? "-";
 }
 
+function notify(msg: string, type: "success" | "error" | "info") {
+  // Dispatch a custom event that the ToastBar listens to
+  window.dispatchEvent(new CustomEvent("kg-notify", { detail: { msg, type } }));
+}
+
 export default function DocList({ refreshKey }: { refreshKey: number }) {
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<Record<string, boolean>>({});
   const pageSize = 20;
 
-  useEffect(() => {
+  const loadDocs = useCallback(() => {
     listDocuments(page, pageSize).then((res) => {
       setDocs(res.items);
       setTotal(res.total);
     });
-  }, [page, refreshKey]);
+  }, [page]);
+
+  useEffect(() => { loadDocs(); }, [page, refreshKey, loadDocs]);
 
   // Auto-refresh for docs that are still processing
   useEffect(() => {
     const hasProcessing = docs.some((d) => d.status === "parsing" || d.status === "extracting" || d.status === "uploaded" || d.status === "awaiting_confirmation");
     if (!hasProcessing) return;
-    const timer = setTimeout(() => {
-      listDocuments(page, pageSize).then((res) => {
-        setDocs(res.items);
-        setTotal(res.total);
-      });
-    }, 2000);
+    const timer = setTimeout(() => { loadDocs(); }, 2000);
     return () => clearTimeout(timer);
-  }, [docs, page]);
+  }, [docs, page, loadDocs]);
+
+  const handleConfirm = async (docId: string, action: "coexist" | "overwrite" | "cancel") => {
+    if (confirming[docId]) return;
+    setConfirming((prev) => ({ ...prev, [docId]: true }));
+    try {
+      await confirmIngest(docId, action);
+      const labels: Record<string, string> = { coexist: "共存", overwrite: "覆盖", cancel: "取消" };
+      notify(`已${labels[action]}处理，知识已写入图谱`, "success");
+      loadDocs();
+    } catch (err: any) {
+      notify(err?.message || "操作失败，请重试", "error");
+    } finally {
+      setConfirming((prev) => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  const handleReprocess = async (docId: string) => {
+    if (confirming[docId]) return;
+    setConfirming((prev) => ({ ...prev, [docId]: true }));
+    try {
+      await reprocessDocument(docId);
+      notify("已触发重新处理", "info");
+      loadDocs();
+    } catch (err: any) {
+      notify(err?.message || "重试失败", "error");
+    } finally {
+      setConfirming((prev) => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  const handleDelete = async (docId: string) => {
+    if (!confirm("确定删除此文档？将同时删除关联的图谱数据，不可恢复。")) return;
+    try {
+      await deleteDocument(docId);
+      notify("文档已删除", "success");
+      setDocs((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err: any) {
+      notify(err?.message || "删除失败", "error");
+    }
+  };
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -87,6 +130,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                 {docs.map((doc) => {
                   const s = STATUS_MAP[doc.status] || STATUS_MAP.uploaded;
                   const isExpanded = expanded === doc.id;
+                  const isLoading = !!confirming[doc.id];
                   return (
                     <motion.tr
                       key={doc.id}
@@ -127,77 +171,61 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                           {doc.status === "awaiting_confirmation" && (
                             <>
                               <button
+                                disabled={isLoading}
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  try {
-                                    await confirmIngest(doc.id, "coexist");
-                                    listDocuments(page, pageSize).then((res) => {
-                                      setDocs(res.items);
-                                      setTotal(res.total);
-                                    });
-                                  } catch {}
+                                  await handleConfirm(doc.id, "coexist");
                                 }}
-                                className="rounded px-2 py-0.5 text-xs text-green-600 hover:bg-green-50"
+                                className={`rounded px-2 py-0.5 text-xs transition ${
+                                  isLoading ? "opacity-40 cursor-not-allowed" : "text-green-600 hover:bg-green-50"
+                                }`}
                               >
-                                共存
+                                {isLoading ? "处理中…" : "共存"}
                               </button>
                               <button
+                                disabled={isLoading}
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  try {
-                                    await confirmIngest(doc.id, "overwrite");
-                                    listDocuments(page, pageSize).then((res) => {
-                                      setDocs(res.items);
-                                      setTotal(res.total);
-                                    });
-                                  } catch {}
+                                  await handleConfirm(doc.id, "overwrite");
                                 }}
-                                className="rounded px-2 py-0.5 text-xs text-orange-600 hover:bg-orange-50"
+                                className={`rounded px-2 py-0.5 text-xs transition ${
+                                  isLoading ? "opacity-40 cursor-not-allowed" : "text-orange-600 hover:bg-orange-50"
+                                }`}
                               >
-                                覆盖
+                                {isLoading ? "处理中…" : "覆盖"}
                               </button>
                               <button
+                                disabled={isLoading}
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  try {
-                                    await confirmIngest(doc.id, "cancel");
-                                    listDocuments(page, pageSize).then((res) => {
-                                      setDocs(res.items);
-                                      setTotal(res.total);
-                                    });
-                                  } catch {}
+                                  await handleConfirm(doc.id, "cancel");
                                 }}
-                                className="rounded px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50"
+                                className={`rounded px-2 py-0.5 text-xs transition ${
+                                  isLoading ? "opacity-40 cursor-not-allowed" : "text-gray-600 hover:bg-gray-50"
+                                }`}
                               >
-                                取消
+                                {isLoading ? "处理中…" : "取消"}
                               </button>
                             </>
                           )}
                           {(doc.status === "failed" || doc.status === "parsing" || doc.status === "uploaded") && (
                             <button
+                              disabled={isLoading}
                               onClick={async (e) => {
                                 e.stopPropagation();
-                                try {
-                                  await reprocessDocument(doc.id);
-                                  listDocuments(page, pageSize).then((res) => {
-                                    setDocs(res.items);
-                                    setTotal(res.total);
-                                  });
-                                } catch {}
+                                await handleReprocess(doc.id);
                               }}
-                              className="rounded px-2 py-0.5 text-xs text-brand-600 hover:bg-brand-50"
+                              className={`rounded px-2 py-0.5 text-xs transition ${
+                                isLoading ? "opacity-40 cursor-not-allowed text-gray-500" : "text-brand-600 hover:bg-brand-50"
+                              }`}
                             >
-                              重试
+                              {isLoading ? "处理中…" : "重试"}
                             </button>
                           )}
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (!confirm("确定删除此文档？将同时删除关联的图谱数据，不可恢复。")) return;
-                              try {
-                                await deleteDocument(doc.id);
-                                setDocs((prev) => prev.filter((d) => d.id !== doc.id));
-                              } catch {}
+                              await handleDelete(doc.id);
                             }}
                             className="rounded px-2 py-0.5 text-xs text-red-500 hover:bg-red-50"
                           >

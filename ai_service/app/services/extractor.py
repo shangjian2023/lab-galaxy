@@ -330,6 +330,7 @@ async def extract_entities_llm(text: str) -> dict:
         for retry in range(2):
             response = await call_llm(rel_prompt, system=SYSTEM_PROMPT_RELATIONS, max_tokens=4096)
             rel_json_str = _extract_json(response)
+            rel_result = None  # reset per iteration
 
             # Detect empty response (model returned nothing or whitespace)
             if not rel_json_str.strip() or len(rel_json_str.strip()) < 2:
@@ -420,6 +421,33 @@ async def extract_entities_llm(text: str) -> dict:
             continue
         filtered.append(relation)
     relations = filtered
+
+    # Ensure no entity is left isolated — connect orphans to the nearest entity
+    connected_ids = set()
+    for r in relations:
+        if isinstance(r, dict):
+            connected_ids.add(r.get("source_id"))
+            connected_ids.add(r.get("target_id"))
+    orphans = [e for e in entities if isinstance(e, dict) and e.get("id") not in connected_ids]
+    if orphans and connected_ids:
+        logger.info(f"Connecting {len(orphans)} isolated entity/entities to existing graph")
+        # Pick the highest-degree node as the hub
+        degree: dict[str, int] = {}
+        for r in relations:
+            if isinstance(r, dict):
+                degree[r.get("source_id", "")] = degree.get(r.get("source_id", ""), 0) + 1
+                degree[r.get("target_id", "")] = degree.get(r.get("target_id", ""), 0) + 1
+        hub_id = max(degree, key=degree.get) if degree else next(iter(connected_ids))
+        for orphan in orphans:
+            otype = orphan.get("type", "Concept")
+            rel_type = "related_to"
+            if otype in ("Equipment", "Tool", "Consumable"):
+                rel_type = "uses"
+            elif otype == "Theory":
+                rel_type = "based_on"
+            relations.append({"source_id": hub_id, "target_id": orphan["id"], "type": rel_type, "confidence": 0.3})
+        logger.info(f"Added {len(orphans)} orphan-connecting relations")
+
     logger.info(f"Final result: {len(entities)} entities, {len(relations)} relations, {len(achievements)} achievements")
 
     return {
