@@ -6,9 +6,6 @@ WORKDIR /build
 ARG NEXT_PUBLIC_API_URL=https://graph.mazhuoran.cloud/api/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-ARG BACKEND_URL=http://localhost:8000
-ENV BACKEND_URL=${BACKEND_URL}
-
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
@@ -26,8 +23,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
 COPY --from=builder /build/public ./public
-COPY --from=builder /build/.next/standalone ./
-COPY --from=builder /build/.next/static ./.next/static
+COPY --from=builder /build/.next ./.next
+COPY --from=builder /build/server.js ./server.js
+COPY --from=builder /build/node_modules ./node_modules
 
 USER nextjs
 
