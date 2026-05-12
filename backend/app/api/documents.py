@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_current_user_optional
 from app.models.models import Document, User, UserAchievement
 from app.schemas.document import (
     BatchUploadResponse,
@@ -657,7 +657,7 @@ async def delete_document(
 async def download_document(
     doc_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_optional),
 ):
     """Download the original document file from MinIO."""
     doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
@@ -681,7 +681,7 @@ async def download_document(
             response.release_conn()
 
     headers = {
-        "Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc.title, safe='')}",
+        "Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.title, safe='')}",
         "Content-Length": str(file_size),
     }
     return StreamingResponse(read_and_close(), media_type=content_type, headers=headers)

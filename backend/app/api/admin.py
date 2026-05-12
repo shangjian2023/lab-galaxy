@@ -504,11 +504,16 @@ async def admin_doc_graph_data(
     async with driver.session() as session:
         result = await session.run(
             "MATCH (n) WHERE n.document_id = $doc_id "
-            "RETURN n.id AS id, n.name AS name, n.type AS type, n.summary AS summary",
+            "RETURN n.id AS id, n.name AS name, n.summary AS summary, labels(n) AS lbls",
             doc_id=str(doc_id),
         )
         async for record in result:
-            node_type = record["type"] or "Concept"
+            labels = record.get("lbls", []) or []
+            node_type = "Concept"
+            for lbl in labels:
+                if lbl not in ("__Entity__",):
+                    node_type = lbl
+                    break
             nodes.append({
                 "data": {
                     "id": record["id"],

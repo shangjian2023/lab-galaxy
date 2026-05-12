@@ -47,6 +47,11 @@ export default function AdminDocumentsPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<{ nodes: CytoscapeNode[]; edges: CytoscapeEdge[] } | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setToken(localStorage.getItem("token"));
+  }, []);
 
   const load = () => {
     adminListDocuments(page, 50, statusFilter || undefined).then((res) => {
@@ -264,7 +269,7 @@ export default function AdminDocumentsPage() {
                                 </div>
                                 {doc.file_type === "pdf" ? (
                                   <iframe
-                                    src={`/api/v1/documents/${doc.id}/download`}
+                                    src={`/api/v1/documents/${doc.id}/download${token ? `?token=${token}` : ""}`}
                                     className="h-72 w-full rounded border"
                                     title="文档预览"
                                   />
@@ -273,7 +278,7 @@ export default function AdminDocumentsPage() {
                                     <div className="text-4xl">📄</div>
                                     <span>{doc.title}</span>
                                     <a
-                                      href={`/api/v1/documents/${doc.id}/download`}
+                                      href={`/api/v1/documents/${doc.id}/download${token ? `?token=${token}` : ""}`}
                                       className="btn-secondary rounded-lg px-3 py-1 text-xs"
                                       target="_blank"
                                       rel="noopener noreferrer"

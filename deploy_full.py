@@ -30,7 +30,7 @@ def run(cmd, label="", timeout=60):
 sftp = ssh.open_sftp()
 
 # Create patch directories
-run("sudo mkdir -p /tmp/patch/backend/app/api /tmp/patch/backend/app/models /tmp/patch/backend/app/schemas /tmp/patch/backend/app/services /tmp/patch/ai_service/app/core /tmp/patch/ai_service/app/services /tmp/patch/frontend/src", "mkdir dirs")
+run("sudo mkdir -p /tmp/patch/backend/app/api /tmp/patch/backend/app/models /tmp/patch/backend/app/schemas /tmp/patch/backend/app/services /tmp/patch/backend/app/core /tmp/patch/ai_service/app/core /tmp/patch/ai_service/app/services /tmp/patch/frontend/src /tmp/patch/frontend/src/components/graph", "mkdir dirs")
 run("sudo chown -R ubuntu:ubuntu /tmp/patch", "chown dirs")
 
 backend_files = {
@@ -43,6 +43,7 @@ backend_files = {
     "D:/X/backend/app/api/admin.py": "/tmp/patch/backend/app/api/admin.py",
     "D:/X/backend/app/api/documents.py": "/tmp/patch/backend/app/api/documents.py",
     "D:/X/backend/app/api/graph.py": "/tmp/patch/backend/app/api/graph.py",
+    "D:/X/backend/app/core/deps.py": "/tmp/patch/backend/app/core/deps.py",
     "D:/X/backend/app/main.py": "/tmp/patch/backend/app/main.py",
     "D:/X/backend/app/models/models.py": "/tmp/patch/backend/app/models/models.py",
     "D:/X/backend/app/schemas/document.py": "/tmp/patch/backend/app/schemas/document.py",
@@ -56,6 +57,9 @@ backend_files = {
     "D:/X/frontend/src/app/layout.tsx": "/tmp/patch/frontend/src/app/layout.tsx",
     "D:/X/frontend/src/components/ProcessingChamber.tsx": "/tmp/patch/frontend/src/components/ProcessingChamber.tsx",
     "D:/X/frontend/src/components/UploadPanel.tsx": "/tmp/patch/frontend/src/components/UploadPanel.tsx",
+    "D:/X/frontend/src/components/DocList.tsx": "/tmp/patch/frontend/src/components/DocList.tsx",
+    "D:/X/frontend/src/components/ToastBar.tsx": "/tmp/patch/frontend/src/components/ToastBar.tsx",
+    "D:/X/frontend/src/components/graph/MiniGraph.tsx": "/tmp/patch/frontend/src/components/graph/MiniGraph.tsx",
     "D:/X/frontend/src/components/forum/MentionHighlight.tsx": "/tmp/patch/frontend/src/components/forum/MentionHighlight.tsx",
     "D:/X/frontend/src/components/graph/SmartNodeLink.tsx": "/tmp/patch/frontend/src/components/graph/SmartNodeLink.tsx",
     "D:/X/frontend/src/components/query/QueryPanel.tsx": "/tmp/patch/frontend/src/components/query/QueryPanel.tsx",
@@ -92,6 +96,7 @@ print("\nBackend pod: " + backend_pod)
 run("sudo kubectl cp /tmp/patch/backend/app/api/admin.py " + NS + "/" + backend_pod + ":/app/app/api/admin.py -c backend", "cp admin.py")
 run("sudo kubectl cp /tmp/patch/backend/app/api/documents.py " + NS + "/" + backend_pod + ":/app/app/api/documents.py -c backend", "cp documents.py")
 run("sudo kubectl cp /tmp/patch/backend/app/api/graph.py " + NS + "/" + backend_pod + ":/app/app/api/graph.py -c backend", "cp graph.py")
+run("sudo kubectl cp /tmp/patch/backend/app/core/deps.py " + NS + "/" + backend_pod + ":/app/app/core/deps.py -c backend", "cp deps.py")
 run("sudo kubectl cp /tmp/patch/backend/app/main.py " + NS + "/" + backend_pod + ":/app/app/main.py -c backend", "cp main.py")
 run("sudo kubectl cp /tmp/patch/backend/app/models/models.py " + NS + "/" + backend_pod + ":/app/app/models/models.py -c backend", "cp models.py")
 run("sudo kubectl cp /tmp/patch/backend/app/schemas/document.py " + NS + "/" + backend_pod + ":/app/app/schemas/document.py -c backend", "cp document.py")
@@ -124,6 +129,9 @@ frontend_files = [
     ("/tmp/patch/frontend/src/components/UploadPanel.tsx", "/opt/kg-platform/frontend/src/components/UploadPanel.tsx"),
     ("/tmp/patch/frontend/src/components/ProcessingChamber.tsx", "/opt/kg-platform/frontend/src/components/ProcessingChamber.tsx"),
     ("/tmp/patch/frontend/src/app/admin/documents/page.tsx", "/opt/kg-platform/frontend/src/app/admin/documents/page.tsx"),
+    ("/tmp/patch/frontend/src/components/graph/MiniGraph.tsx", "/opt/kg-platform/frontend/src/components/graph/MiniGraph.tsx"),
+    ("/tmp/patch/frontend/src/components/ToastBar.tsx", "/opt/kg-platform/frontend/src/components/ToastBar.tsx"),
+    ("/tmp/patch/frontend/src/components/DocList.tsx", "/opt/kg-platform/frontend/src/components/DocList.tsx"),
     ("/tmp/patch/frontend/src/app/equipment/page.tsx", "/opt/kg-platform/frontend/src/app/equipment/page.tsx"),
     ("/tmp/patch/frontend/src/app/graph/page.tsx", "/opt/kg-platform/frontend/src/app/graph/page.tsx"),
     ("/tmp/patch/frontend/src/app/workbench/page.tsx", "/opt/kg-platform/frontend/src/app/workbench/page.tsx"),
