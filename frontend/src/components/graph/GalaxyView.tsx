@@ -228,8 +228,11 @@ export default function GalaxyView({
   }
 
   function radius(n: SimNode) {
+    // Clamp degree to prevent runaway sizing, use logarithmic scale
+    const d = Math.min(n.degree, 8);
+    const logSize = 6 + Math.log2(d + 1) * 4;
     const sizeMultiplier = n.type === "Experiment" ? fsRef.current.experimentSize : fsRef.current.nodeSize;
-    return Math.max(4, (6 + n.degree * 1.5) * sizeMultiplier);
+    return Math.max(5, Math.min(logSize * sizeMultiplier, 28));
   }
 
   // ── Load data into simulation (preserving positions) ──
@@ -318,23 +321,36 @@ export default function GalaxyView({
     zoomBehaviorRef.current.transform(select(canvas), targetTransform);
   }, [highlightedNodeId, dims]);
 
-  // ── Initial center on first Experiment node ──
+  // ── Initial center once simulation settles ──
   useEffect(() => {
     if (initialCenterDoneRef.current) return;
     if (!data.nodes.length) return;
 
     const timer = setTimeout(() => {
-      const expNode = nodesRef.current.find((n) => n.type === "Experiment" && n.x != null);
-      if (!expNode || !zoomBehaviorRef.current || !canvasRef.current) return;
+      const sim = simRef.current;
+      if (!sim || !zoomBehaviorRef.current || !canvasRef.current) return;
+
+      // Compute center of mass from current node positions
+      const nodes = nodesRef.current.filter((n) => n.x != null && n.y != null);
+      if (!nodes.length) return;
+      const cx = nodes.reduce((s, n) => s + n.x!, 0) / nodes.length;
+      const cy = nodes.reduce((s, n) => s + n.y!, 0) / nodes.length;
 
       const canvas = canvasRef.current;
       const zb = zoomBehaviorRef.current;
-      const scale = transformRef.current.k;
-      const endX = dims.w / 2 - expNode.x! * scale;
-      const endY = dims.h / 2 - expNode.y! * scale;
+      const scale = Math.min(dims.w / 1200, dims.h / 800, 1); // Auto-fit zoom
+      const endX = dims.w / 2 - cx * scale;
+      const endY = dims.h / 2 - cy * scale;
       const startX = transformRef.current.x;
       const startY = transformRef.current.y;
-      const duration = 800;
+
+      // If already close to target, skip animation
+      if (Math.abs(startX - endX) < 50 && Math.abs(startY - endY) < 50 && Math.abs(transformRef.current.k - scale) < 0.1) {
+        initialCenterDoneRef.current = true;
+        return;
+      }
+
+      const duration = 600;
       const startTime = Date.now();
       let animRaf = 0;
 
@@ -344,8 +360,8 @@ export default function GalaxyView({
         const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
         const x = startX + (endX - startX) * ease;
         const y = startY + (endY - startY) * ease;
-        const newTransform = zoomIdentity.translate(x, y).scale(scale);
-        // Update both d3-zoom state and our ref
+        const k = transformRef.current.k + (scale - transformRef.current.k) * ease;
+        const newTransform = zoomIdentity.translate(x, y).scale(k);
         zb.transform(select(canvas), newTransform);
         transformRef.current = newTransform;
         if (t < 1) {
@@ -357,7 +373,7 @@ export default function GalaxyView({
       initialCenterDoneRef.current = true;
 
       return () => cancelAnimationFrame(animRaf);
-    }, 1200);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [data.nodes.length, dims]);
