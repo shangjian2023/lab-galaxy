@@ -96,6 +96,8 @@ export interface DocumentItem {
     is_exact: boolean;
   }[] | null;
   uploaded_by: string;
+  uploader_nickname?: string;
+  uploader_username?: string;
   created_at: string;
 }
 
@@ -248,6 +250,12 @@ export function adminApproveDocument(docId: string) {
 
 export function adminRejectDocument(docId: string) {
   return request<DocumentItem>(`/admin/documents/${docId}/reject`, "POST");
+}
+
+export function adminGetDocGraphData(docId: string) {
+  return request<{ nodes: CytoscapeNode[]; relations: { data: { id: string; source: string; target: string; type: string; confidence: number } }[] }>(
+    `/admin/documents/${docId}/graph-data`,
+  );
 }
 
 // Knowledge Graph

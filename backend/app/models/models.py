@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import String, DateTime, Integer, Text, Boolean, ForeignKey, BigInteger, Enum as SAEnum, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -89,6 +89,8 @@ class Document(Base):
     duplicate_info: Mapped[str | None] = mapped_column(Text, nullable=True)
     uploaded_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    uploader = relationship("User", foreign_keys="Document.uploaded_by", lazy="selectin")
 
 
 class PointsLog(Base):

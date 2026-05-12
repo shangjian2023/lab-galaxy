@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from datetime import datetime
 
 from sqlalchemy import delete, func, select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -223,7 +224,7 @@ async def admin_list_documents(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
-    base = select(Document)
+    base = select(Document).options(joinedload(Document.uploader))
     if status_filter:
         base = base.where(Document.status == status_filter)
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
@@ -477,6 +478,71 @@ async def admin_graph_overview(
     nodes = await list_nodes(limit=500)
     relations = await list_relations(limit=500)
     return GraphDataResponse(nodes=nodes, relations=relations)
+
+
+@router.get("/documents/{doc_id}/graph-data")
+async def admin_doc_graph_data(
+    doc_id: uuid.UUID,
+    _admin: User = Depends(require_admin),
+):
+    """Get knowledge graph nodes and relations for a specific document."""
+    from app.services.admin_graph import _get_driver
+
+    driver = _get_driver()
+    nodes = []
+    edges = []
+
+    TYPE_COLORS = {
+        "Experiment": "#3b82f6",
+        "Equipment": "#ef4444",
+        "Theory": "#8b5cf6",
+        "Consumable": "#f59e0b",
+        "Tool": "#10b981",
+        "Concept": "#6b7280",
+    }
+
+    async with driver.session() as session:
+        result = await session.run(
+            "MATCH (n) WHERE n.document_id = $doc_id "
+            "RETURN n.id AS id, n.name AS name, n.type AS type, n.summary AS summary",
+            doc_id=str(doc_id),
+        )
+        async for record in result:
+            node_type = record["type"] or "Concept"
+            nodes.append({
+                "data": {
+                    "id": record["id"],
+                    "label": record["name"] or "",
+                    "name": record["name"] or "",
+                    "type": node_type,
+                    "summary": record["summary"] or "",
+                    "color": TYPE_COLORS.get(node_type, "#6b7280"),
+                    "document_id": str(doc_id),
+                    "size": 20,
+                }
+            })
+
+    if len(nodes) >= 2:
+        node_ids = [n["data"]["id"] for n in nodes]
+        async with driver.session() as session:
+            result = await session.run(
+                "MATCH (a)-[r]->(b) "
+                "WHERE a.document_id = $doc_id AND b.document_id = $doc_id "
+                "RETURN a.id AS source, b.id AS target, type(r) AS rel_type, r.confidence AS confidence",
+                doc_id=str(doc_id),
+            )
+            async for record in result:
+                edges.append({
+                    "data": {
+                        "id": f"{record['source']}-{record['target']}-{record['rel_type']}",
+                        "source": record["source"],
+                        "target": record["target"],
+                        "type": record["rel_type"],
+                        "confidence": record.get("confidence", 0.5) or 0.5,
+                    }
+                })
+
+    return {"nodes": nodes, "relations": edges}
 
 
 # ========== Admin Template Management ==========

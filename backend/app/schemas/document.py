@@ -41,6 +41,8 @@ class DocumentResponse(BaseModel):
     duplicate_info: list[dict] | None = None
     uploaded_by: uuid.UUID
     created_at: datetime
+    uploader_nickname: str | None = None
+    uploader_username: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -63,6 +65,8 @@ class DocumentResponse(BaseModel):
             duplicate_info=_parse_json_field(doc.duplicate_info),
             uploaded_by=str(doc.uploaded_by) if isinstance(doc.uploaded_by, uuid.UUID) else doc.uploaded_by,
             created_at=doc.created_at,
+            uploader_nickname=getattr(doc, "uploader", None) and getattr(doc.uploader, "nickname", None) or None,
+            uploader_username=getattr(doc, "uploader", None) and getattr(doc.uploader, "username", "") or "",
         )
 
 
