@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { listDocuments, reprocessDocument, deleteDocument, type DocumentItem } from "@/lib/api";
+import { listDocuments, reprocessDocument, deleteDocument, confirmIngest, type DocumentItem } from "@/lib/api";
 import { EXPERIMENT_TYPES, SUBJECT_OPTIONS, PRIVACY_OPTIONS } from "@/lib/constants";
 
 const STATUS_MAP: Record<string, { label: string; color: string; barColor: string; desc: string }> = {
@@ -11,6 +11,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; barColor: strin
   extracting: { label: "⚗️ 知识萃取",  color: "bg-purple-50 text-purple-700", barColor: "bg-purple-500", desc: "AI 萃取知识实体" },
   completed:  { label: "✨ 萃取完成",  color: "bg-green-100 text-green-700",  barColor: "bg-green-500",  desc: "已写入知识图谱" },
   failed:     { label: "⚠️ 实验中断",  color: "bg-red-50 text-red-600",      barColor: "bg-red-400",    desc: "处理异常" },
+  awaiting_confirmation: { label: "⏳ 待确认", color: "bg-amber-50 text-amber-700", barColor: "bg-amber-400", desc: "检测到重复实验，请确认处理方式" },
 };
 
 function elapsedSince(iso: string): string {
@@ -47,7 +48,7 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
 
   // Auto-refresh for docs that are still processing
   useEffect(() => {
-    const hasProcessing = docs.some((d) => d.status === "parsing" || d.status === "extracting" || d.status === "uploaded");
+    const hasProcessing = docs.some((d) => d.status === "parsing" || d.status === "extracting" || d.status === "uploaded" || d.status === "awaiting_confirmation");
     if (!hasProcessing) return;
     const timer = setTimeout(() => {
       listDocuments(page, pageSize).then((res) => {
@@ -123,6 +124,55 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                       </td>
                       <td className="py-2.5">
                         <div className="flex items-center gap-1">
+                          {doc.status === "awaiting_confirmation" && (
+                            <>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await confirmIngest(doc.id, "coexist");
+                                    listDocuments(page, pageSize).then((res) => {
+                                      setDocs(res.items);
+                                      setTotal(res.total);
+                                    });
+                                  } catch {}
+                                }}
+                                className="rounded px-2 py-0.5 text-xs text-green-600 hover:bg-green-50"
+                              >
+                                共存
+                              </button>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await confirmIngest(doc.id, "overwrite");
+                                    listDocuments(page, pageSize).then((res) => {
+                                      setDocs(res.items);
+                                      setTotal(res.total);
+                                    });
+                                  } catch {}
+                                }}
+                                className="rounded px-2 py-0.5 text-xs text-orange-600 hover:bg-orange-50"
+                              >
+                                覆盖
+                              </button>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await confirmIngest(doc.id, "cancel");
+                                    listDocuments(page, pageSize).then((res) => {
+                                      setDocs(res.items);
+                                      setTotal(res.total);
+                                    });
+                                  } catch {}
+                                }}
+                                className="rounded px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50"
+                              >
+                                取消
+                              </button>
+                            </>
+                          )}
                           {(doc.status === "failed" || doc.status === "parsing" || doc.status === "uploaded") && (
                             <button
                               onClick={async (e) => {
@@ -211,6 +261,16 @@ export default function DocList({ refreshKey }: { refreshKey: number }) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+              {doc.duplicate_info && doc.duplicate_info.length > 0 && (
+                <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2">
+                  <p className="mb-1 text-xs font-medium text-amber-700">重复实验检测：</p>
+                  {doc.duplicate_info.map((dup: any, i: number) => (
+                    <p key={i} className="text-xs text-amber-600">
+                      「{dup.new_name}」与已有实验「{dup.existing_name}」相似度 {Math.round(dup.similarity * 100)}%
+                    </p>
+                  ))}
                 </div>
               )}
               {doc.error_message && (
