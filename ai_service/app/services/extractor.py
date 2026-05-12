@@ -57,7 +57,7 @@ SYSTEM_PROMPT_RELATIONS = """你是一个专业的实验知识图谱分析助手
 }
 
 ## 关键规则
-1. source_id 和 target_id 必须使用上面列出的实体 id（e1, e2... 格式）
+1. source_id 和 target_id 必须使用上面列出的实体 id（e1, e2... 格式），**不能使用 UUID 或其他格式**
 2. 只输出 JSON，不要有任何其他文字
 3. **必须为 Experiment 类型的实体创建至少 2 个关系（uses 或 based_on）**
 4. 对于每个 Equipment 类型的实体，考虑它是否被 Experiment 使用
@@ -268,17 +268,9 @@ def _normalize_entity_ids(entities: list[dict]) -> dict[str, str]:
     return id_map
 
 
-def _validate_result_shape(result: object) -> dict:
-    if not isinstance(result, dict):
-        raise ExtractionError("抽取结果不是合法对象")
-    entities = result.get("entities")
-    relations = result.get("relations")
-    if not isinstance(entities, list) or not isinstance(relations, list):
-        raise ExtractionError("抽取结果缺少 entities/relations 列表")
-    achievements = result.get("achievements", [])
-    if not isinstance(achievements, list):
-        achievements = []
-    return {"entities": entities, "relations": relations, "achievements": achievements}
+def _build_entity_id_map(entities: list[dict]) -> dict[str, str]:
+    """Build UUID-based id mapping from e1/e2 format to actual UUIDs."""
+    return {e.get("id"): e.get("id") for e in entities if isinstance(e, dict) and e.get("id")}
 
 
 @extractor_registry.register("default")
@@ -290,7 +282,7 @@ async def extract_entities_llm(text: str) -> dict:
 
     prompt = f"请分析以下实验文档内容，抽取实体：\n\n{truncated}"
 
-    # --- Step 1: Extract entities ---
+    # --- Step 1: Extract entities (uses e1, e2... format) ---
     response = await call_llm(prompt, system=SYSTEM_PROMPT_ENTITIES, max_tokens=4096)
     json_str = _extract_json(response)
     result = _parse_json_with_retry(json_str)
@@ -312,7 +304,7 @@ async def extract_entities_llm(text: str) -> dict:
     if not isinstance(entities, list):
         entities = []
 
-    # --- Deduplicate experiments: keep only the first Experiment per document ---
+    # Deduplicate experiments: keep only the first Experiment per document
     seen_experiment = False
     filtered_entities = []
     for e in entities:
@@ -323,9 +315,10 @@ async def extract_entities_llm(text: str) -> dict:
         filtered_entities.append(e)
     entities = filtered_entities
 
-    # --- Step 2: Extract relations ---
+    # --- Step 2: Extract relations (use e1, e2... format, NOT UUIDs) ---
     relations = []
     if len(entities) >= 2:
+        # Build entity list with e1/e2 format IDs (still in original form before UUID conversion)
         entity_lines = []
         for e in entities:
             if isinstance(e, dict):
@@ -333,14 +326,34 @@ async def extract_entities_llm(text: str) -> dict:
                     f"  id={e.get('id','?')} | type={e.get('type','?')} | name={e.get('name','?')} | {e.get('summary','')[:80]}"
                 )
         rel_prompt = f"已抽取实体：\n" + "\n".join(entity_lines)
-        response = await call_llm(rel_prompt, system=SYSTEM_PROMPT_RELATIONS, max_tokens=2048)
-        rel_json_str = _extract_json(response)
-        rel_result = _parse_json_with_retry(rel_json_str)
 
-        if rel_result and "relations" in rel_result:
-            relations = rel_result["relations"]
-        elif isinstance(rel_result, list):
-            relations = rel_result
+        for retry in range(2):
+            response = await call_llm(rel_prompt, system=SYSTEM_PROMPT_RELATIONS, max_tokens=4096)
+            rel_json_str = _extract_json(response)
+
+            # Detect empty response (model returned nothing or whitespace)
+            if not rel_json_str.strip() or len(rel_json_str.strip()) < 2:
+                logger.warning(
+                    "Relation LLM returned empty response (attempt %d/2), retrying...",
+                    retry + 1
+                )
+                rel_prompt += "\n\n【请重新输出关系 JSON，不要为空。】"
+                continue
+
+            rel_result = _parse_json_with_retry(rel_json_str)
+            if rel_result and "relations" in rel_result:
+                relations = rel_result["relations"]
+                if relations:  # got valid relations, stop retrying
+                    break
+            elif isinstance(rel_result, list) and rel_result:
+                relations = rel_result
+                break
+
+            logger.warning(
+                "Relation extraction parse failed (attempt %d/2). Response: %s",
+                retry + 1, rel_json_str[:300]
+            )
+            rel_prompt += "\n\n【请重新输出合法的关系 JSON。】"
 
     # --- Step 3: Extract achievements (optional, non-blocking) ---
     achievements = []
@@ -372,16 +385,18 @@ async def extract_entities_llm(text: str) -> dict:
                 relations.append({"source_id": exp["id"], "target_id": cs["id"], "type": "uses", "confidence": 0.5})
         if not experiments:
             for i, e1 in enumerate(entities):
-                if not isinstance(e1, dict): continue
-                for e2 in entities[i+1:]:
-                    if not isinstance(e2, dict): continue
+                if not isinstance(e1, dict):
+                    continue
+                for e2 in entities[i + 1:]:
+                    if not isinstance(e2, dict):
+                        continue
                     relations.append({"source_id": e1["id"], "target_id": e2["id"], "type": "related_to", "confidence": 0.3})
         logger.info(f"Heuristic generated {len(relations)} relations")
 
-    # Normalize entity IDs from simple format to deterministic UUIDs
+    # Normalize entity IDs from e1/e2 format to deterministic UUIDs
     id_map = _normalize_entity_ids(entities)
 
-    # Remap relation source/target IDs
+    # Remap relation source/target IDs using the e1->UUID mapping
     for relation in relations:
         if not isinstance(relation, dict):
             continue
