@@ -73,13 +73,13 @@ export default function MiniGraph({ nodes: cyNodes, edges: cyEdges, width = 400,
       const sim = forceSimulation<SimNode, SimLink>(nodes)
         .force(
           "link",
-          forceLink<SimNode, SimLink>(links).id((d) => d.id).distance(60).strength(0.6),
+          forceLink<SimNode, SimLink>(links).id((d) => d.id).distance(50).strength(0.8),
         )
-        .force("charge", forceManyBody<SimNode>().strength(-150))
-        .force("center", forceCenter(cx, cy).strength(0.05))
+        .force("charge", forceManyBody<SimNode>().strength(-80))
+        .force("center", forceCenter(cx, cy).strength(0.3))
         .force("collide", forceCollide<SimNode>().radius((d) => nodeRadius(d) + 4))
         .alpha(1)
-        .alphaDecay(0.02);
+        .alphaDecay(0.03);
 
       return sim;
     },
