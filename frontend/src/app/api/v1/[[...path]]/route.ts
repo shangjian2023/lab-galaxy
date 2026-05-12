@@ -27,9 +27,12 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path?: string[] 
   const path = (params.path || []).join("/");
   const targetUrl = `${BACKEND_URL}/api/v1/${path}${req.nextUrl.search}`;
 
-  const headers = new Headers(req.headers);
-  headers.delete("host");
-  headers.delete("content-length");
+  const contentType = req.headers.get("content-type");
+  const token = req.headers.get("authorization");
+
+  const headers = new Headers();
+  if (contentType) headers.set("Content-Type", contentType);
+  if (token) headers.set("Authorization", token);
 
   const body = method !== "GET" && method !== "HEAD" ? await req.arrayBuffer() : undefined;
 
