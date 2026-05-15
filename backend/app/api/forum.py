@@ -70,6 +70,7 @@ def _thread_dict(t: ForumThread, user_id: uuid.UUID | None = None, is_liked: boo
         "graph_node_ids": t.graph_node_ids,
         "status": t.status,
         "is_featured": t.is_featured,
+        "is_announcement": t.is_announcement,
         "reply_count": t.reply_count,
         "like_count": t.like_count,
         "view_count": t.view_count,
@@ -593,3 +594,61 @@ async def my_bookmarks(
     await _enrich_with_users(db, items)
 
     return {"total": total, "page": page, "page_size": page_size, "items": items}
+
+
+# ── Admin: Create Announcement ──
+
+@router.post("/announcements", status_code=201)
+async def create_announcement(
+    body: ThreadCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin-only: create an announcement (visible at top of all boards)."""
+    if current_user.role != "admin":
+        raise HTTPException(403, "仅管理员可发布公告")
+
+    thread = ForumThread(
+        board="announcements",
+        sub_board=None,
+        post_type="regular",
+        title=body.title,
+        content=body.content,
+        tags=body.tags,
+        created_by=current_user.id,
+        is_announcement=True,
+    )
+    db.add(thread)
+    await db.commit()
+    await db.refresh(thread)
+
+    award_points(current_user, db, POINTS_RULES["thread_create"], "发布系统公告")
+    return _thread_dict(thread, current_user.id)
+
+
+# ── Admin: Toggle Featured ──
+
+@router.patch("/admin/threads/{thread_id}/featured")
+async def admin_toggle_featured(
+    thread_id: uuid.UUID,
+    is_featured: bool = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin-only: toggle thread featured status."""
+    if current_user.role != "admin":
+        raise HTTPException(403, "仅管理员可操作")
+
+    t = (await db.execute(select(ForumThread).where(ForumThread.id == thread_id))).scalar_one_or_none()
+    if not t:
+        raise HTTPException(404, "帖子不存在")
+
+    was_featured = t.is_featured
+    t.is_featured = is_featured
+    if is_featured and not was_featured:
+        author = (await db.execute(select(User).where(User.id == t.created_by))).scalar_one_or_none()
+        if author:
+            award_points(author, db, POINTS_RULES["forum_featured"], "帖子被设为精华")
+
+    await db.commit()
+    return {"is_featured": t.is_featured}

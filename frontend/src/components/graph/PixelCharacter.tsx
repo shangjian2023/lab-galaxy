@@ -4,8 +4,8 @@ import { useRef, useCallback, useLayoutEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 // ── Colors ──
-const BODY_NORMAL = "#e07020";
-const BODY_FULL = "#ffc870";
+const BODY_NORMAL = "#E3BD8D";
+const BODY_FULL = "#E8C99E";
 const EYE_COLOR = "#1a0e00";
 const PUPIL_COLOR = "#fff";
 const SCARED_WHITE = "#fff";
@@ -125,7 +125,7 @@ export default function PixelCharacter({ isFullscreen, onToggle, scared: externa
       style={{
         width: 48,
         height: 56,
-        background: "rgba(255,248,230,0.85)",
+        background: "rgba(244,241,238,0.9)",
         borderRadius: 8,
         boxShadow: "0 2px 12px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.3)",
       }}

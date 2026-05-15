@@ -34,32 +34,6 @@ interface SelectedNode {
   size?: number;
 }
 
-const DEFAULT_FORCE: ForceSettings = {
-  centerStrength: 0.08,
-  repel: -300,
-  linkStrength: 0.8,
-  linkDistance: 90,
-  experimentCluster: 0.15,
-  nodeSize: 1,
-  experimentSize: 1.5,
-  linkWidth: 1,
-};
-
-const FORCE_SETTINGS_KEY = "graph-force-settings";
-
-function loadForceSettings(): ForceSettings {
-  if (typeof window === "undefined") return DEFAULT_FORCE;
-  try {
-    const raw = localStorage.getItem(FORCE_SETTINGS_KEY);
-    if (raw) return { ...DEFAULT_FORCE, ...JSON.parse(raw) };
-  } catch {}
-  return DEFAULT_FORCE;
-}
-
-function saveForceSettings(s: ForceSettings) {
-  try { localStorage.setItem(FORCE_SETTINGS_KEY, JSON.stringify(s)); } catch {}
-}
-
 const POLL_INTERVAL_MS = 15000;
 
 function graphSignature(data: CytoscapeData) {
@@ -136,7 +110,7 @@ function ExperimentListPanel({ open, onToggle, experiments, selectedId, onSelect
       initial={false}
       animate={open ? "expanded" : "collapsed"}
       transition={ballSpring}
-      className="absolute left-3 top-3 z-10 overflow-hidden bg-gradient-to-br from-white/80 to-orange-50/70 shadow-lg shadow-black/10"
+      className="absolute left-3 top-3 z-10 overflow-hidden bg-[#F4F1EE] shadow-lg shadow-black/10"
       style={{ backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}
     >
       <AnimatePresence>
@@ -152,10 +126,10 @@ function ExperimentListPanel({ open, onToggle, experiments, selectedId, onSelect
             title="实验列表"
           >
             <div className="flex flex-col items-center gap-1">
-              <svg className="h-5 w-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 text-[#9A8C73]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
-              <span className="text-[9px] font-bold text-orange-600">{experiments.length}</span>
+              <span className="text-[9px] font-bold text-[#9A8C73]">{experiments.length}</span>
             </div>
           </motion.button>
         ) : (
@@ -167,11 +141,11 @@ function ExperimentListPanel({ open, onToggle, experiments, selectedId, onSelect
             transition={{ duration: 0.15 }}
             className="flex flex-col"
           >
-            <div className="flex items-center justify-between border-b border-orange-200/50 px-3 py-2">
+            <div className="flex items-center justify-between border-b border-[#DBC7B5]/40 px-3 py-2">
               <span className="text-xs font-bold text-gray-700">实验列表</span>
               <button
                 onClick={onToggle}
-                className="rounded-md p-0.5 text-black transition-colors hover:bg-orange-100 hover:text-orange-600"
+                className="rounded-md p-0.5 text-black transition-colors hover:bg-[#DBC7B5]/30 hover:text-[#9A8C73]"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -185,8 +159,8 @@ function ExperimentListPanel({ open, onToggle, experiments, selectedId, onSelect
                   onClick={() => onSelect(exp.id)}
                   className={`w-full rounded-lg px-3 py-2 text-left text-xs transition-all ${
                     selectedId === exp.id
-                      ? "bg-orange-100 font-semibold text-orange-700"
-                      : "text-black hover:bg-orange-50 hover:text-orange-700"
+                      ? "bg-[#DBC7B5]/50 font-semibold text-[#6B5D50]"
+                      : "text-black hover:bg-[#DBC7B5]/20 hover:text-[#9A8C73]"
                   }`}
                 >
                   <span className="line-clamp-2">{exp.name}</span>
@@ -219,7 +193,6 @@ function GraphPageContent() {
   const [fromDate, setFromDate] = useState<string | undefined>();
   const [toDate, setToDate] = useState<string | undefined>();
   const [liveCount, setLiveCount] = useState(0);
-  const [forceSettings, setForceSettings] = useState<ForceSettings>(loadForceSettings);
   const [timelineMode, setTimelineMode] = useState(false);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
@@ -253,9 +226,6 @@ function GraphPageContent() {
         .sort((a, b) => a.name.localeCompare(b.name, "zh-CN")),
     [galaxyData.nodes],
   );
-
-  // Persist force settings to localStorage
-  useEffect(() => { saveForceSettings(forceSettings); }, [forceSettings]);
 
   // ESC to exit fullscreen
   useEffect(() => {
@@ -457,7 +427,7 @@ function GraphPageContent() {
             onNodeClick={handleNodeClick}
             highlightedNodeId={highlightedNodeId}
             queryHighlightedNodes={queryHighlightedNodes}
-            forceSettings={forceSettings}
+            forceSettings={{ repel: 0, linkDistance: 0, centerStrength: 0, nodeSize: 0, linkWidth: 0 }}
             timelineMode={timelineMode}
             timelineData={timelineData}
             onTimelineDone={() => setTimelineMode(false)}
@@ -496,7 +466,7 @@ function GraphPageContent() {
       {/* Header */}
       <div className="liquid-glass-card mb-4 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-md shadow-orange-500/20">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#9A8C73] shadow-md shadow-[#9A8C73]/20">
             <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
             </svg>
@@ -517,7 +487,7 @@ function GraphPageContent() {
               onClick={selectAllYears}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
                 selectedYears.length === availableYears.length
-                  ? "border border-orange-400 bg-orange-50 text-orange-700 shadow-sm"
+                  ? "border border-[#9A8C73] bg-[#DBC7B5]/40 text-[#6B5D50] shadow-sm"
                   : "glass-button"
               }`}
             >
@@ -529,7 +499,7 @@ function GraphPageContent() {
                 onClick={() => toggleYear(year)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
                   selectedYears.includes(year)
-                    ? "border border-orange-400 bg-orange-50 text-orange-700 shadow-sm"
+                    ? "border border-[#9A8C73] bg-[#DBC7B5]/40 text-[#6B5D50] shadow-sm"
                     : "glass-button"
                 }`}
               >
@@ -561,8 +531,6 @@ function GraphPageContent() {
           fromDate={fromDate}
           toDate={toDate}
           onDateChange={handleDateChange}
-          forceSettings={forceSettings}
-          onForceSettingsChange={setForceSettings}
           onTimelineAnimate={handleTimelineAnimate}
           isAnimating={timelineMode}
           onCleanupOrphans={handleCleanupOrphans}

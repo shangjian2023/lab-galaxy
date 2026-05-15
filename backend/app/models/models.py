@@ -128,6 +128,7 @@ class ForumThread(Base):
     graph_node_ids: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="open")
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_announcement: Mapped[bool] = mapped_column(Boolean, default=False)
     reply_count: Mapped[int] = mapped_column(Integer, default=0)
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     view_count: Mapped[int] = mapped_column(Integer, default=0)

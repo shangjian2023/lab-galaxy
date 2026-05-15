@@ -159,11 +159,11 @@ export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
       <div className="flex flex-col items-center gap-0.5">
         <div className="flex items-center gap-1">
           <PixelCharacter isFullscreen={isFullscreen} onToggle={() => {}} scared={scared} />
-          <span className="whitespace-nowrap rounded-md bg-gradient-to-r from-amber-400/80 to-orange-400/80 px-1.5 py-0.5 text-[10px] font-medium text-white shadow-sm pointer-events-none">
+          <span className="whitespace-nowrap rounded-md bg-[#9A8C73]/80 px-1.5 py-0.5 text-[10px] font-medium text-white shadow-sm pointer-events-none">
             拖拽我
           </span>
         </div>
-        <span className="whitespace-nowrap rounded-md bg-gradient-to-r from-orange-500 to-amber-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-md shadow-orange-400/30 pointer-events-none">
+        <span className="whitespace-nowrap rounded-md bg-[#9A8C73] px-2 py-0.5 text-[11px] font-bold text-white shadow-md shadow-[#9A8C73]/30 pointer-events-none">
           {isFullscreen ? "点击还原" : "点击全屏"}
         </span>
       </div>

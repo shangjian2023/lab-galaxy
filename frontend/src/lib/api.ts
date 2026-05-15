@@ -846,6 +846,7 @@ export interface ForumThread {
   graph_node_ids: string[] | null;
   status: string;
   is_featured: boolean;
+  is_announcement: boolean;
   reply_count: number;
   like_count: number;
   view_count: number;
@@ -957,6 +958,14 @@ export function changeThreadStatus(threadId: string, status: string) {
 
 export function markBestAnswer(threadId: string, replyId: string) {
   return request<{ status: string }>(`/forum/threads/${threadId}/best-answer/${replyId}`, "POST");
+}
+
+export function createAnnouncement(data: { title: string; content: string; tags?: string[] }) {
+  return request<{ id: string }>("/forum/announcements", "POST", data);
+}
+
+export function adminToggleFeatured(threadId: string, isFeatured: boolean) {
+  return request<{ is_featured: boolean }>(`/forum/admin/threads/${threadId}/featured?is_featured=${isFeatured}`, "PATCH");
 }
 
 export function getMyForumThreads(page = 1) {

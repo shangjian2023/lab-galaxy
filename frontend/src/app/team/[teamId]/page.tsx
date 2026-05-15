@@ -34,7 +34,7 @@ export default function TeamSpacePage() {
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <p className="text-black">加载中...</p>
+        <p className="text-[#6B5D50]">加载中...</p>
       </div>
     );
   }
@@ -42,52 +42,45 @@ export default function TeamSpacePage() {
   if (!team || !user) {
     return (
       <div className="flex h-[calc(100vh-64px)] items-center justify-center">
-        <p className="text-black">团队不存在或无权访问</p>
+        <p className="text-[#6B5D50]">团队不存在或无权访问</p>
       </div>
     );
   }
 
-  return (
-    <div className="flex h-[calc(100vh-64px)] flex-col">
-      <TeamSpaceHeader team={team} />
+  const isChatTab = tab === "chat";
 
-      {/* Team graph quick link */}
-      <div className="flex justify-end border-b border-gray-100 bg-white px-4 py-1.5">
-        <button
-          onClick={() => router.push(`/graph?team_id=${teamId}&scope=team`)}
-          className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700"
-        >
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-          </svg>
-          查看团队图谱
-        </button>
-      </div>
+  return (
+    <div className="flex h-[calc(100vh-64px)] flex-col" style={{ background: "#F4F1EE" }}>
+      <TeamSpaceHeader team={team} />
 
       <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* Main area */}
         <div className="flex flex-1 flex-col" style={{ minHeight: 0 }}>
-          {/* Tabs */}
-          <div className="flex gap-1 border-b border-gray-100 bg-white px-4">
+          {/* Tab bar */}
+          <div className="flex items-center gap-2 border-b border-[#DBC7B5]/25 px-5 py-2.5" style={{ background: "#F4F1EE" }}>
             {(["chat", "members", "growth"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all ${
                   tab === t
-                    ? "border-orange-500 text-orange-600"
-                    : "border-transparent text-black hover:text-black"
+                    ? "bg-[#9A8C73] text-white shadow-sm"
+                    : "text-[#6B5D50] hover:bg-[#DBC7B5]/25"
                 }`}
               >
-                {t === "chat" ? "聊天" : t === "members" ? "成员" : "成长历程"}
+                {t === "chat" ? "💬 聊天" : t === "members" ? "👥 成员" : "📈 成长历程"}
               </button>
             ))}
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+          <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
             {tab === "chat" ? (
-              <ChatRoom teamId={teamId} currentUserId={user.id} />
+              <div className="flex flex-1 justify-center overflow-hidden" style={{ minHeight: 0 }}>
+                <div className="w-full max-w-[720px] flex flex-col" style={{ minHeight: 0 }}>
+                  <ChatRoom teamId={teamId} currentUserId={user.id} />
+                </div>
+              </div>
             ) : tab === "members" ? (
               <div className="h-full overflow-y-auto">
                 <MemberSidebar team={team} />
@@ -98,10 +91,16 @@ export default function TeamSpacePage() {
           </div>
         </div>
 
-        {/* Right sidebar — always show members on desktop */}
-        <div className="hidden w-64 border-l border-gray-100 bg-white lg:block">
-          <MemberSidebar team={team} />
-        </div>
+        {/* Right sidebar — only show on non-chat tabs or always */}
+        {!isChatTab && (
+          <div className="hidden w-64 border-l border-[#DBC7B5]/25 lg:block overflow-y-auto" style={{ background: "#F4F1EE" }}>
+            <div className="px-4 py-3 border-b border-[#DBC7B5]/20">
+              <h3 className="text-xs font-bold text-[#492D22]">{team.name}</h3>
+              <p className="text-[10px] text-[#9A8C73] mt-0.5">{team.member_count} 成员</p>
+            </div>
+            <MemberSidebar team={team} />
+          </div>
+        )}
       </div>
     </div>
   );

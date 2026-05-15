@@ -382,6 +382,15 @@ async def _apply_schema_updates():
         except Exception as e:
             logger.debug(f"Document permissions migration may have partial issues: {e}")
 
+        # Forum: is_announcement column
+        try:
+            await conn.execute(text(
+                "ALTER TABLE forum_threads ADD COLUMN IF NOT EXISTS is_announcement BOOLEAN DEFAULT FALSE"
+            ))
+            logger.info("Forum is_announcement column added.")
+        except Exception as e:
+            logger.debug(f"is_announcement migration may have partial issues: {e}")
+
 
 @app.get("/")
 async def root():

@@ -21,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <Navbar />
+            <div className="pt-16" />
             {children}
             <ToastBar />
           </AuthProvider>

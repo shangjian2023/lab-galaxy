@@ -4,19 +4,25 @@
 
 :root {
   /* ── Brand Colors ── */
-  --brand-primary: #da7756;
-  --brand-secondary: #d97757;
-  --brand-dark: #141413;
+  --brand-primary: #9A8C73;
+  --brand-secondary: #8C7D70;
+  --brand-dark: #6B5D50;
 
   /* ── Page Background ── */
-  --bg-page: #f5f5f5;
-  --bg-page-dark: #e8e8e8;
-  --bg-warm: #fafafa;
+  --bg-page: #9A8C73;
+  --bg-page-dark: #8C7D70;
+  --bg-warm: #F4F1EE;
+
+  /* ── Card / Surface Colors ── */
+  --surface-primary: #F4F1EE;
+  --surface-secondary: #DBC7B5;
+  --surface-input: #F4F1EE;
 
   /* ── Text Colors ── */
   --text-primary: #0d0a08;
   --text-secondary: #4a3e34;
   --text-muted: #6b5e50;
+  --text-brand: #9A8C73;
 
   /* ── UI Tokens ── */
   --border-warm: rgba(139,109,80,0.12);
@@ -29,7 +35,7 @@
 }
 
 body {
-  background: #f5f5f5;
+  background: #9A8C73;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -39,7 +45,7 @@ body {
 @layer components {
   /* ── Liquid Glass Card (solid on light bg) ── */
   .liquid-glass-card {
-    background: #ffffff;
+    background: var(--surface-primary);
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: var(--radius-card);
     box-shadow:
@@ -59,7 +65,7 @@ body {
 
   /* ── Liquid Glass Compact ── */
   .liquid-glass-compact {
-    background: #ffffff;
+    background: var(--surface-primary);
     border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: 12px;
     box-shadow:
@@ -78,7 +84,7 @@ body {
 
   /* ── Glass Card ── */
   .glass-card {
-    background: #ffffff;
+    background: var(--surface-primary);
     border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: var(--radius-card);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -97,14 +103,14 @@ body {
 
   /* ── Glass Warm ── */
   .glass-warm {
-    background: #ffffff;
+    background: var(--surface-primary);
     border: 1px solid rgba(0, 0, 0, 0.06);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   }
 
   /* ── Glass Light (navbar, toolbars) ── */
   .glass-light {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--surface-primary);
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   }
 
@@ -121,14 +127,14 @@ body {
 
   /* ── Glass Input ── */
   .glass-input {
-    background: #ffffff;
+    background: var(--surface-input);
     border: 1px solid rgba(0, 0, 0, 0.12);
     border-radius: var(--radius-button);
     transition: all var(--transition-smooth);
   }
   .glass-input:focus {
-    border-color: rgba(218, 119, 86, 0.5);
-    box-shadow: 0 0 0 3px rgba(218,119,86,0.1);
+    border-color: rgba(154, 140, 115, 0.5);
+    box-shadow: 0 0 0 3px rgba(154,140,115,0.1);
     outline: none;
   }
 
@@ -150,20 +156,20 @@ body {
     background: rgba(0, 0, 0, 0.02);
   }
 
-  /* ── Primary Button (Terracotta Brand) ── */
+  /* ── Primary Button (Hay Brand) ── */
   .btn-primary {
-    background: linear-gradient(135deg, #da7756, #c46545);
+    background: linear-gradient(135deg, #9A8C73, #8C7D70);
     color: white;
     border: none;
     border-radius: var(--radius-button);
     font-weight: 500;
     transition: all var(--transition-smooth);
-    box-shadow: 0 2px 8px rgba(218,119,86,0.25);
+    box-shadow: 0 2px 8px rgba(154,140,115,0.25);
     cursor: pointer;
   }
   .btn-primary:hover {
-    background: linear-gradient(135deg, #c46545, #a85235);
-    box-shadow: 0 4px 12px rgba(218,119,86,0.35);
+    background: linear-gradient(135deg, #8C7D70, #7D6F62);
+    box-shadow: 0 4px 12px rgba(154,140,115,0.35);
     transform: translateY(-1px);
   }
   .btn-primary:disabled {
@@ -175,7 +181,7 @@ body {
 
   /* ── Secondary Button ── */
   .btn-secondary {
-    background: #ffffff;
+    background: var(--surface-primary);
     border: 1px solid rgba(0, 0, 0, 0.12);
     color: var(--text-secondary);
     font-weight: 500;
@@ -203,7 +209,7 @@ body {
 .markdown-body ul, .markdown-body ol { margin: 0.4em 0; padding-left: 1.5em; }
 .markdown-body li { margin: 0.15em 0; }
 .markdown-body blockquote {
-  border-left: 3px solid rgba(218, 119, 86, 0.3);
+  border-left: 3px solid rgba(154, 140, 115, 0.3);
   padding-left: 0.75em;
   margin: 0.5em 0;
   color: var(--text-muted);
@@ -220,6 +226,11 @@ body {
   25% { transform: translate(-1px, -1px); }
   50% { transform: translate(1px, 0); }
   75% { transform: translate(0, 1px); }
+}
+
+@keyframes shimmer {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
 }
 
 /* ── Word-style Preview ── */
@@ -267,7 +278,7 @@ body {
 }
 .word-preview code {
   font-family: "Courier New", monospace;
-  background: #f5f5f5;
+  background: #F4F1EE;
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 13px;
@@ -294,6 +305,6 @@ body {
   text-align: left;
 }
 .word-preview th {
-  background: #f0f0f0;
+  background: #F4F1EE;
   font-weight: 600;
 }

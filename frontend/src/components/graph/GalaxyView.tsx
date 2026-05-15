@@ -27,7 +27,6 @@ interface SimNode extends SimulationNodeDatum {
   baseSize: number;
   degree: number;
   opacity: number;
-  floatHash: number;
 }
 
 interface SimLink extends SimulationLinkDatum<SimNode> {
@@ -36,13 +35,10 @@ interface SimLink extends SimulationLinkDatum<SimNode> {
 }
 
 export interface ForceSettings {
-  centerStrength: number;
   repel: number;
-  linkStrength: number;
   linkDistance: number;
-  experimentCluster: number;
+  centerStrength: number;
   nodeSize: number;
-  experimentSize: number;
   linkWidth: number;
 }
 
@@ -65,51 +61,30 @@ interface Props {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  Experiment: "#3b82f6",
-  Equipment: "#ef4444",
-  Theory: "#8b5cf6",
-  Consumable: "#f59e0b",
-  Tool: "#10b981",
+  Experiment: "#7c3aed",
+  Equipment: "#dc2626",
+  Theory: "#2563eb",
+  Consumable: "#d97706",
+  Tool: "#059669",
   Concept: "#6b7280",
 };
 
 const DEFAULT_SETTINGS: ForceSettings = {
-  centerStrength: 0.08,
-  repel: -300,
-  linkStrength: 0.8,
-  linkDistance: 90,
-  experimentCluster: 0.15,
+  centerStrength: 0.05,
+  repel: -180,
+  linkDistance: 30,
   nodeSize: 1,
-  experimentSize: 1,
   linkWidth: 1,
 };
 
-// ── Floating offset (gentle Obsidian-like bobbing) ──
-// Pre-compute hash per node on load to avoid string hashing every frame
+const FS_KEY = "graph-force-settings";
 
-function hashStr(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return h;
-}
-
-// Cached per-node float params (set once when node is created)
-const FLOAT_CACHE = new Map<string, { h: number }>();
-
-function getFloatHash(nodeId: string): number {
-  let cached = FLOAT_CACHE.get(nodeId);
-  if (!cached) {
-    cached = { h: hashStr(nodeId) };
-    FLOAT_CACHE.set(nodeId, cached);
-  }
-  return cached.h;
-}
-
-function floatOffsetCached(hash: number, t: number): [number, number] {
-  return [
-    Math.sin(t * 0.4 + hash * 0.1) * 1.8,
-    Math.cos(t * 0.3 + hash * 0.13) * 1.8,
-  ];
+function loadFS(): ForceSettings {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(FS_KEY) : null;
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {}
+  return { ...DEFAULT_SETTINGS };
 }
 
 // ── Component ──
@@ -120,7 +95,6 @@ export default function GalaxyView({
   onNodeClick,
   highlightedNodeId,
   queryHighlightedNodes = [],
-  forceSettings,
   timelineMode,
   onTimelineDone,
 }: Props) {
@@ -135,9 +109,12 @@ export default function GalaxyView({
   const zoomBehaviorRef = useRef<any>(null);
   const initialCenterDoneRef = useRef(false);
   const [dims, setDims] = useState({ w: 800, h: 600 });
-  const dirtyRef = useRef(true); // true = needs full render, false = skip or low-fps
+  const dirtyRef = useRef(true);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFrameTimeRef = useRef(0);
+
+  const hoverAlphaRef = useRef(0);
+  const HOVER_TRANSITION_SPEED = 0.08;
 
   const highlightedRef = useRef(highlightedNodeId);
   highlightedRef.current = highlightedNodeId;
@@ -145,10 +122,62 @@ export default function GalaxyView({
   queryHLRef.current = queryHighlightedNodes;
   const onNodeClickRef = useRef(onNodeClick);
   onNodeClickRef.current = onNodeClick;
-  const fsRef = useRef({ ...DEFAULT_SETTINGS, ...forceSettings });
-  fsRef.current = { ...DEFAULT_SETTINGS, ...forceSettings };
 
-  // ── Resize observer ──
+  // Internal force settings state — synced from localStorage every 200ms
+  const [forceSettings, setForceSettings] = useState<ForceSettings>(loadFS);
+  const prevFsRef = useRef(JSON.stringify(loadFS()));
+
+  // Poll localStorage for toolbar changes
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        const raw = localStorage.getItem(FS_KEY);
+        if (raw) {
+          const next: ForceSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+          setForceSettings(prev => {
+            if (prev.repel === next.repel && prev.linkDistance === next.linkDistance &&
+                prev.centerStrength === next.centerStrength && prev.nodeSize === next.nodeSize &&
+                prev.linkWidth === next.linkWidth) return prev;
+            return next;
+          });
+        }
+      } catch {}
+    }, 200);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Keep a ref to the latest forceSettings for the render loop
+  const fsRef = useRef(forceSettings);
+  fsRef.current = forceSettings;
+
+  // Adjacency
+  const adjacentByIdRef = useRef(new Map<string, Set<string>>());
+  const neighborLinksByIdRef = useRef(new Map<string, Set<string>>());
+
+  const NODE_RADIUS = 4;
+
+  useEffect(() => {
+    const nodes = nodesRef.current;
+    const links = linksRef.current;
+    const adj = new Map<string, Set<string>>();
+    const nl = new Map<string, Set<string>>();
+    for (const n of nodes) {
+      adj.set(n.id, new Set([n.id]));
+      nl.set(n.id, new Set());
+    }
+    for (const l of links) {
+      const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
+      const t = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
+      const lk = `${s}--${t}`;
+      adj.get(s)?.add(t);
+      adj.get(t)?.add(s);
+      nl.get(s)?.add(lk);
+      nl.get(t)?.add(lk);
+    }
+    adjacentByIdRef.current = adj;
+    neighborLinksByIdRef.current = nl;
+  });
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -165,10 +194,9 @@ export default function GalaxyView({
     (nodes: SimNode[], links: SimLink[], startAlpha = 1) => {
       if (simRef.current) simRef.current.stop();
 
-      // Radial layout: distribute nodes evenly in a circle so they start spread out
       const cx = dims.w / 2;
       const cy = dims.h / 2;
-      const r = Math.min(dims.w, dims.h) * 0.35;
+      const r = Math.min(dims.w, dims.h) * 0.3;
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
         if (n.x == null) {
@@ -183,36 +211,35 @@ export default function GalaxyView({
           "link",
           forceLink<SimNode, SimLink>(links)
             .id((d) => d.id)
-            .distance(fsRef.current.linkDistance)
-            .strength(fsRef.current.linkStrength)
+            .distance(forceSettings.linkDistance)
+            .strength(0.6)
         )
-        .force("charge", forceManyBody<SimNode>().strength(fsRef.current.repel))
-        .force("center", forceCenter(cx, cy).strength(fsRef.current.centerStrength))
-        .force("collide", forceCollide<SimNode>().radius((d) => radius(d) + 6))
-        .force("experimentCluster", (alpha) => {
-          const exps = nodes.filter(n => n.type === "Experiment" && n.x != null && n.y != null);
-          if (exps.length < 2) return;
-          const ecx = exps.reduce((s, n) => s + n.x!, 0) / exps.length;
-          const ecy = exps.reduce((s, n) => s + n.y!, 0) / exps.length;
-          for (const n of exps) {
-            n.vx = (n.vx || 0) + (ecx - n.x!) * alpha * fsRef.current.experimentCluster;
-            n.vy = (n.vy || 0) + (ecy - n.y!) * alpha * fsRef.current.experimentCluster;
-          }
-        })
+        .force("charge", forceManyBody<SimNode>().strength(forceSettings.repel))
+        .force("center", forceCenter(cx, cy).strength(forceSettings.centerStrength))
+        .force("collide", forceCollide<SimNode>().radius(NODE_RADIUS + 3))
         .alpha(startAlpha)
-        .alphaDecay(0.01)
-        .velocityDecay(0.25);
+        .alphaDecay(0.02)
+        .velocityDecay(0.4);
 
       simRef.current = sim;
       nodesRef.current = nodes;
       linksRef.current = links;
 
-      // Trigger render on simulation tick
+      let lastPos = new Map<string, { x: number; y: number }>();
       sim.on("tick", () => {
-        dirtyRef.current = true;
+        let moved = false;
+        for (const n of nodes) {
+          if (n.x == null || n.y == null) continue;
+          const p = lastPos.get(n.id);
+          if (!p || Math.abs(p.x - n.x) > 0.5 || Math.abs(p.y - n.y) > 0.5) {
+            moved = true;
+            lastPos.set(n.id, { x: n.x, y: n.y });
+          }
+        }
+        if (moved) dirtyRef.current = true;
       });
     },
-    [dims.w, dims.h]
+    [dims.w, dims.h, forceSettings]
   );
 
   function computeDegree(nodes: SimNode[], links: SimLink[]) {
@@ -227,19 +254,13 @@ export default function GalaxyView({
     for (const n of nodes) n.degree = deg[n.id] || 0;
   }
 
-  function radius(n: SimNode) {
-    const d = Math.min(n.degree, 10);
-    const base = n.type === "Experiment" ? 4.8 : 3.8;
-    const scale = n.type === "Experiment" ? fsRef.current.experimentSize : fsRef.current.nodeSize;
-    return Math.max(3.5, Math.min((base + Math.log2(d + 1) * 1.45) * scale, 13));
-  }
-
-  // ── Load data into simulation (preserving positions) ──
+  // ── Load data ──
   useEffect(() => {
     if (!data.nodes.length) {
       nodesRef.current = [];
       linksRef.current = [];
       hoveredRef.current = null;
+      hoverAlphaRef.current = 0;
       if (canvasRef.current) canvasRef.current.style.cursor = "default";
       simRef.current?.stop();
       simRef.current = null;
@@ -248,6 +269,8 @@ export default function GalaxyView({
 
     const existingMap = new Map<string, SimNode>();
     for (const n of nodesRef.current) existingMap.set(n.id, n);
+
+    const latestId = data.nodes[data.nodes.length - 1]?.data.id;
 
     const nodes: SimNode[] = data.nodes.map((n) => {
       const existing = existingMap.get(n.data.id);
@@ -262,122 +285,97 @@ export default function GalaxyView({
         existing.opacity = 1;
         return existing;
       }
-      return {
-        id: n.data.id,
-        label: n.data.label,
-        name: n.data.name,
-        type: n.data.type,
-        summary: n.data.summary,
-        color: n.data.color || TYPE_COLORS[n.data.type] || "#6b7280",
-        document_id: n.data.document_id,
-        baseSize: n.data.size || 20,
-        degree: 0,
-        opacity: 1,
-        floatHash: getFloatHash(n.data.id),
-        x: undefined,
-        y: undefined,
+      const nn: SimNode = {
+        id: n.data.id, label: n.data.label, name: n.data.name, type: n.data.type,
+        summary: n.data.summary, color: n.data.color || TYPE_COLORS[n.data.type] || "#6b7280",
+        document_id: n.data.document_id, baseSize: n.data.size || 20,
+        degree: 0, opacity: 1, x: undefined, y: undefined,
       };
+      if (n.data.id === latestId) { nn.x = dims.w / 2; nn.y = dims.h / 2; }
+      return nn;
     });
 
     const links: SimLink[] = data.edges.map((e) => ({
-      source: e.data.source,
-      target: e.data.target,
-      confidence: e.data.confidence,
-      edgeType: e.data.type,
+      source: e.data.source, target: e.data.target,
+      confidence: e.data.confidence, edgeType: e.data.type,
     }));
 
     computeDegree(nodes, links);
     buildSim(nodes, links, existingMap.size > 0 ? 0.05 : 1);
-  }, [data, buildSim]);
+    initialCenterDoneRef.current = false;
+  }, [data, buildSim, dims.w, dims.h]);
 
-  // ── Update force params on settings change ──
+  // ── Apply force settings changes ──
   useEffect(() => {
+    const cur = JSON.stringify(forceSettings);
+    if (cur === prevFsRef.current) return;
+    prevFsRef.current = cur;
+
     const sim = simRef.current;
     if (!sim) return;
     const linkF = sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>>;
     const chargeF = sim.force("charge") as ReturnType<typeof forceManyBody<SimNode>>;
     const centerF = sim.force("center") as ReturnType<typeof forceCenter>;
-    if (linkF) {
-      linkF.distance(fsRef.current.linkDistance);
-      linkF.strength(fsRef.current.linkStrength);
-    }
-    if (chargeF) chargeF.strength(fsRef.current.repel);
-    if (centerF) centerF.strength(fsRef.current.centerStrength);
+    if (linkF) linkF.distance(forceSettings.linkDistance);
+    if (chargeF) chargeF.strength(forceSettings.repel);
+    if (centerF) centerF.strength(forceSettings.centerStrength);
     sim.alpha(0.3).restart();
-  }, [forceSettings.centerStrength, forceSettings.repel, forceSettings.linkStrength, forceSettings.linkDistance, forceSettings.experimentCluster]);
+  }, [forceSettings]);
 
-  // ── Pan to highlighted node ──
+  // ── Pan to highlighted ──
   useEffect(() => {
     if (!highlightedNodeId || !zoomBehaviorRef.current || !canvasRef.current) return;
     const node = nodesRef.current.find((n) => n.id === highlightedNodeId);
     if (!node || node.x == null) return;
-    const canvas = canvasRef.current;
     const t = transformRef.current;
-    const cx = dims.w / 2;
-    const cy = dims.h / 2;
-    const scale = t.k;
-    const targetTransform = zoomIdentity.translate(cx - node.x! * scale, cy - node.y! * scale).scale(scale);
-    zoomBehaviorRef.current.transform(select(canvas), targetTransform);
+    const targetTransform = zoomIdentity.translate(dims.w / 2 - node.x! * t.k, dims.h / 2 - node.y! * t.k).scale(t.k);
+    zoomBehaviorRef.current.transform(select(canvasRef.current), targetTransform);
   }, [highlightedNodeId, dims]);
 
-  // ── Initial center once simulation settles ──
+  // ── Initial center ──
   useEffect(() => {
-    if (initialCenterDoneRef.current) return;
-    if (!data.nodes.length) return;
-
+    if (initialCenterDoneRef.current || !data.nodes.length) return;
     const timer = setTimeout(() => {
       const sim = simRef.current;
       if (!sim || !zoomBehaviorRef.current || !canvasRef.current) return;
-
-      // Compute center of mass from current node positions
       const nodes = nodesRef.current.filter((n) => n.x != null && n.y != null);
       if (!nodes.length) return;
-      const cx = nodes.reduce((s, n) => s + n.x!, 0) / nodes.length;
-      const cy = nodes.reduce((s, n) => s + n.y!, 0) / nodes.length;
-
-      const canvas = canvasRef.current;
-      const zb = zoomBehaviorRef.current;
-      const scale = Math.min(dims.w / 1200, dims.h / 800, 1); // Auto-fit zoom
-      const endX = dims.w / 2 - cx * scale;
-      const endY = dims.h / 2 - cy * scale;
+      const latest = nodesRef.current[nodesRef.current.length - 1];
+      if (!latest || latest.x == null || latest.y == null) {
+        latest.x = nodes.reduce((s, n) => s + n.x!, 0) / nodes.length;
+        latest.y = nodes.reduce((s, n) => s + n.y!, 0) / nodes.length;
+      }
+      const scale = Math.min(dims.w / 1000, dims.h / 700, 1.2);
+      const endX = dims.w / 2 - latest.x * scale;
+      const endY = dims.h / 2 - latest.y * scale;
       const startX = transformRef.current.x;
       const startY = transformRef.current.y;
-
-      // If already close to target, skip animation
-      if (Math.abs(startX - endX) < 50 && Math.abs(startY - endY) < 50 && Math.abs(transformRef.current.k - scale) < 0.1) {
+      if (Math.abs(startX - endX) < 30 && Math.abs(startY - endY) < 30 && Math.abs(transformRef.current.k - scale) < 0.1) {
         initialCenterDoneRef.current = true;
         return;
       }
-
-      const duration = 600;
-      const startTime = Date.now();
-      let animRaf = 0;
-
-      function animatePan() {
-        const elapsed = Date.now() - startTime;
-        const t = Math.min(1, elapsed / duration);
-        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        const x = startX + (endX - startX) * ease;
-        const y = startY + (endY - startY) * ease;
-        const k = transformRef.current.k + (scale - transformRef.current.k) * ease;
-        const newTransform = zoomIdentity.translate(x, y).scale(k);
-        zb.transform(select(canvas), newTransform);
-        transformRef.current = newTransform;
-        if (t < 1) {
-          animRaf = requestAnimationFrame(animatePan);
-        }
+      const dur = 700;
+      const t0 = Date.now();
+      let raf = 0;
+      function anim() {
+        const p = Math.min(1, (Date.now() - t0) / dur);
+        const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        const x = startX + (endX - startX) * e;
+        const y = startY + (endY - startY) * e;
+        const k = transformRef.current.k + (scale - transformRef.current.k) * e;
+        const nt = zoomIdentity.translate(x, y).scale(k);
+        zoomBehaviorRef.current!.transform(select(canvasRef.current!), nt);
+        transformRef.current = nt;
+        if (p < 1) raf = requestAnimationFrame(anim);
       }
-
-      animRaf = requestAnimationFrame(animatePan);
+      raf = requestAnimationFrame(anim);
       initialCenterDoneRef.current = true;
-
-      return () => cancelAnimationFrame(animRaf);
-    }, 800);
-
+      return () => cancelAnimationFrame(raf);
+    }, 600);
     return () => clearTimeout(timer);
   }, [data.nodes.length, dims]);
 
-  // ── Setup canvas, zoom, drag, render loop ──
+  // ── Canvas render ──
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -390,7 +388,6 @@ export default function GalaxyView({
     canvas.style.height = `${dims.h}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // ── Helpers ──
     function transformPoint(sx: number, sy: number): [number, number] {
       const t = transformRef.current;
       return [(sx - t.x) / t.k, (sy - t.y) / t.k];
@@ -400,7 +397,7 @@ export default function GalaxyView({
       for (let i = nodesRef.current.length - 1; i >= 0; i--) {
         const n = nodesRef.current[i];
         if (n.x == null) continue;
-        const r = radius(n) + 3;
+        const r = NODE_RADIUS + 5;
         const dx = (n.x ?? 0) - x;
         const dy = (n.y ?? 0) - y;
         if (dx * dx + dy * dy < r * r) return n;
@@ -408,18 +405,14 @@ export default function GalaxyView({
       return null;
     }
 
-    // ── Drag state ──
     let dragNode: SimNode | null = null;
     let didDrag = false;
 
-    // ── Zoom behavior ──
     const zb = zoom<HTMLCanvasElement, unknown>()
-      .scaleExtent([0.15, 5])
+      .scaleExtent([0.1, 6])
       .filter((event) => {
         const evt = event as MouseEvent;
-        // Always allow scroll zoom
         if (evt.type === "wheel") return true;
-        // Prevent pan when clicking on a node (that starts a drag instead)
         const rect = canvas.getBoundingClientRect();
         const [mx, my] = transformPoint(evt.clientX - rect.left, evt.clientY - rect.top);
         return !findNode(mx, my);
@@ -432,7 +425,6 @@ export default function GalaxyView({
     select(canvas).call(zb);
     zoomBehaviorRef.current = zb;
 
-    // ── Manual node drag (native events, coexists with d3-zoom) ──
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
       didDrag = false;
@@ -443,7 +435,7 @@ export default function GalaxyView({
         dragNode = node;
         dragNode.fx = dragNode.x;
         dragNode.fy = dragNode.y;
-        simRef.current?.alphaTarget(0.5).restart();
+        simRef.current?.alphaTarget(0.15).restart();
         canvas.style.cursor = "grabbing";
         dirtyRef.current = true;
         markDirty();
@@ -465,8 +457,8 @@ export default function GalaxyView({
       if (hoveredRef.current?.id !== hovered?.id) {
         hoveredRef.current = hovered;
         dirtyRef.current = true;
+        markDirty();
       }
-      markDirty();
       canvas.style.cursor = hoveredRef.current ? "pointer" : "default";
     };
 
@@ -484,9 +476,15 @@ export default function GalaxyView({
     canvas.addEventListener("mousedown", onMouseDown);
     canvas.addEventListener("mousemove", onMouseMove);
     canvas.addEventListener("mouseup", onMouseUp);
-    canvas.addEventListener("mouseleave", onMouseUp);
+    canvas.addEventListener("mouseleave", () => {
+      onMouseUp();
+      if (hoveredRef.current) {
+        hoveredRef.current = null;
+        dirtyRef.current = true;
+        markDirty();
+      }
+    });
 
-    // ── Click (fires after drag-end, suppressed if dragged) ──
     const onClick = (e: MouseEvent) => {
       if (didDrag) return;
       const rect = canvas.getBoundingClientRect();
@@ -494,29 +492,22 @@ export default function GalaxyView({
       const node = findNode(mx, my);
       if (node) {
         onNodeClickRef.current({
-          id: node.id,
-          name: node.name,
-          type: node.type,
-          summary: node.summary,
-          color: node.color,
-          document_id: node.document_id,
+          id: node.id, name: node.name, type: node.type,
+          summary: node.summary, color: node.color, document_id: node.document_id,
         });
       }
     };
     canvas.addEventListener("click", onClick);
 
-    // ── Cached highlight sets (rebuilt only when data changes) ──
-    let cachedQueryHL: string[] = [];
-    let cachedHLId: string | null = null;
     let querySet = new Set<string>();
     let highlightSet = new Set<string>();
     let dimmed: Set<string> | null = null;
-    const lastHLRef = { current: "" };
+    let dimmedEdges: Set<string> | null = null;
+    let lastHLRef = "";
 
-    // ── Adaptive render: rAF when dirty, 15fps setTimeout when idle ──
-    const IDLE_INTERVAL_MS = 66; // ~15fps
+    const IDLE_INTERVAL_MS = 100;
     let renderScheduled = false;
-    let simActive = true; // sim is still running (positions changing)
+    let simActive = true;
 
     function markDirty() {
       if (renderScheduled) return;
@@ -540,7 +531,6 @@ export default function GalaxyView({
       const dt = now - lastFrameTimeRef.current;
       lastFrameTimeRef.current = now;
 
-      // Skip if nothing changed and less than idle interval
       if (!dirtyRef.current && dt < IDLE_INTERVAL_MS) {
         scheduleIdle();
         return;
@@ -548,36 +538,57 @@ export default function GalaxyView({
       dirtyRef.current = false;
 
       const t = transformRef.current;
-      const currentFS = fsRef.current;
-      const timeSec = now / 1000;
+      const zoomLevel = t.k;
 
-      // Check if sim is still active (producing layout changes)
       const sim = simRef.current;
       const wasSimActive = simActive;
       simActive = sim ? sim.alpha() > 0.001 : false;
 
-      // Only rebuild highlight sets when refs change
+      const targetHA = hoveredRef.current ? 1 : 0;
+      const curHA = hoverAlphaRef.current;
+      if (Math.abs(curHA - targetHA) > 0.001) {
+        hoverAlphaRef.current += (targetHA - curHA) * HOVER_TRANSITION_SPEED;
+        dirtyRef.current = true;
+      }
+      const hA = hoverAlphaRef.current;
+
       const curHL = highlightedRef.current;
       const curQHL = queryHLRef.current;
-      const cacheKey = `${curHL}|${curQHL.join(",")}`;
-      if (cacheKey !== lastHLRef.current) {
-        lastHLRef.current = cacheKey;
-        cachedQueryHL = curQHL;
-        cachedHLId = curHL;
+      const hovId = hoveredRef.current?.id;
+      const ck = `${curHL}|${curQHL.join(",")}|${hovId ?? ""}|${hA.toFixed(2)}`;
+      if (ck !== lastHLRef) {
+        lastHLRef = ck;
         querySet = new Set(curQHL);
         highlightSet = new Set<string>();
         if (curHL) highlightSet.add(curHL);
         for (const id of curQHL) highlightSet.add(id);
-        const hasHighlight = highlightSet.size > 0;
+
         dimmed = null;
-        if (hasHighlight) {
+        dimmedEdges = null;
+
+        if (hA > 0.01 && hovId) {
+          const hn = adjacentByIdRef.current.get(hovId) ?? new Set([hovId]);
+          const hlk = neighborLinksByIdRef.current.get(hovId) ?? new Set();
           dimmed = new Set<string>();
+          dimmedEdges = new Set<string>();
+          for (const n of nodesRef.current) {
+            if (!hn.has(n.id)) dimmed.add(n.id);
+          }
+          for (const l of linksRef.current) {
+            const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
+            const tg = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
+            if (!hlk.has(`${s}--${tg}`)) dimmedEdges.add(`${s}--${tg}`);
+          }
+        } else if (highlightSet.size > 0) {
+          dimmed = new Set<string>();
+          dimmedEdges = new Set<string>();
           const connected = new Set<string>(highlightSet);
           for (const l of linksRef.current) {
             const s = typeof l.source === "object" ? (l.source as SimNode).id : String(l.source);
             const tg = typeof l.target === "object" ? (l.target as SimNode).id : String(l.target);
             if (highlightSet.has(s)) connected.add(tg);
             if (highlightSet.has(tg)) connected.add(s);
+            if (!(highlightSet.has(s) && highlightSet.has(tg))) dimmedEdges.add(`${s}--${tg}`);
           }
           for (const n of nodesRef.current) {
             if (!connected.has(n.id)) dimmed.add(n.id);
@@ -585,216 +596,161 @@ export default function GalaxyView({
         }
       }
 
-      ctx.clearRect(0, 0, dims.w, dims.h);
+      const isHov = hA > 0.01;
 
-      const bg = ctx.createRadialGradient(
-        dims.w * 0.5,
-        dims.h * 0.45,
-        0,
-        dims.w * 0.5,
-        dims.h * 0.5,
-        Math.max(dims.w, dims.h) * 0.75,
-      );
-      bg.addColorStop(0, "#111827");
-      bg.addColorStop(0.55, "#080d16");
-      bg.addColorStop(1, "#020617");
-      ctx.fillStyle = bg;
+      ctx.clearRect(0, 0, dims.w, dims.h);
+      ctx.fillStyle = "#0f0f0f";
       ctx.fillRect(0, 0, dims.w, dims.h);
 
       ctx.save();
       ctx.translate(t.x, t.y);
       ctx.scale(t.k, t.k);
 
-      // ── Draw edges ──
+      // ── Edges ──
       for (const l of linksRef.current) {
         const s = l.source as SimNode;
         const tg = l.target as SimNode;
         if (s.x == null || s.y == null || tg.x == null || tg.y == null) continue;
 
-        const sOff = s === dragNode ? [0, 0] : floatOffsetCached(s.floatHash, timeSec);
-        const tOff = tg === dragNode ? [0, 0] : floatOffsetCached(tg.floatHash, timeSec);
-        const sx = s.x + sOff[0], sy = s.y + sOff[1];
-        const tx = tg.x + tOff[0], ty2 = tg.y + tOff[1];
+        const lk = `${s.id}--${tg.id}`;
+        const isHL = highlightSet.has(s.id) && highlightSet.has(tg.id);
+        const isHE = hovId && (s.id === hovId || tg.id === hovId);
+        const isD = (isHov && dimmedEdges?.has(lk)) || (!isHov && dimmed?.has(s.id) && dimmed?.has(tg.id));
 
-        const isHighlighted =
-          highlightSet.has(s.id) && highlightSet.has(tg.id);
-        const isDimmedEdge = dimmed?.has(s.id) && dimmed?.has(tg.id);
-
-        const alpha = isDimmedEdge ? 0.035 : isHighlighted ? 0.78 : 0.16;
-        const w = isHighlighted ? 1.25 + currentFS.linkWidth * 0.45 : Math.max(0.55, 0.7 * currentFS.linkWidth);
+        const alpha = isD ? 0.03 : isHL ? 0.7 : isHE ? 0.5 : 0.25;
+        const w = isHL ? 1.5 : isHE ? 1.2 : Math.max(0.5, 0.8 * fsRef.current.linkWidth);
 
         ctx.beginPath();
-        ctx.moveTo(sx, sy);
-
-        const mx = (sx + tx) / 2;
-        const my = (sy + ty2) / 2 - 4;
-        ctx.quadraticCurveTo(mx, my, tx, ty2);
-
-        ctx.strokeStyle = isHighlighted
-          ? `rgba(236,198,132,${alpha})`
-          : `rgba(148,163,184,${alpha})`;
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(tg.x, tg.y);
+        ctx.strokeStyle = isHL
+          ? `rgba(217,182,103,${alpha})`
+          : isHE
+          ? `rgba(170,175,190,${alpha})`
+          : `rgba(140,150,165,${alpha})`;
         ctx.lineWidth = w;
         ctx.stroke();
-
-        if (isHighlighted) {
-          const angle = Math.atan2(ty2 - my, tx - mx);
-          const arrLen = 5;
-          const ax = tx - Math.cos(angle) * radius(tg);
-          const ay = ty2 - Math.sin(angle) * radius(tg);
-          ctx.beginPath();
-          ctx.moveTo(ax, ay);
-          ctx.lineTo(ax - arrLen * Math.cos(angle - 0.42), ay - arrLen * Math.sin(angle - 0.42));
-          ctx.lineTo(ax - arrLen * Math.cos(angle + 0.42), ay - arrLen * Math.sin(angle + 0.42));
-          ctx.closePath();
-          ctx.fillStyle = `rgba(236,198,132,${alpha})`;
-          ctx.fill();
-        }
       }
 
-      // ── Draw nodes ──
+      // ── Nodes ──
+      const nr = fsRef.current.nodeSize * NODE_RADIUS;
       for (const n of nodesRef.current) {
         if (n.x == null || n.y == null) continue;
-        const off = n === dragNode ? [0, 0] : floatOffsetCached(n.floatHash, timeSec);
-        const px = n.x + off[0], py = n.y + off[1];
-        const r = radius(n);
-        const isDimmed = dimmed?.has(n.id);
-        const isHighlighted = highlightSet.has(n.id);
-        const isQueryHL = querySet.has(n.id);
-        const isHovered = hoveredRef.current?.id === n.id;
-        const globalAlpha = isDimmed ? 0.15 : n.opacity;
+        const isD = dimmed?.has(n.id);
+        const isH = hovId === n.id;
+        const isNb = isHov && hovId && adjacentByIdRef.current.get(hovId)?.has(n.id);
+        const isHL = highlightSet.has(n.id);
+        const isQHL = querySet.has(n.id);
 
-        if (!isDimmed) {
-          const glow = ctx.createRadialGradient(px, py, 0, px, py, r * 3.2);
-          glow.addColorStop(0, `${n.color}66`);
-          glow.addColorStop(0.35, `${n.color}24`);
-          glow.addColorStop(1, `${n.color}00`);
-          ctx.beginPath();
-          ctx.arc(px, py, r * 3.2, 0, Math.PI * 2);
-          ctx.fillStyle = glow;
-          ctx.globalAlpha = isHighlighted || isHovered ? 0.95 : n.type === "Experiment" ? 0.5 : 0.34;
-          ctx.fill();
-        }
-
-        ctx.globalAlpha = globalAlpha;
-        ctx.beginPath();
-        ctx.arc(px, py, r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(15,23,42,0.92)";
-        ctx.fill();
+        if (isHov && isD) ctx.globalAlpha = 0.22 + (1 - hA) * 0.15;
 
         ctx.beginPath();
-        ctx.arc(px, py, Math.max(1.8, r * 0.58), 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, nr, 0, Math.PI * 2);
         ctx.fillStyle = n.color;
         ctx.fill();
 
-        ctx.lineWidth = isHovered ? 1.9 : isHighlighted ? 1.7 : isQueryHL ? 1.6 : 0.9;
-        ctx.strokeStyle = isHighlighted
-          ? "rgba(252,211,77,0.95)"
-          : isQueryHL
-          ? "rgba(251,191,36,0.9)"
-          : isHovered
-          ? "rgba(226,232,240,0.9)"
-          : "rgba(148,163,184,0.38)";
+        ctx.lineWidth = isH ? 2.8 : isNb ? 2 : isHL || isQHL ? 2 : 0.8;
+        ctx.strokeStyle = isH
+          ? "rgba(255,255,255,0.95)"
+          : isNb
+          ? "rgba(255,255,255,0.7)"
+          : isHL
+          ? "rgba(250,204,21,0.85)"
+          : isQHL
+          ? "rgba(251,191,36,0.75)"
+          : "rgba(148,163,184,0.3)";
         ctx.stroke();
 
-        if (isHighlighted || isQueryHL) {
-          const pulse = 1 + Math.sin(now / 340) * 0.12;
+        if (isH || isNb) {
           ctx.beginPath();
-          ctx.arc(px, py, r * pulse + 4, 0, Math.PI * 2);
-          ctx.strokeStyle = isHighlighted ? "rgba(252,211,77,0.48)" : "rgba(251,191,36,0.42)";
-          ctx.lineWidth = 1.15;
+          ctx.arc(n.x, n.y, nr + 4, 0, Math.PI * 2);
+          ctx.fillStyle = isH ? `${n.color}40` : `${n.color}20`;
+          ctx.fill();
+        }
+
+        if (isHL || isQHL) {
+          const pulse = 1 + Math.sin(now / 400) * 0.08;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, nr * pulse + 5, 0, Math.PI * 2);
+          ctx.strokeStyle = isHL ? "rgba(250,204,21,0.3)" : "rgba(251,191,36,0.25)";
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
 
         ctx.globalAlpha = 1;
       }
 
-      // ── Draw labels ──
-      const zoomLevel = t.k;
-      const showLabels = zoomLevel > 0.52;
+      // ── Labels ──
+      const lo = zoomLevel < 0.5 ? 0 : zoomLevel < 0.8 ? (zoomLevel - 0.5) / 0.3 : zoomLevel > 2.5 ? Math.max(0, 1 - (zoomLevel - 2.5) / 1.5) : 1;
 
-      if (showLabels) {
+      let hln: SimNode | null = null;
+
+      if (lo > 0.01) {
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        const fontSize = Math.max(9, Math.min(12, 11 / zoomLevel * 1.05));
-        ctx.font = `500 ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.font = `400 10px ui-sans-serif, system-ui, sans-serif`;
 
         for (const n of nodesRef.current) {
           if (n.x == null || n.y == null) continue;
-          const off = n === dragNode ? [0, 0] : floatOffsetCached(n.floatHash, timeSec);
-          const lx = n.x + off[0], ly = n.y + off[1];
-          const isDimmedN = dimmed?.has(n.id);
-          const isHoveredN = hoveredRef.current?.id === n.id;
-          const isImportant = n.type === "Experiment" || n.degree > 3;
+          const isDN = dimmed?.has(n.id);
+          const isHN = hovId === n.id;
+          const isHLN = curHL === n.id;
 
-          const shouldShow = isHoveredN || highlightedRef.current === n.id || querySet.has(n.id) || isImportant || zoomLevel > 0.82;
-          if (!shouldShow && !isDimmedN) continue;
-          if (isDimmedN && !shouldShow) continue;
+          if (isHov && isDN && !isHN) {
+            ctx.globalAlpha = 0.15 * lo;
+            ctx.fillStyle = "rgba(120,128,140,0.5)";
+            ctx.fillText(n.name || n.label, n.x, n.y + nr + 4);
+            ctx.globalAlpha = 1;
+            continue;
+          }
 
-          const r = radius(n);
-          const labelAlpha = isDimmedN ? 0.12 : isHoveredN || highlightedRef.current === n.id ? 1 : Math.min(0.82, (zoomLevel - 0.52) * 2.4);
-          ctx.globalAlpha = labelAlpha;
-          ctx.shadowColor = "rgba(2,6,23,0.95)";
-          ctx.shadowBlur = 5;
-          ctx.fillStyle = isDimmedN ? "rgba(148,163,184,0.42)" : "rgba(226,232,240,0.86)";
-          ctx.fillText(n.name || n.label, lx, ly + r + 6);
+          const a = lo * (isHN || isHLN ? 1 : 0.65);
+          if (isHN && hA > 0.1) { hln = n; continue; }
+
+          ctx.globalAlpha = a;
+          ctx.fillStyle = isHLN ? "rgba(230,235,245,0.95)" : "rgba(180,186,196,0.85)";
+          ctx.shadowColor = "rgba(0,0,0,0.5)";
+          ctx.shadowBlur = 2;
+          ctx.fillText(n.name || n.label, n.x, n.y + nr + 4);
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         }
       }
 
-      // ── Tooltip ──
-      const hov = hoveredRef.current;
-      if (hov && hov.x != null && hov.y != null) {
-        const off = hov === dragNode ? [0, 0] : floatOffsetCached(hov.floatHash, timeSec);
-        const r = radius(hov);
-        const htx = hov.x + off[0];
-        const hty = hov.y + off[1] - r - 10;
-        const text = `${hov.name} (${hov.type})`;
-        ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
-        const tw = ctx.measureText(text).width;
-        ctx.fillStyle = "rgba(15,23,42,0.9)";
-        const pad = 8, pady = 4;
-        const rx = htx - tw / 2 - pad, ry = hty - 14 - pady, rw = tw + pad * 2, rh = 20 + pady * 2, rr = 6;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(rx, ry, rw, rh, rr);
-        } else {
-          ctx.moveTo(rx + rr, ry);
-          ctx.lineTo(rx + rw - rr, ry);
-          ctx.arcTo(rx + rw, ry, rx + rw, ry + rr, rr);
-          ctx.lineTo(rx + rw, ry + rh - rr);
-          ctx.arcTo(rx + rw, ry + rh, rx + rw - rr, ry + rh, rr);
-          ctx.lineTo(rx + rr, ry + rh);
-          ctx.arcTo(rx, ry + rh, rx, ry + rh - rr, rr);
-          ctx.lineTo(rx, ry + rr);
-          ctx.arcTo(rx, ry, rx + rr, ry, rr);
-          ctx.closePath();
-        }
-        ctx.fill();
-        ctx.fillStyle = "#fff";
+      // ── Hovered label on top layer ──
+      if (hln && hA > 0.1) {
+        const nx = hln.x ?? 0;
+        const ny = hln.y ?? 0;
+        const sc = 1 + hA * 0.3;
+        const fs = 10 * sc;
+        const eo = hA * 3;
+
         ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(text, htx, hty - 4);
+        ctx.textBaseline = "top";
+        ctx.font = `500 ${fs}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.globalAlpha = hA;
+        ctx.fillStyle = "rgba(240,243,250,0.98)";
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 4;
+        ctx.fillText(hln.name || hln.label, nx, ny + nr + 4 + eo);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
       }
 
       ctx.restore();
 
-      // Schedule next render: rAF if sim/mouse active, setTimeout if idle
-      const shouldHighFps = simActive || wasSimActive || dragNode || hov || highlightSet.size > 0;
-      if (shouldHighFps) {
-        markDirty();
-      } else {
-        scheduleIdle();
-      }
+      const shouldHi = simActive || wasSimActive || dragNode || hoveredRef.current || highlightSet.size > 0 || Math.abs(hA - targetHA) > 0.001;
+      if (shouldHi) markDirty();
+      else scheduleIdle();
     }
 
-    // Kick off the render loop
     markDirty();
 
     return () => {
       cancelAnimationFrame(rafRef.current);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       hoveredRef.current = null;
+      hoverAlphaRef.current = 0;
       canvas.style.cursor = "default";
       simRef.current?.stop();
       select(canvas).on(".zoom", null);
@@ -806,106 +762,65 @@ export default function GalaxyView({
     };
   }, [dims]);
 
-  // ── Timeline animation mode (Experiment nodes first) ──
+  // ── Timeline ──
   useEffect(() => {
     if (!timelineMode || !timelineData || timelineData.length === 0) return;
 
-    const TYPE_ORDER: Record<string, number> = {
-      Experiment: 0,
-      Theory: 1,
-      Equipment: 2,
-      Consumable: 3,
-      Tool: 4,
-      Concept: 5,
+    const TO: Record<string, number> = {
+      Experiment: 0, Theory: 1, Equipment: 2, Consumable: 3, Tool: 4, Concept: 5,
     };
-
     const sorted = [...timelineData].sort((a, b) => {
-      const oa = TYPE_ORDER[a.node.type] ?? 9;
-      const ob = TYPE_ORDER[b.node.type] ?? 9;
+      const oa = TO[a.node.type] ?? 9;
+      const ob = TO[b.node.type] ?? 9;
       if (oa !== ob) return oa - ob;
       return (a.year || 0) - (b.year || 0);
     });
 
     const allNodes: SimNode[] = [];
     const allLinks: SimLink[] = [];
-    const allNodeIds = new Set<string>();
-
-    const nodeMap = new Map<string, CytoscapeData["nodes"][number]["data"]>();
-    for (const n of data.nodes) nodeMap.set(n.data.id, n.data);
-
-    const edgeMap = new Map<string, CytoscapeData["edges"][number][]>();
+    const allIds = new Set<string>();
+    const nm = new Map<string, CytoscapeData["nodes"][number]["data"]>();
+    for (const n of data.nodes) nm.set(n.data.id, n.data);
+    const em = new Map<string, CytoscapeData["edges"][number][]>();
     for (const e of data.edges) {
-      const arr = edgeMap.get(e.data.source) || [];
-      arr.push(e);
-      edgeMap.set(e.data.source, arr);
-      const arr2 = edgeMap.get(e.data.target) || [];
-      arr2.push(e);
-      edgeMap.set(e.data.target, arr2);
+      (em.get(e.data.source) || []).push(e); em.set(e.data.source, em.get(e.data.source)!);
+      (em.get(e.data.target) || []).push(e); em.set(e.data.target, em.get(e.data.target)!);
     }
 
     buildSim([], []);
 
     let idx = 0;
-    const interval = setInterval(() => {
-      if (idx >= sorted.length) {
-        clearInterval(interval);
-        onTimelineDone?.();
-        return;
-      }
-
-      const entry = sorted[idx];
-      const nd = nodeMap.get(entry.node.id);
+    const iv = setInterval(() => {
+      if (idx >= sorted.length) { clearInterval(iv); onTimelineDone?.(); return; }
+      const nd = nm.get(sorted[idx].node.id);
       if (nd) {
-        const newNode: SimNode = {
-          id: nd.id,
-          label: nd.label,
-          name: nd.name,
-          type: nd.type,
-          summary: nd.summary,
-          color: nd.color || TYPE_COLORS[nd.type] || "#6b7280",
-          document_id: nd.document_id,
-          baseSize: nd.size || 20,
-          degree: 0,
-          opacity: 0,
-          floatHash: getFloatHash(nd.id),
+        const nn: SimNode = {
+          id: nd.id, label: nd.label, name: nd.name, type: nd.type,
+          summary: nd.summary, color: nd.color || TYPE_COLORS[nd.type] || "#6b7280",
+          document_id: nd.document_id, baseSize: nd.size || 20,
+          degree: 0, opacity: 0, x: undefined, y: undefined,
         };
-
-        setTimeout(() => { newNode.opacity = 1; }, 50);
-
-        allNodes.push(newNode);
-        allNodeIds.add(nd.id);
-
-        const edges = edgeMap.get(nd.id) || [];
-        for (const e of edges) {
-          const otherId = e.data.source === nd.id ? e.data.target : e.data.source;
-          if (allNodeIds.has(otherId)) {
-            allLinks.push({
-              source: e.data.source,
-              target: e.data.target,
-              confidence: e.data.confidence,
-              edgeType: e.data.type,
-            });
-          }
+        setTimeout(() => { nn.opacity = 1; }, 50);
+        allNodes.push(nn); allIds.add(nd.id);
+        for (const e of em.get(nd.id) || []) {
+          const o = e.data.source === nd.id ? e.data.target : e.data.source;
+          if (allIds.has(o)) allLinks.push({ source: e.data.source, target: e.data.target, confidence: e.data.confidence, edgeType: e.data.type });
         }
-
         computeDegree(allNodes, allLinks);
         buildSim([...allNodes], [...allLinks]);
-
-        newNode.x = dims.w / 2 + (Math.random() - 0.5) * 100;
-        newNode.y = dims.h / 2 + (Math.random() - 0.5) * 100;
+        nn.x = dims.w / 2 + (Math.random() - 0.5) * 100;
+        nn.y = dims.h / 2 + (Math.random() - 0.5) * 100;
       }
-
       idx++;
     }, 200);
-
-    return () => clearInterval(interval);
+    return () => clearInterval(iv);
   }, [timelineMode, timelineData, data, dims, buildSim, onTimelineDone]);
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-xl border border-zinc-800/60 bg-[#0f0f0f]">
       <canvas ref={canvasRef} className="h-full w-full" />
       {nodesRef.current.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
+        <div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-600">
           上传文档后将自动生成知识图谱
         </div>
       )}
