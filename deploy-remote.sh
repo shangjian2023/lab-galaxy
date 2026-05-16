@@ -14,8 +14,10 @@ ok()  { echo "[OK]     $1"; }
 fail(){ echo "[FAIL]   $1"; exit 1; }
 
 # ── Step 0: Upload code ──
-log "Uploading code to server..."
-rsync -avz \
+log "Pushing code to server..."
+
+# Use scp to create a tarball and extract on server
+tar czf /tmp/kg-platform-deploy.tar.gz \
   --exclude='.git' \
   --exclude='node_modules' \
   --exclude='.venv' \
@@ -24,8 +26,14 @@ rsync -avz \
   --exclude='.claude' \
   --exclude='*.log' \
   --exclude='tmp_*' \
-  -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
-  "$(dirname "$0")/" ${SSH_USER}@${SSH_HOST}:${REMOTE_DIR}/
+  -C "$(dirname "$0")" .
+
+scp -i "${SSH_KEY}" -o StrictHostKeyChecking=no \
+  /tmp/kg-platform-deploy.tar.gz \
+  ${SSH_USER}@${SSH_HOST}:/tmp/kg-platform-deploy.tar.gz
+
+$SSH "mkdir -p ${REMOTE_DIR} && tar xzf /tmp/kg-platform-deploy.tar.gz -C ${REMOTE_DIR}/ && rm /tmp/kg-platform-deploy.tar.gz"
+rm -f /tmp/kg-platform-deploy.tar.gz
 ok "Code uploaded"
 
 # ── Step 1: Cleanup old data ──
@@ -94,12 +102,12 @@ cat /home/ubuntu/kg-platform/.env | sed 's/=.*/=***/g'
 REMOTE_EOF
 ok "Passwords generated"
 
-# ── Step 3: Build images ──
+# Step 3: Build images
 log "Building Docker images..."
 $SSH bash << 'REMOTE_EOF'
 set -euo pipefail
 cd /home/ubuntu/kg-platform
-docker compose -f docker-compose.prod.yml build --pull
+docker-compose -f docker-compose.prod.yml build --pull
 REMOTE_EOF
 ok "Images built"
 
@@ -108,7 +116,7 @@ log "Starting services..."
 $SSH bash << 'REMOTE_EOF'
 set -euo pipefail
 cd /home/ubuntu/kg-platform
-docker compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 REMOTE_EOF
 ok "Services started"
 
@@ -169,7 +177,7 @@ set -euo pipefail
 cd /home/ubuntu/kg-platform
 
 echo "=== Container Status ==="
-docker compose -f docker-compose.prod.yml ps
+docker-compose -f docker-compose.prod.yml ps
 
 echo ""
 echo "=== NewAPI (should be 200) ==="

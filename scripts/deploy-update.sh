@@ -5,7 +5,7 @@
 # one at a time to minimize downtime.
 set -euo pipefail
 
-COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE="docker-compose -f docker-compose.prod.yml"
 
 log() { echo "[UPDATE] $1"; }
 ok()  { echo "[OK]     $1"; }
@@ -23,30 +23,30 @@ ok "Code updated"
 
 # Step 3: Rebuild changed images
 log "Step 3: Rebuilding images..."
-docker compose -f "$COMPOSE_FILE" build --pull
+docker-compose -f docker-compose.prod.yml build --pull
 ok "Images rebuilt"
 
 # Step 4: Rolling restart — one service at a time
 # Order: ai_service (no user impact) → backend (brief API downtime) → frontend
 
 log "Step 4a: Restarting ai-service..."
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate ai_service
+docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate ai_service
 sleep 10
 ok "ai-service restarted"
 
 log "Step 4b: Restarting backend..."
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate backend
+docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend
 sleep 15
 ok "backend restarted"
 
 log "Step 4c: Restarting frontend..."
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate frontend
+docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate frontend
 sleep 10
 ok "frontend restarted"
 
 # Step 5: Verify
 log "Step 5: Verifying services..."
-docker compose -f "$COMPOSE_FILE" ps
+docker-compose -f docker-compose.prod.yml ps
 
 echo ""
 log "Testing endpoints..."
