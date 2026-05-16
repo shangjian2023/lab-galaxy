@@ -171,20 +171,9 @@ services:
       - kg_net
 
   # ── Reverse Proxy ──
-  caddy:
-    image: caddy:2-alpine
-    container_name: kg_caddy
-    network_mode: host
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - frontend
-      - backend
-    restart: unless-stopped
+  # Caddy is managed by the system (systemd) at /etc/caddy/Caddyfile
+  # Do NOT run a Caddy container to avoid port 80/443 conflicts.
+  # The graph.mazhuoran.cloud block is added to /etc/caddy/Caddyfile during deploy.
 
 volumes:
   postgres_data:
@@ -193,8 +182,6 @@ volumes:
   redis_data:
   minio_data:
   ai_data:
-  caddy_data:
-  caddy_config:
 
 networks:
   kg_net:
