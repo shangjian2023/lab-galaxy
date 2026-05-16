@@ -250,19 +250,19 @@ export default function Home() {
       >
         <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-8" style={{ backdropFilter: "blur(12px)" }}>
           <p className="mb-1 text-sm font-medium">
-            <span className="text-[#9A8C73]">欢迎回来，</span>
+            <span className="text-[#8C3232]">欢迎回来，</span>
             <span className="relative inline-block">
-              <span className="text-2xl font-bold text-[#492D22]">{user.nickname || user.username}</span>
+              <span className="text-2xl font-bold text-[#8C3232]">{user.nickname || user.username}</span>
               <span className="absolute inset-0 pointer-events-none overflow-hidden" style={{
                 background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.6) 50%, transparent 70%)",
                 animation: "shimmer 8s ease-in-out infinite",
               }} />
             </span>
-            <span className="ml-2 inline-flex items-center rounded-full bg-[#492D22]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#492D22]">
+            <span className="ml-2 inline-flex items-center rounded-full bg-[#8C3232]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#8C3232]">
               Lv.{stats.level}
             </span>
           </p>
-          <h1 className="text-3xl font-bold text-[#4a3e34]">
+          <h1 className="text-3xl font-bold text-[#8C3232]">
             让每一份实验知识，都有迹可循
           </h1>
           <p className="mt-2 text-sm text-[#6B5D50]">
@@ -303,7 +303,7 @@ export default function Home() {
               <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg ${m.iconBg}`}>
                 {m.icon}
               </div>
-              <h3 className="text-sm font-bold text-[#4a3e34] group-hover:text-[#9A8C73] transition-colors">
+              <h3 className="text-sm font-bold text-[#8C3232] group-hover:text-[#6B2020] transition-colors">
                 {m.label}
               </h3>
               <p className="mt-1 text-[11px] text-[#6B5D50] line-clamp-2">{m.desc}</p>

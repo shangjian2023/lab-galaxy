@@ -43,7 +43,7 @@ export default function Navbar() {
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-3.5">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-lg font-bold text-[#6B5D50]">
+          <Link href="/" className="text-lg font-bold text-[#8C3232]">
             创新实验知识图谱平台
           </Link>
           {user && (
@@ -52,7 +52,7 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-lg px-3.5 py-1.5 text-sm text-[#4a3e34] transition-colors hover:bg-[#9A8C73]/10 hover:text-[#6B5D50]"
+                  className="rounded-lg px-3.5 py-1.5 text-sm text-[#8C3232] transition-colors hover:bg-[#9A8C73]/10 hover:text-[#6B2020]"
                 >
                   {item.label}
                 </Link>

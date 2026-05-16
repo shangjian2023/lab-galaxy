@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { ForceSettings } from "./GalaxyView";
 
 const DEFAULT_SETTINGS: ForceSettings = {
-  centerStrength: 0.1,
-  repel: -60,
-  linkDistance: 80,
-  nodeSize: 1,
-  linkWidth: 1,
-  clusterForce: 0.3,
+  centerStrength: 0.05,
+  repel: -300,
+  linkDistance: 155,
+  nodeSize: 2.7,
+  linkWidth: 1.7,
+  clusterForce: 0.07,
 };
 
 const FS_KEY = "graph-force-settings";
@@ -340,7 +340,7 @@ export default function GraphToolbar({
                 </label>
                 <label className="flex items-center gap-2 text-xs text-black">
                   <span className="w-16 shrink-0">集群间距</span>
-                  <input type="range" min={0.01} max={1} step={0.01}
+                  <input type="range" min={0} max={0.5} step={0.01}
                     value={fs.clusterForce}
                     onChange={(e) => {
                       const next = { ...fs, clusterForce: +e.target.value };

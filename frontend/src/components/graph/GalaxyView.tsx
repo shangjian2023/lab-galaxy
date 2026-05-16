@@ -7,6 +7,8 @@ import {
   forceManyBody,
   forceLink,
   forceCollide,
+  forceX,
+  forceY,
   type SimulationNodeDatum,
   type SimulationLinkDatum,
 } from "d3-force";
@@ -71,12 +73,12 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_SETTINGS: ForceSettings = {
-  centerStrength: 0.1,
-  repel: -60,
-  linkDistance: 80,
-  nodeSize: 1,
-  linkWidth: 1,
-  clusterForce: 0.3,
+  centerStrength: 0.05,
+  repel: -300,
+  linkDistance: 155,
+  nodeSize: 2.7,
+  linkWidth: 1.7,
+  clusterForce: 0.07,
 };
 
 const FS_KEY = "graph-force-settings";
@@ -208,6 +210,19 @@ export default function GalaxyView({
         }
       }
 
+      // Compute cluster centers based on node types
+      const types = [...new Set(nodes.map((n) => n.type))];
+      const typeCount = types.length;
+      const clusterRadius = Math.min(dims.w, dims.h) * 0.25 * (1 - forceSettings.clusterForce * 0.8);
+      const typePositions = new Map<string, { x: number; y: number }>();
+      for (let i = 0; i < types.length; i++) {
+        const angle = (2 * Math.PI * i) / typeCount - Math.PI / 2;
+        typePositions.set(types[i], {
+          x: cx + clusterRadius * Math.cos(angle),
+          y: cy + clusterRadius * Math.sin(angle),
+        });
+      }
+
       const sim = forceSimulation<SimNode, SimLink>(nodes)
         .force(
           "link",
@@ -218,7 +233,14 @@ export default function GalaxyView({
         )
         .force("charge", forceManyBody<SimNode>().strength(forceSettings.repel))
         .force("center", forceCenter(cx, cy).strength(forceSettings.centerStrength))
-        .force("clusterCenter", forceCenter(cx, cy).strength(forceSettings.clusterForce))
+        .force(
+          "clusterX",
+          forceX<SimNode>((n) => typePositions.get(n.type)?.x ?? cx).strength(forceSettings.clusterForce)
+        )
+        .force(
+          "clusterY",
+          forceY<SimNode>((n) => typePositions.get(n.type)?.y ?? cy).strength(forceSettings.clusterForce)
+        )
         .force("collide", forceCollide<SimNode>().radius(NODE_RADIUS + 3))
         .alpha(startAlpha)
         .alphaDecay(0.02)
@@ -319,11 +341,10 @@ export default function GalaxyView({
     const linkF = sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>>;
     const chargeF = sim.force("charge") as ReturnType<typeof forceManyBody<SimNode>>;
     const centerF = sim.force("center") as ReturnType<typeof forceCenter>;
-    const clusterF = sim.force("clusterCenter") as ReturnType<typeof forceCenter>;
     if (linkF) linkF.distance(forceSettings.linkDistance);
     if (chargeF) chargeF.strength(forceSettings.repel);
     if (centerF) centerF.strength(forceSettings.centerStrength);
-    if (clusterF) clusterF.strength(forceSettings.clusterForce);
+    // Recompute cluster positions and restart
     sim.alpha(0.3).restart();
   }, [forceSettings]);
 
@@ -638,9 +659,12 @@ export default function GalaxyView({
       }
 
       // ── Nodes ──
-      const nr = fsRef.current.nodeSize * NODE_RADIUS;
+      const baseR = fsRef.current.nodeSize * NODE_RADIUS;
+      const nodeRadiusMap = new Map<string, number>();
       for (const n of nodesRef.current) {
         if (n.x == null || n.y == null) continue;
+        const nr = n.type === "Experiment" ? baseR * 1.3 : baseR;
+        nodeRadiusMap.set(n.id, nr);
         const isD = dimmed?.has(n.id);
         const isH = hovId === n.id;
         const isNb = isHov && hovId && adjacentByIdRef.current.get(hovId)?.has(n.id);
@@ -704,7 +728,7 @@ export default function GalaxyView({
           if (isHov && isDN && !isHN) {
             ctx.globalAlpha = 0.15 * lo;
             ctx.fillStyle = "rgba(120,128,140,0.5)";
-            ctx.fillText(n.name || n.label, n.x, n.y + nr + 4);
+            ctx.fillText(n.name || n.label, n.x, (n.y ?? 0) + (nodeRadiusMap.get(n.id) ?? baseR) + 4);
             ctx.globalAlpha = 1;
             continue;
           }
@@ -716,7 +740,7 @@ export default function GalaxyView({
           ctx.fillStyle = isHLN ? "rgba(230,235,245,0.95)" : "rgba(180,186,196,0.85)";
           ctx.shadowColor = "rgba(0,0,0,0.5)";
           ctx.shadowBlur = 2;
-          ctx.fillText(n.name || n.label, n.x, n.y + nr + 4);
+          ctx.fillText(n.name || n.label, n.x, (n.y ?? 0) + (nodeRadiusMap.get(n.id) ?? baseR) + 4);
           ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         }
@@ -737,7 +761,7 @@ export default function GalaxyView({
         ctx.fillStyle = "rgba(240,243,250,0.98)";
         ctx.shadowColor = "rgba(0,0,0,0.8)";
         ctx.shadowBlur = 4;
-        ctx.fillText(hln.name || hln.label, nx, ny + nr + 4 + eo);
+        ctx.fillText(hln.name || hln.label, nx, ny + (nodeRadiusMap.get(hln.id) ?? baseR) + 4 + eo);
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
       }
@@ -771,38 +795,85 @@ export default function GalaxyView({
   useEffect(() => {
     if (!timelineMode || !timelineData || timelineData.length === 0) return;
 
-    const TO: Record<string, number> = {
-      Experiment: 0, Theory: 1, Equipment: 2, Consumable: 3, Tool: 4, Concept: 5,
-    };
-    const sorted = [...timelineData].sort((a, b) => {
-      const oa = TO[a.node.type] ?? 9;
-      const ob = TO[b.node.type] ?? 9;
-      if (oa !== ob) return oa - ob;
-      return (a.year || 0) - (b.year || 0);
-    });
-
-    const allNodes: SimNode[] = [];
-    const allLinks: SimLink[] = [];
-    const allIds = new Set<string>();
+    // Build node and edge maps
     const nm = new Map<string, CytoscapeData["nodes"][number]["data"]>();
     for (const n of data.nodes) nm.set(n.data.id, n.data);
     const em = new Map<string, CytoscapeData["edges"][number][]>();
     for (const e of data.edges) {
-      (em.get(e.data.source) || []).push(e); em.set(e.data.source, em.get(e.data.source)!);
-      (em.get(e.data.target) || []).push(e); em.set(e.data.target, em.get(e.data.target)!);
+      (em.get(e.data.source) || []).push(e);
+      (em.get(e.data.target) || []).push(e);
+    }
+
+    // Group by experiment: collect all timeline entries per experiment, sorted by year
+    const expMap = new Map<string, TimelineEntry[]>();
+    for (const entry of timelineData) {
+      if (entry.node.type === "Experiment") {
+        const key = entry.year?.toString() || "unknown";
+        if (!expMap.has(key)) expMap.set(key, []);
+        expMap.get(key)!.push(entry);
+      }
+    }
+
+    // Sort experiments by year ascending
+    const sortedExps = [...expMap.entries()].sort(([a], [b]) => {
+      if (a === "unknown") return 1;
+      if (b === "unknown") return -1;
+      return a.localeCompare(b);
+    });
+
+    // Build ordered list: for each experiment, put the Experiment node first, then its neighbors
+    const ordered: TimelineEntry[] = [];
+    const seen = new Set<string>();
+    for (const [, entries] of sortedExps) {
+      for (const entry of entries) {
+        if (!seen.has(entry.node.id)) {
+          ordered.push(entry);
+          seen.add(entry.node.id);
+        }
+        // Add neighbor nodes connected to this experiment
+        const neighbors = em.get(entry.node.id) || [];
+        for (const edge of neighbors) {
+          const nid = edge.data.source === entry.node.id ? edge.data.target : edge.data.source;
+          if (!seen.has(nid)) {
+            const nd = nm.get(nid);
+            if (nd) {
+              ordered.push({ year: entry.year, node: { id: nd.id, name: nd.name, type: nd.type, summary: nd.summary, color: nd.color } });
+              seen.add(nid);
+            }
+          }
+        }
+      }
+    }
+
+    const allNodes: SimNode[] = [];
+    const allLinks: SimLink[] = [];
+    const allIds = new Set<string>();
+
+    // Pre-compute Experiment positions on a ring
+    const cx = dims.w / 2;
+    const cy = dims.h / 2;
+    const expPositions = new Map<string, { x: number; y: number }>();
+    const expIds = sortedExps.map(([, entries]) => entries[0]?.node.id).filter(Boolean);
+    const ringR = Math.min(dims.w, dims.h) * 0.2;
+    for (let i = 0; i < expIds.length; i++) {
+      const angle = (2 * Math.PI * i) / expIds.length - Math.PI / 2;
+      expPositions.set(expIds[i], { x: cx + ringR * Math.cos(angle), y: cy + ringR * Math.sin(angle) });
     }
 
     buildSim([], []);
 
     let idx = 0;
     const iv = setInterval(() => {
-      if (idx >= sorted.length) { clearInterval(iv); onTimelineDone?.(); return; }
-      const nd = nm.get(sorted[idx].node.id);
+      if (idx >= ordered.length) { clearInterval(iv); onTimelineDone?.(); return; }
+      const entry = ordered[idx];
+      const nd = nm.get(entry.node.id);
       if (nd) {
+        const isExperiment = nd.type === "Experiment";
+        const pos = expPositions.get(entry.node.id);
         const nn: SimNode = {
           id: nd.id, label: nd.label, name: nd.name, type: nd.type,
           summary: nd.summary, color: nd.color || TYPE_COLORS[nd.type] || "#6b7280",
-          document_id: nd.document_id, baseSize: nd.size || 20,
+          document_id: nd.document_id, baseSize: isExperiment ? (nd.size || 25) : (nd.size || 20),
           degree: 0, opacity: 0, x: undefined, y: undefined,
         };
         setTimeout(() => { nn.opacity = 1; }, 50);
@@ -813,11 +884,13 @@ export default function GalaxyView({
         }
         computeDegree(allNodes, allLinks);
         buildSim([...allNodes], [...allLinks]);
-        nn.x = dims.w / 2 + (Math.random() - 0.5) * 100;
-        nn.y = dims.h / 2 + (Math.random() - 0.5) * 100;
+        // Place new node near its experiment's cluster position (not center)
+        const spawnPos = pos || { x: cx, y: cy };
+        nn.x = spawnPos.x + (Math.random() - 0.5) * 60;
+        nn.y = spawnPos.y + (Math.random() - 0.5) * 60;
       }
       idx++;
-    }, 200);
+    }, 250);
     return () => clearInterval(iv);
   }, [timelineMode, timelineData, data, dims, buildSim, onTimelineDone]);
 

@@ -24,7 +24,7 @@ function MentionHighlight({ content }: { content: string }) {
     parts.push(
       <Link
         key={match.index}
-        href={`/graph?highlight=${match[2]}`}
+        href={`/graph?node=${match[2]}`}
         className="rounded bg-[#9A8C73]/15 px-1 py-0.5 font-medium underline decoration-[#9A8C73]/40 underline-offset-2 hover:bg-[#9A8C73]/25"
         title={`查看: ${match[1]}`}
       >
