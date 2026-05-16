@@ -1001,3 +1001,39 @@ export function adminListEquipmentRequests(page = 1, status?: string) {
 export function adminReplyEquipmentRequest(id: string, data: { status: string; reply: string }) {
   return request<EquipmentRequestItem>(`/equipment/admin/requests/${id}`, "PATCH", data);
 }
+
+// ── Achievements ──
+
+export interface AchievementItem {
+  id: string;
+  name: string;
+  description: string | null;
+  achievement_type: string;
+  created_at: string | null;
+}
+
+export function listAchievements() {
+  return request<AchievementItem[]>("/users/me/achievements");
+}
+
+export function createAchievement(data: { name: string; description?: string; achievement_type: string }) {
+  return request<AchievementItem>("/users/me/achievements", "POST", data);
+}
+
+export function updateAchievement(id: string, data: { name?: string; description?: string; achievement_type?: string }) {
+  return request<AchievementItem>(`/users/me/achievements/${id}`, "PUT", data);
+}
+
+export function deleteAchievement(id: string) {
+  return request<void>(`/users/me/achievements/${id}`, "DELETE");
+}
+
+// ── Admin Settings ──
+
+export function adminGetSettings() {
+  return request<{ registration_require_approval: boolean }>("/admin/settings");
+}
+
+export function adminUpdateSettings(data: { registration_require_approval?: boolean }) {
+  return request<{ status: string }>("/admin/settings", "PATCH", data);
+}

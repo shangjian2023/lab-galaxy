@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.achievements import router as achievements_router
 from app.api.admin import router as admin_router
 from app.api.documents import router as documents_router
 from app.api.forum import router as forum_router
@@ -16,6 +17,7 @@ from app.api.query import router as query_router
 
 router = APIRouter()
 router.include_router(users_router)
+router.include_router(achievements_router)
 router.include_router(documents_router)
 router.include_router(admin_router)
 router.include_router(graph_router)

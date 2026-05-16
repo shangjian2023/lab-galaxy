@@ -710,3 +710,37 @@ async def update_ai_config(
             value = "****" + value[-4:] if len(value) > 4 else "****"
         configs.append(AIConfigItem(key=key, value=value, updated_at=updated_at))
     return AIConfigResponse(configs=configs)
+
+
+# ── Settings ──
+
+@router.get("/settings")
+async def get_settings(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    from app.models.models import AIConfig
+    result = await db.execute(select(AIConfig))
+    rows = result.scalars().all()
+    config_map = {r.key: r.value for r in rows}
+    return {
+        "registration_require_approval": config_map.get("registration_require_approval", "true") == "true",
+    }
+
+
+@router.patch("/settings")
+async def update_settings(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    from app.models.models import AIConfig
+    if "registration_require_approval" in body:
+        val = "true" if body["registration_require_approval"] else "false"
+        existing = (await db.execute(select(AIConfig).where(AIConfig.key == "registration_require_approval"))).scalar_one_or_none()
+        if existing:
+            existing.value = val
+        else:
+            db.add(AIConfig(key="registration_require_approval", value=val))
+        await db.commit()
+    return {"status": "ok"}

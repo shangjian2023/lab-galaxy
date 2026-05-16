@@ -8,6 +8,8 @@ import {
   adminCreateUser,
   adminDeleteUser,
   adminAdjustPoints,
+  adminGetSettings,
+  adminUpdateSettings,
   type UserProfile,
 } from "@/lib/api";
 
@@ -23,7 +25,13 @@ export default function AdminUsersPage() {
   const [showPoints, setShowPoints] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [regRequireApproval, setRegRequireApproval] = useState(true);
   const pageSize = 20;
+
+  // Load registration settings
+  useEffect(() => {
+    adminGetSettings().then((s) => setRegRequireApproval(s.registration_require_approval)).catch(() => {});
+  }, []);
 
   const load = async () => {
     try {
@@ -122,12 +130,27 @@ export default function AdminUsersPage() {
             </span>
           )}
         </h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="btn-primary px-4 py-2 text-sm"
-        >
-          + 创建用户
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <span>注册审批</span>
+            <button
+              onClick={() => {
+                const next = !regRequireApproval;
+                setRegRequireApproval(next);
+                adminUpdateSettings({ registration_require_approval: next }).catch(() => setRegRequireApproval(!next));
+              }}
+              className={`relative h-5 w-9 rounded-full transition-colors ${regRequireApproval ? "bg-green-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${regRequireApproval ? "left-4" : "left-0.5"}`} />
+            </button>
+          </label>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="btn-primary px-4 py-2 text-sm"
+          >
+            + 创建用户
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

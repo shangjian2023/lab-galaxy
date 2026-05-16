@@ -27,16 +27,20 @@ async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
     if (await db.execute(select(User).where(User.email == body.email))).scalar_one_or_none():
         raise HTTPException(status_code=400, detail="邮箱已被注册")
 
-    # Auto-assign a short numeric display_id
     from sqlalchemy import func as sql_func
     max_id = (await db.execute(select(sql_func.max(User.display_id)))).scalar()
     display_id = (max_id + 1) if max_id else 100001
+
+    # Check if registration requires approval
+    from app.models.models import AIConfig
+    cfg = (await db.execute(select(AIConfig).where(AIConfig.key == "registration_require_approval"))).scalar_one_or_none()
+    needs_approval = cfg and cfg.value.lower() == "true" if cfg else True
 
     user = User(
         username=body.username,
         email=body.email,
         hashed_password=hash_password(body.password),
-        is_active=False,
+        is_active=not needs_approval,
         display_id=display_id,
     )
     db.add(user)
