@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listDocuments, reprocessDocument, deleteDocument, confirmIngest, type DocumentItem } from "@/lib/api";
 import { EXPERIMENT_TYPES, SUBJECT_OPTIONS, PRIVACY_OPTIONS } from "@/lib/constants";
+import { formatSize } from "@/lib/utils";
 
 const STATUS_MAP: Record<string, { label: string; color: string; barColor: string; desc: string }> = {
   uploaded:   { label: "样本已注入",   color: "bg-blue-50 text-blue-700",    barColor: "bg-blue-400",   desc: "等待处理队列" },
@@ -20,12 +21,6 @@ function elapsedSince(iso: string): string {
   if (sec < 60) return `${sec}s`;
   if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
   return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
-}
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
 function lookupLabel(list: readonly { value: string; label: string }[], val: string | null) {

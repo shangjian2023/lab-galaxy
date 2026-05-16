@@ -5,6 +5,7 @@ import { FixedSizeList as List } from "react-window";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CardItem } from "@/lib/api";
 import { NODE_TYPE_COLORS } from "@/lib/constants";
+import { formatSize } from "@/lib/utils";
 
 interface Props {
   cards: CardItem[];
@@ -23,12 +24,6 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   completed: { label: "已完成", color: "bg-green-100 text-green-700" },
   failed: { label: "失败", color: "bg-red-100 text-red-600" },
 };
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-}
 
 export default function CardStream({ cards, selectedId, onSelect, onToggleFavorite, loadMore, hasMore }: Props) {
   const listRef = useRef<List>(null);

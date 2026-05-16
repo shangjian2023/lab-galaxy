@@ -4,7 +4,8 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 curl libreoffice-writer libreoffice-calc libreoffice-impress \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 
 COPY ai_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
@@ -14,8 +15,15 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 
 COPY ai_service/ .
 
+RUN chown -R appuser:appuser /app && mkdir -p /app/data && chown -R appuser:appuser /app/data
+
+USER appuser
+
 ENV FASTEMBED_CACHE_PATH=/app/data/fastembed_cache
 
 EXPOSE 8001
+
+HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8001/docs || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

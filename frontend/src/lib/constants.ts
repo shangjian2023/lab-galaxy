@@ -34,7 +34,6 @@ export function getYearOptions(count = 20) {
 
 export const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx"];
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-export const MAX_FILE_SIZE_LABEL = "50 MB";
 
 /** Node type colors shared between graph views and admin. */
 export const NODE_TYPE_COLORS: Record<string, string> = {

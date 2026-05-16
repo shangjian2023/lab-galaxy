@@ -1,17 +1,71 @@
+# Dependencies
 node_modules/
-.next/
-frontend/node_modules/
-frontend/.next/
-out/
 __pycache__/
 *.pyc
 .venv/
 venv/
-.env
-.env.local
-*.log
+*.egg-info/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Git
 .git/
 .gitignore
-README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+.env.local
+*.pem
+*.key
+
+# Claude / AI context
 .claude/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Docker files (not needed in build context)
+Dockerfile.*
+docker-compose*.yml
+docker/
+Caddyfile
+
+# Temp & logs
 tmp_*
+*.log
+*.tar
+*.gz
+
+# Service-specific exclusions
+# When building backend, skip frontend source
+frontend/src/
+frontend/.next/
+frontend/node_modules/
+frontend/public/
+frontend/out/
+
+# When building ai_service, skip everything else
+backend/
+
+# When building frontend, skip everything else
+backend/
+ai_service/
+db/

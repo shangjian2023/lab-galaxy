@@ -16,14 +16,7 @@ interface Props {
   onJumpToWorkbench?: (documentId: string) => void;
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  Experiment: "实验",
-  Equipment: "设备",
-  Theory: "理论",
-  Consumable: "耗材",
-  Tool: "工具",
-  Concept: "概念",
-};
+import { TYPE_LABELS } from "@/lib/utils";
 
 export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
   return (

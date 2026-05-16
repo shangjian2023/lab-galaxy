@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { CardItem } from "@/lib/api";
 import { deleteDocument, downloadDocument, getDocumentPreviewBlob } from "@/lib/api";
 import { NODE_TYPE_COLORS } from "@/lib/constants";
+import { formatSize, TYPE_LABELS } from "@/lib/utils";
 
 interface Props {
   card: CardItem | null;
@@ -12,21 +13,6 @@ interface Props {
   onJumpToGraph: (nodeId: string) => void;
   onDelete?: (id: string) => void;
 }
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  Experiment: "实验",
-  Equipment: "设备",
-  Theory: "理论",
-  Consumable: "耗材",
-  Tool: "工具",
-  Concept: "概念",
-};
 
 export default function DetailDrawer({ card, onClose, onJumpToGraph, onDelete }: Props) {
   const [deleting, setDeleting] = useState(false);

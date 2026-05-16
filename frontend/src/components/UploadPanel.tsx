@@ -11,6 +11,7 @@ import {
   ALLOWED_EXTENSIONS,
   MAX_FILE_SIZE,
 } from "@/lib/constants";
+import { formatSize } from "@/lib/utils";
 import ProcessingChamber from "./ProcessingChamber";
 import DuplicateDialog from "./DuplicateDialog";
 
@@ -602,12 +603,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; barColor: st
   completed: { label: "✅ 萃取完成", color: "text-green-600", barColor: "bg-green-500" },
   failed:    { label: "处理失败", color: "text-red-600",   barColor: "bg-red-400" },
 };
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-}
 
 function FileRow({ entry, onRemove, onRetry }: { entry: FileEntry; onRemove: (id: string) => void; onRetry?: (id: string) => void }) {
   const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.waiting;

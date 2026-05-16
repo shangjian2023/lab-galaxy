@@ -529,10 +529,6 @@ export function toggleTemplateLike(id: string) {
   return request<{ is_liked: boolean; likes: number }>(`/templates/${id}/like`, "POST");
 }
 
-export function adoptTemplate(id: string) {
-  return request<{ status: string; adoptions: number }>(`/templates/${id}/adopt`, "POST");
-}
-
 export function bookmarkTemplate(id: string) {
   return request<{ status: string; bookmarks: number }>(`/templates/${id}/bookmark`, "POST");
 }
@@ -604,16 +600,6 @@ export function naturalLanguageQuery(question: string, history: ChatMessage[] = 
 
 export function suggestRelations(nodeId: string) {
   return request<{ suggestions: { source_id: string; target_id: string; target_name?: string; type: string; confidence: number; reason: string }[] }>("/graph/suggest-relations", "POST", { node_id: nodeId });
-}
-
-// ========== Graph Edit (public) ==========
-
-export function createGraphNode(data: { type: string; name: string; summary?: string }) {
-  return request<GraphNode>("/graph/nodes", "POST", data);
-}
-
-export function createGraphRelation(data: { source_id: string; target_id: string; type: string; confidence?: number }) {
-  return request<GraphRelation>("/graph/relations", "POST", data);
 }
 
 // ========== Dashboard ==========
@@ -775,41 +761,8 @@ export interface GrowthTimelineResponse {
   };
 }
 
-export interface AIGrowthAnalysis {
-  summary: string;
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: string[];
-  score: number;
-  quota: { remaining: number; limit: number };
-}
-
 export function getTeamGrowth(teamId: string) {
   return request<GrowthTimelineResponse>(`/teams/${teamId}/growth`);
-}
-
-export function requestAIGrowthAnalysis(teamId: string) {
-  return request<AIGrowthAnalysis>(`/teams/${teamId}/ai-growth-analysis`, "POST");
-}
-
-// ========== Graph Tree ==========
-
-export interface TreeNode {
-  id: string;
-  name: string;
-  type: string;
-  summary: string;
-  children: TreeNode[];
-}
-
-export interface TreeData {
-  root: TreeNode;
-}
-
-export function getTreeData(rootId: string, targetType?: string) {
-  const params = new URLSearchParams({ root_id: rootId });
-  if (targetType) params.set("target_type", targetType);
-  return request<TreeData>(`/graph/tree?${params}`);
 }
 
 export function searchGraphNodes(q: string, nodeType?: string, limit = 20, scope?: string, teamId?: string) {
