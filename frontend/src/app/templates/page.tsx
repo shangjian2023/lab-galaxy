@@ -76,9 +76,9 @@ export default function TemplatesPage() {
     setPreviewTpl({ name: tpl.name, content: "" });
     try {
       const detail = await getTemplate(tpl.id);
-      setPreviewTpl({ name: tpl.name, content: detail.content || "" });
+      setPreviewTpl({ name: tpl.name, content: detail.content || "此模板暂无内容" });
     } catch {
-      setPreviewTpl(null);
+      setPreviewTpl({ name: tpl.name, content: "加载失败，请稍后重试" });
     } finally {
       setPreviewLoading(false);
     }
@@ -197,7 +197,7 @@ export default function TemplatesPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b px-6 py-4">
-                <h2 className="text-lg font-bold text-gray-800">{previewTpl.name || previewLoading ? "加载中..." : "模板预览"}</h2>
+                <h2 className="text-lg font-bold text-gray-800">{previewLoading ? "加载中..." : previewTpl.name}</h2>
                 <button onClick={() => setPreviewTpl(null)} className="text-gray-800 hover:text-gray-700">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
