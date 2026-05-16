@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { ForceSettings } from "./GalaxyView";
 
 const DEFAULT_SETTINGS: ForceSettings = {
-  centerStrength: 0.05,
-  repel: -180,
-  linkDistance: 30,
+  centerStrength: 0.1,
+  repel: -60,
+  linkDistance: 80,
   nodeSize: 1,
   linkWidth: 1,
+  clusterForce: 0.3,
 };
 
 const FS_KEY = "graph-force-settings";
@@ -303,7 +304,7 @@ export default function GraphToolbar({
                 </label>
                 <label className="flex items-center gap-2 text-xs text-black">
                   <span className="w-16 shrink-0">中心力</span>
-                  <input type="range" min={0} max={0.3} step={0.01}
+                  <input type="range" min={0} max={1} step={0.01}
                     value={fs.centerStrength}
                     onChange={(e) => {
                       const next = { ...fs, centerStrength: +e.target.value };
@@ -336,6 +337,18 @@ export default function GraphToolbar({
                     }}
                     className="flex-1 accent-orange-500" />
                   <span className="w-10 text-right text-black">{fs.linkWidth.toFixed(1)}x</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-black">
+                  <span className="w-16 shrink-0">集群间距</span>
+                  <input type="range" min={0.01} max={1} step={0.01}
+                    value={fs.clusterForce}
+                    onChange={(e) => {
+                      const next = { ...fs, clusterForce: +e.target.value };
+                      setFs(next);
+                      localStorage.setItem(FS_KEY, JSON.stringify(next));
+                    }}
+                    className="flex-1 accent-orange-500" />
+                  <span className="w-10 text-right text-black">{fs.clusterForce.toFixed(2)}</span>
                 </label>
               </div>
             </div>

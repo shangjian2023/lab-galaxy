@@ -72,7 +72,7 @@ async def trigger_insight_discovery() -> dict:
 
 async def query_natural_language(question: str, history: list[dict] | None = None) -> dict:
     """Send a natural language query to the AI service RAG pipeline."""
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=180) as client:
         try:
             payload: dict = {"question": question}
             if history:
@@ -82,15 +82,56 @@ async def query_natural_language(question: str, history: list[dict] | None = Non
                     for h in history
                 ]
             resp = await client.post(f"{AI_SERVICE_URL}/query", json=payload)
+            if resp.status_code == 500:
+                # AI service returned an error — log full details
+                logger.error(f"AI service query failed: {resp.status_code} body={resp.text[:500]}")
+                return {
+                    "answer": f"AI 处理出错：{resp.text[:200]}",
+                    "highlighted_nodes": [],
+                    "source_documents": [],
+                    "suggestions": ["请简化问题后重试", "检查是否上传了相关实验文档"],
+                    "related_queries": [],
+                    "entities": [],
+                }
             resp.raise_for_status()
             return resp.json()
-        except httpx.HTTPError as e:
-            logger.error(f"NLQ failed: {e}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"NLQ HTTP error: status={e.response.status_code} body={e.response.text[:500]} url={e.request.url}")
             return {
-                "answer": "AI 服务暂时不可用，请稍后重试。",
+                "answer": f"AI 服务返回 {e.response.status_code}，请稍后重试。",
                 "highlighted_nodes": [],
                 "source_documents": [],
-                "suggestions": [],
+                "suggestions": ["请简化问题后重试", "检查是否上传了相关实验文档"],
+                "related_queries": [],
+                "entities": [],
+            }
+        except httpx.ConnectError as e:
+            logger.error(f"NLQ connection error: {e}")
+            return {
+                "answer": "无法连接到 AI 服务，请检查服务状态。",
+                "highlighted_nodes": [],
+                "source_documents": [],
+                "suggestions": ["请稍后重试", "联系管理员检查 ai-service 状态"],
+                "related_queries": [],
+                "entities": [],
+            }
+        except httpx.TimeoutException as e:
+            logger.error(f"NLQ timeout: {e}")
+            return {
+                "answer": "AI 处理超时，问题可能过于复杂。请稍后重试或简化问题。",
+                "highlighted_nodes": [],
+                "source_documents": [],
+                "suggestions": ["尝试简化问题", "将问题拆分成多个小问题"],
+                "related_queries": [],
+                "entities": [],
+            }
+        except httpx.RequestError as e:
+            logger.error(f"NLQ request error: {e}")
+            return {
+                "answer": "AI 服务请求失败，请稍后重试。",
+                "highlighted_nodes": [],
+                "source_documents": [],
+                "suggestions": ["请稍后重试", "联系管理员"],
                 "related_queries": [],
                 "entities": [],
             }

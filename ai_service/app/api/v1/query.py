@@ -31,9 +31,11 @@ async def query(body: QueryRequest):
         return await natural_language_query(body.question, body.history)
     except Exception as e:
         import logging, traceback
-        logging.getLogger(__name__).error(f"Query error: {e}\n{traceback.format_exc()}")
+        logger = logging.getLogger(__name__)
+        tb = traceback.format_exc()
+        logger.error(f"Query error: {e}\n{tb}")
         from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=500, content={"error": "查询处理失败，请稍后重试"})
+        return JSONResponse(status_code=500, content={"error": str(e)[:500], "detail": "查询处理失败，请稍后重试"})
 
 
 @router.post("/suggest-relations")

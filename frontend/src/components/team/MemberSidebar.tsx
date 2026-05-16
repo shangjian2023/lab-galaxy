@@ -49,18 +49,18 @@ export default function MemberSidebar({ team }: Props) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <h3 className="text-sm font-semibold text-gray-700">成员 · {team.members.length}</h3>
+      <div className="flex items-center justify-between border-b border-[#DBC7B5]/20 px-4 py-3">
+        <h3 className="text-sm font-semibold text-[#492D22]">成员 · {team.members.length}</h3>
         <button
           onClick={() => setShowInvite(!showInvite)}
-          className="rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600 transition-colors hover:bg-orange-100"
+          className="rounded-lg bg-[#DBC7B5]/30 px-2.5 py-1 text-xs font-medium text-[#6B5D50] transition-colors hover:bg-[#DBC7B5]/50"
         >
           {showInvite ? "取消" : "邀请"}
         </button>
       </div>
 
       {showInvite && (
-        <div className="border-b border-gray-100 bg-orange-50/50 px-4 py-3">
+        <div className="border-b border-[#DBC7B5]/20 bg-[#DBC7B5]/15 px-4 py-3">
           <div className="flex gap-2">
             <input
               type="text"

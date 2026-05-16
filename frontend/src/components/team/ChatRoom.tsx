@@ -6,6 +6,7 @@ import { createTeamChatWS, getRecentMessages } from "@/lib/api";
 import type { ChatMessageItem } from "@/lib/api";
 import ChatMessage from "./ChatMessage";
 import ChatMentionInput from "./ChatMentionInput";
+import EmojiPicker from "./EmojiPicker";
 import { soundEngine } from "@/lib/audio/SoundEngine";
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 export default function ChatRoom({ teamId, currentUserId }: Props) {
   const { messages, connected, addMessage, setMessages, setConnected, setConnecting, setError, reset } = useChatStore();
   const [input, setInput] = useState("");
+  const [showEmoji, setShowEmoji] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,6 +94,10 @@ export default function ChatRoom({ teamId, currentUserId }: Props) {
     setInput("");
   };
 
+  const handleEmojiSelect = (emoji: string) => {
+    setInput((prev) => prev + emoji);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -133,9 +139,25 @@ export default function ChatRoom({ teamId, currentUserId }: Props) {
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-[#DBC7B5]/20 px-3 py-2.5" style={{ background: "#F4F1EE" }}>
+      <div className="relative border-t border-[#DBC7B5]/20 px-3 py-3" style={{ background: "#F4F1EE" }}>
         <div className="flex gap-2">
-          <div className="flex-1">
+          {/* Emoji button */}
+          <button
+            onClick={() => setShowEmoji(!showEmoji)}
+            className="flex h-12 w-10 shrink-0 items-center justify-center rounded-xl text-lg transition-colors hover:bg-[#DBC7B5]/30"
+            title="表情"
+          >
+            😊
+          </button>
+
+          {/* Emoji picker */}
+          <EmojiPicker
+            isOpen={showEmoji}
+            onClose={() => setShowEmoji(false)}
+            onSelect={handleEmojiSelect}
+          />
+
+          <div className="flex flex-1 flex-col gap-2">
             <ChatMentionInput
               value={input}
               onChange={setInput}
@@ -147,7 +169,7 @@ export default function ChatRoom({ teamId, currentUserId }: Props) {
           <button
             onClick={sendMessage}
             disabled={!connected || !input.trim()}
-            className="h-9 shrink-0 rounded-lg bg-[#9A8C73] px-4 text-xs font-medium text-white transition-all hover:bg-[#8C7D70] active:scale-95 disabled:opacity-40 disabled:hover:bg-[#9A8C73]"
+            className="h-12 shrink-0 rounded-xl bg-[#9A8C73] px-5 text-sm font-medium text-white transition-all hover:bg-[#8C7D70] active:scale-95 disabled:opacity-40 disabled:hover:bg-[#9A8C73]"
           >
             发送
           </button>

@@ -148,33 +148,16 @@ export default function ChatMentionInput({ value, onChange, onKeyDown, placehold
   }, []);
 
   return (
-    <div className="relative">
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleInputKeyDown}
-          placeholder={placeholder || "输入消息..."}
-          disabled={disabled}
-          className="flex-1 rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/80 px-5 py-2.5 text-sm text-[#492D22] outline-none transition-all placeholder:text-[#9A8C73] focus:border-[#9A8C73]/50 focus:bg-[#F4F1EE] focus:shadow-sm disabled:opacity-50"
-        />
-        <button
-          onClick={() => {
-            const content = value.trim();
-            if (!content) return;
-            onKeyDown({
-              key: "Enter",
-              shiftKey: false,
-              preventDefault: () => {},
-            } as React.KeyboardEvent<HTMLInputElement>);
-          }}
-          disabled={!value.trim() || disabled}
-          className="rounded-xl bg-[#9A8C73] px-5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-[#8C7D70] active:scale-95 disabled:opacity-40 disabled:hover:bg-[#9A8C73]"
-        >
-          发送
-        </button>
-      </div>
+    <div className="relative w-full">
+      <input
+        type="text"
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleInputKeyDown}
+        placeholder={placeholder || "输入消息..."}
+        disabled={disabled}
+        className="w-full rounded-xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/80 px-4 py-2.5 text-sm text-[#492D22] outline-none transition-all placeholder:text-[#9A8C73] focus:border-[#9A8C73]/50 focus:bg-[#F4F1EE] focus:shadow-sm disabled:opacity-50"
+      />
 
       {/* Autocomplete dropdown */}
       {showDropdown && (results.length > 0) && (

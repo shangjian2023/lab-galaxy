@@ -427,7 +427,7 @@ function GraphPageContent() {
             onNodeClick={handleNodeClick}
             highlightedNodeId={highlightedNodeId}
             queryHighlightedNodes={queryHighlightedNodes}
-            forceSettings={{ repel: 0, linkDistance: 0, centerStrength: 0, nodeSize: 0, linkWidth: 0 }}
+            forceSettings={{ repel: 0, linkDistance: 0, centerStrength: 0, nodeSize: 0, linkWidth: 0, clusterForce: 0 }}
             timelineMode={timelineMode}
             timelineData={timelineData}
             onTimelineDone={() => setTimelineMode(false)}

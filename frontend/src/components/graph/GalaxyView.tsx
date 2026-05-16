@@ -40,6 +40,7 @@ export interface ForceSettings {
   centerStrength: number;
   nodeSize: number;
   linkWidth: number;
+  clusterForce: number;
 }
 
 interface Props {
@@ -70,11 +71,12 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_SETTINGS: ForceSettings = {
-  centerStrength: 0.05,
-  repel: -180,
-  linkDistance: 30,
+  centerStrength: 0.1,
+  repel: -60,
+  linkDistance: 80,
   nodeSize: 1,
   linkWidth: 1,
+  clusterForce: 0.3,
 };
 
 const FS_KEY = "graph-force-settings";
@@ -137,7 +139,7 @@ export default function GalaxyView({
           setForceSettings(prev => {
             if (prev.repel === next.repel && prev.linkDistance === next.linkDistance &&
                 prev.centerStrength === next.centerStrength && prev.nodeSize === next.nodeSize &&
-                prev.linkWidth === next.linkWidth) return prev;
+                prev.linkWidth === next.linkWidth && prev.clusterForce === next.clusterForce) return prev;
             return next;
           });
         }
@@ -216,6 +218,7 @@ export default function GalaxyView({
         )
         .force("charge", forceManyBody<SimNode>().strength(forceSettings.repel))
         .force("center", forceCenter(cx, cy).strength(forceSettings.centerStrength))
+        .force("clusterCenter", forceCenter(cx, cy).strength(forceSettings.clusterForce))
         .force("collide", forceCollide<SimNode>().radius(NODE_RADIUS + 3))
         .alpha(startAlpha)
         .alphaDecay(0.02)
@@ -316,9 +319,11 @@ export default function GalaxyView({
     const linkF = sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>>;
     const chargeF = sim.force("charge") as ReturnType<typeof forceManyBody<SimNode>>;
     const centerF = sim.force("center") as ReturnType<typeof forceCenter>;
+    const clusterF = sim.force("clusterCenter") as ReturnType<typeof forceCenter>;
     if (linkF) linkF.distance(forceSettings.linkDistance);
     if (chargeF) chargeF.strength(forceSettings.repel);
     if (centerF) centerF.strength(forceSettings.centerStrength);
+    if (clusterF) clusterF.strength(forceSettings.clusterForce);
     sim.alpha(0.3).restart();
   }, [forceSettings]);
 
@@ -345,7 +350,7 @@ export default function GalaxyView({
         latest.x = nodes.reduce((s, n) => s + n.x!, 0) / nodes.length;
         latest.y = nodes.reduce((s, n) => s + n.y!, 0) / nodes.length;
       }
-      const scale = Math.min(dims.w / 1000, dims.h / 700, 1.2);
+      const scale = Math.min(dims.w / 700, dims.h / 500, 1.5);
       const endX = dims.w / 2 - latest.x * scale;
       const endY = dims.h / 2 - latest.y * scale;
       const startX = transformRef.current.x;
