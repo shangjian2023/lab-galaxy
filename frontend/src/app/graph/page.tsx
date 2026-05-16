@@ -295,17 +295,14 @@ function GraphPageContent() {
   }, [user, viewType, loadGalaxy]);
 
   useEffect(() => {
-    if (!targetNodeId) {
+    if (!targetNodeId || viewType !== "galaxy") {
       appliedNodeParamRef.current = null;
       return;
-    }
-    if (viewType !== "galaxy") {
-      setViewType("galaxy");
     }
   }, [targetNodeId, viewType]);
 
   useEffect(() => {
-    if (!targetNodeId) return;
+    if (!targetNodeId || viewType !== "galaxy") return;
     if (appliedNodeParamRef.current === targetNodeId) return;
     const targetNode = galaxyData.nodes.find((node) => node.data.id === targetNodeId)?.data;
     if (!targetNode) return;
@@ -313,7 +310,7 @@ function GraphPageContent() {
     setHighlightedNodeId(targetNode.id);
     setQueryHighlightedNodes([]);
     appliedNodeParamRef.current = targetNodeId;
-  }, [targetNodeId, galaxyData]);
+  }, [targetNodeId, galaxyData, viewType]);
 
   if (loading) {
     return (

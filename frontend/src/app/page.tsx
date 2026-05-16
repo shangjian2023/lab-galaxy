@@ -120,7 +120,7 @@ function FeaturedCarousel() {
 
   if (!posts.length) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
+      <div className="flex h-56 items-center justify-center rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
         <p className="text-sm text-[#6B5D50]">暂无精选帖子，去 <Link href="/forum" className="text-[#9A8C73] hover:underline">知识发酵池</Link> 发一帖吧</p>
       </div>
     );
@@ -128,7 +128,7 @@ function FeaturedCarousel() {
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
-      <div className="relative h-40">
+      <div className="relative h-56">
         <AnimatePresence mode="wait">
           <motion.div
             key={idx}
@@ -147,8 +147,14 @@ function FeaturedCarousel() {
             }`}>
               {posts[idx].is_announcement ? "📢 系统公告" : posts[idx].is_featured ? "✨ 精华" : BOARD_LABELS[posts[idx].board] || posts[idx].board}
             </span>
-            <h3 className="text-base font-bold text-[#4a3e34]">{posts[idx].title}</h3>
-            <p className="mt-1 line-clamp-1 text-xs text-[#6B5D50]">{posts[idx].content?.slice(0, 60)}…</p>
+            <h3 className="relative mb-1 text-xl font-bold text-[#8C3232]">
+              {posts[idx].title}
+              <span className="absolute inset-0 pointer-events-none overflow-hidden" style={{
+                background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%)",
+                animation: "shimmer 8s ease-in-out infinite",
+              }} />
+            </h3>
+            <p className="mt-1 line-clamp-2 text-sm text-[#6B5D50]">{posts[idx].content?.slice(0, 100)}…</p>
           </motion.div>
         </AnimatePresence>
       </div>
