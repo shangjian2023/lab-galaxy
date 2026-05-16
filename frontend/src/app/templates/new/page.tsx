@@ -55,7 +55,10 @@ export default function TemplateEditorPage() {
       });
       if (publish) {
         const { publishTemplate } = await import("@/lib/api");
-        await publishTemplate(res.id);
+        const publishRes = await publishTemplate(res.id);
+        if (publishRes.status === "pending_review") {
+          alert("模板已提交，等待管理员审核");
+        }
       }
       router.push("/templates");
     } catch (e: unknown) {

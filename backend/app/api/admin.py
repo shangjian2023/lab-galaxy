@@ -725,6 +725,7 @@ async def get_settings(
     config_map = {r.key: r.value for r in rows}
     return {
         "registration_require_approval": config_map.get("registration_require_approval", "true") == "true",
+        "template_review_required": config_map.get("template_review_required", "false") == "true",
     }
 
 
@@ -735,12 +736,17 @@ async def update_settings(
     _admin: User = Depends(require_admin),
 ):
     from app.models.models import AIConfig
-    if "registration_require_approval" in body:
-        val = "true" if body["registration_require_approval"] else "false"
-        existing = (await db.execute(select(AIConfig).where(AIConfig.key == "registration_require_approval"))).scalar_one_or_none()
-        if existing:
-            existing.value = val
-        else:
-            db.add(AIConfig(key="registration_require_approval", value=val))
-        await db.commit()
+    settings_map = {
+        "registration_require_approval": body.get("registration_require_approval"),
+        "template_review_required": body.get("template_review_required"),
+    }
+    for key, val in settings_map.items():
+        if val is not None:
+            db_val = "true" if val else "false"
+            existing = (await db.execute(select(AIConfig).where(AIConfig.key == key))).scalar_one_or_none()
+            if existing:
+                existing.value = db_val
+            else:
+                db.add(AIConfig(key=key, value=db_val))
+    await db.commit()
     return {"status": "ok"}

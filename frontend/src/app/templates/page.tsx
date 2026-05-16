@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { browseTemplates, toggleTemplateLike, bookmarkTemplate, deleteTemplate, getTemplate, type TemplateItem } from "@/lib/api";
+import { browseTemplates, getMyTemplates, toggleTemplateLike, bookmarkTemplate, deleteTemplate, getTemplate, type TemplateItem } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { soundEngine } from "@/lib/audio/SoundEngine";
 import { markdownToDocx, downloadBlob } from "@/lib/word-utils";
@@ -25,19 +25,35 @@ const SORT_OPTIONS = [
 export default function TemplatesPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<TemplateItem[]>([]);
+  const [myItems, setMyItems] = useState<TemplateItem[]>([]);
   const [total, setTotal] = useState(0);
   const [keyword, setKeyword] = useState("");
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("popular");
+  const [showMyTemplates, setShowMyTemplates] = useState(false);
 
-  const load = () => {
+  const loadMarket = () => {
     browseTemplates({ keyword: keyword || undefined, category: category || undefined, sort }).then((res) => {
       setItems(res.items);
       setTotal(res.total);
     });
   };
 
-  useEffect(() => { load(); }, [category, sort]);
+  const loadMy = () => {
+    if (!user) return;
+    getMyTemplates().then((res) => {
+      setMyItems(res.items);
+    });
+  };
+
+  useEffect(() => { loadMarket(); }, [category, sort]);
+
+  const load = () => {
+    if (showMyTemplates) loadMy();
+    else loadMarket();
+  };
+
+  useEffect(() => { load(); }, [showMyTemplates, category, sort]);
 
   const handleLike = async (id: string) => {
     const res = await toggleTemplateLike(id);
@@ -105,6 +121,13 @@ export default function TemplatesPage() {
               category === c.value ? "bg-orange-100 text-orange-700" : "glass-button text-black"
             }`}>{c.label}</button>
         ))}
+        {user && (
+          <button
+            onClick={() => setShowMyTemplates(!showMyTemplates)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              showMyTemplates ? "bg-[#9A8C73] text-white" : "glass-button text-black"
+            }`}>我的模板</button>
+        )}
         <div className="ml-auto flex items-center gap-2">
           {SORT_OPTIONS.map((s) => (
             <button key={s.value} onClick={() => setSort(s.value)}
@@ -125,6 +148,9 @@ export default function TemplatesPage() {
             <div className="mb-3 flex items-center gap-2">
               {tpl.is_official && <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">官方</span>}
               {tpl.category && <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] text-gray-700">{tpl.category}</span>}
+              {tpl.status === "draft" && <span className="rounded bg-gray-200 px-2 py-0.5 text-[10px] text-gray-700">草稿</span>}
+              {tpl.status === "pending_review" && <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">审核中</span>}
+              {tpl.status === "rejected" && <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] text-red-700">已拒绝</span>}
             </div>
 
             <h3 className="mb-1 text-base font-bold text-gray-800 group-hover:text-orange-600">{tpl.name}</h3>
@@ -176,7 +202,9 @@ export default function TemplatesPage() {
       </div>
 
       {items.length === 0 && (
-        <div className="py-20 text-center text-sm text-black">暂无模板</div>
+        <div className="py-20 text-center text-sm text-black">
+          {showMyTemplates ? "暂无模板，点击右上角创建模板" : "暂无模板"}
+        </div>
       )}
 
       {/* Preview Modal */}

@@ -8,7 +8,7 @@ import {
   type TemplateItem,
 } from "@/lib/api";
 
-const STATUS_OPTIONS = ["published", "draft", "rejected"];
+const STATUS_OPTIONS = ["published", "draft", "pending_review", "rejected"];
 
 export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
@@ -105,14 +105,16 @@ export default function AdminTemplatesPage() {
                       >
                         <option value="published">已发布</option>
                         <option value="draft">草稿</option>
+                        <option value="pending_review">审核中</option>
                         <option value="rejected">已拒绝</option>
                       </select>
                     ) : (
                       <span className={`rounded-xl px-2 py-0.5 text-xs font-medium ${
                         tpl.status === "published" ? "bg-green-100 text-green-700"
                         : tpl.status === "rejected" ? "bg-red-100 text-red-600"
+                        : tpl.status === "pending_review" ? "bg-amber-100 text-amber-700"
                         : "bg-yellow-100 text-yellow-700"
-                      }`}>{tpl.status || "published"}</span>
+                      }`}>{tpl.status === "pending_review" ? "审核中" : (tpl.status || "published")}</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -143,9 +145,9 @@ export default function AdminTemplatesPage() {
                         通过
                       </button>
                     )}
-                    {tpl.status === "published" && (
+                    {(tpl.status === "published" || tpl.status === "pending_review") && (
                       <button onClick={() => handleReject(tpl.id)} className="text-xs text-red-600 hover:underline">
-                        下架
+                        {tpl.status === "pending_review" ? "拒绝" : "下架"}
                       </button>
                     )}
                     <button onClick={() => handleDelete(tpl.id)} className="text-xs text-red-600 hover:underline">

@@ -26,11 +26,15 @@ export default function AdminUsersPage() {
   const [showPassword, setShowPassword] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [regRequireApproval, setRegRequireApproval] = useState(true);
+  const [tplReviewRequired, setTplReviewRequired] = useState(false);
   const pageSize = 20;
 
   // Load registration settings
   useEffect(() => {
-    adminGetSettings().then((s) => setRegRequireApproval(s.registration_require_approval)).catch(() => {});
+    adminGetSettings().then((s) => {
+      setRegRequireApproval(s.registration_require_approval);
+      setTplReviewRequired(s.template_review_required);
+    }).catch(() => {});
   }, []);
 
   const load = async () => {
@@ -142,6 +146,19 @@ export default function AdminUsersPage() {
               className={`relative h-5 w-9 rounded-full transition-colors ${regRequireApproval ? "bg-green-500" : "bg-gray-300"}`}
             >
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${regRequireApproval ? "left-4" : "left-0.5"}`} />
+            </button>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <span>模板审核</span>
+            <button
+              onClick={() => {
+                const next = !tplReviewRequired;
+                setTplReviewRequired(next);
+                adminUpdateSettings({ template_review_required: next }).catch(() => setTplReviewRequired(!next));
+              }}
+              className={`relative h-5 w-9 rounded-full transition-colors ${tplReviewRequired ? "bg-green-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${tplReviewRequired ? "left-4" : "left-0.5"}`} />
             </button>
           </label>
           <button

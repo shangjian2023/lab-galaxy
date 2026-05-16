@@ -505,6 +505,10 @@ export function browseTemplates(params?: { keyword?: string; category?: string; 
   return request<{ total: number; items: TemplateItem[] }>(`/templates/market?${qs}`);
 }
 
+export function getMyTemplates(page = 1, pageSize = 20) {
+  return request<{ total: number; items: TemplateItem[] }>(`/templates/my?page=${page}&page_size=${pageSize}`);
+}
+
 export function getTemplate(id: string) {
   return request<TemplateItem & { content: string; status: string; comments: { id: string; user_id: string; content: string; created_at: string }[] }>(`/templates/${id}`);
 }
@@ -1031,9 +1035,9 @@ export function deleteAchievement(id: string) {
 // ── Admin Settings ──
 
 export function adminGetSettings() {
-  return request<{ registration_require_approval: boolean }>("/admin/settings");
+  return request<{ registration_require_approval: boolean; template_review_required: boolean }>("/admin/settings");
 }
 
-export function adminUpdateSettings(data: { registration_require_approval?: boolean }) {
+export function adminUpdateSettings(data: { registration_require_approval?: boolean; template_review_required?: boolean }) {
   return request<{ status: string }>("/admin/settings", "PATCH", data);
 }

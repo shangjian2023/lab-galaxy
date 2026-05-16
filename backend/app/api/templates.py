@@ -142,6 +142,40 @@ async def delete_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db),
     await db.commit()
 
 
+# ========== My Templates ==========
+
+@router.get("/my")
+async def my_templates(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all templates created by the current user, including drafts."""
+    base = select(Template).where(Template.created_by == current_user.id)
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
+    rows = (await db.execute(base.order_by(Template.created_at.desc()).offset((page - 1) * page_size).limit(page_size))).scalars().all()
+    # Build liked set
+    liked = set()
+    if rows:
+        liked_rows = (await db.execute(select(TemplateLike.template_id).where(
+            TemplateLike.user_id == current_user.id,
+            TemplateLike.template_id.in_([r.id for r in rows]),
+        ))).scalars().all()
+        liked = set(str(l) for l in liked_rows)
+    return {
+        "total": total,
+        "items": [{
+            "id": str(r.id), "name": r.name, "description": r.description,
+            "content": r.content, "tags": r.tags, "category": r.category,
+            "status": r.status, "is_official": r.is_official,
+            "likes": r.likes, "downloads": r.downloads, "bookmarks": r.adoptions,
+            "is_liked": str(r.id) in liked,
+            "created_by": str(r.created_by), "created_at": r.created_at.isoformat(),
+        } for r in rows],
+    }
+
+
 # ========== Publish / Review ==========
 
 @router.post("/{tpl_id}/publish")
@@ -149,9 +183,13 @@ async def publish_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db)
     tpl = (await db.execute(select(Template).where(Template.id == tpl_id))).scalar_one_or_none()
     if not tpl or tpl.created_by != current_user.id:
         raise HTTPException(404)
-    tpl.status = "pending_review"
+    # Check if review is required
+    from app.models.models import AIConfig
+    cfg = (await db.execute(select(AIConfig).where(AIConfig.key == "template_review_required"))).scalar_one_or_none()
+    review_required = cfg and cfg.value.lower() == "true" if cfg else False
+    tpl.status = "pending_review" if review_required else "published"
     await db.commit()
-    return {"status": "pending_review"}
+    return {"status": tpl.status}
 
 
 @router.post("/{tpl_id}/review")
