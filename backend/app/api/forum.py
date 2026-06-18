@@ -1,7 +1,7 @@
 """知识发酵池论坛系统 API."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -681,7 +681,7 @@ async def featured_feed(db: AsyncSession = Depends(get_db)):
 
     from app.models.models import EquipmentCatalogItem
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     # No hard cutoff — recency decay (exp(-age/14d)) naturally deprioritizes
     # old threads while still allowing them to appear if nothing newer exists.
     threads = (await db.execute(
