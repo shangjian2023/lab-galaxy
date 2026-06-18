@@ -233,6 +233,11 @@ body {
   50% { transform: translateX(100%); }
 }
 
+@keyframes particle-burst {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0); }
+}
+
 /* ── Word-style Preview ── */
 .word-preview {
   line-height: 1.8;
