@@ -96,7 +96,7 @@ export default function DocTree({ tree, selectedId, onSelect, filterFavorites, o
                                 key={doc.id}
                                 onClick={() => onSelect(doc.id)}
                                 className={`flex w-full items-center gap-2 rounded px-3 py-1 text-xs transition-colors ${
-                                  selectedId === doc.id ? "bg-orange-50 text-orange-700 font-medium" : "text-gray-700 hover:bg-[rgba(255,248,240,0.5)]"
+                                  selectedId === doc.id ? "bg-orange-100 text-orange-800 font-bold border-l-2 border-orange-500" : "text-gray-700 hover:bg-[rgba(255,248,240,0.5)]"
                                 }`}
                               >
                                 <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[doc.status] || "bg-gray-300"}`} />

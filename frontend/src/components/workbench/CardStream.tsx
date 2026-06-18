@@ -42,7 +42,7 @@ export default function CardStream({ cards, selectedId, onSelect, onToggleFavori
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className={`cursor-pointer glass-card p-4 transition-shadow hover:shadow-md ${
-            isSelected ? "border-orange-400 ring-2 ring-orange-100" : ""
+            isSelected ? "border-orange-400 ring-2 ring-orange-300 shadow-lg shadow-orange-500/15 scale-[1.01]" : ""
           }`}
           onClick={() => onSelect(card.id)}
         >
