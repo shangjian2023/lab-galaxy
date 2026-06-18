@@ -778,6 +778,11 @@ export default function GalaxyView({
         const alpha = isD ? 0.12 : isHL ? 0.85 : isHE ? 0.65 : 0.5;
         const w = isHL ? 2 : isHE ? 1.6 : Math.max(1, 1.1 * fsRef.current.linkWidth);
 
+        if (isHL) {
+          ctx.save();
+          ctx.shadowColor = `rgba(229,197,122,0.45)`;
+          ctx.shadowBlur = 8;
+        }
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(tg.x, tg.y);
@@ -788,6 +793,9 @@ export default function GalaxyView({
           : `rgba(150,162,180,${alpha})`;
         ctx.lineWidth = w;
         ctx.stroke();
+        if (isHL) {
+          ctx.restore();
+        }
       }
 
       // ── Nodes ──
@@ -833,12 +841,37 @@ export default function GalaxyView({
         }
 
         if ((isHL || isQHL) && !interacting) {
-          // Pulse ring is purely decorative — skip while panning/dragging to keep frame rate up.
-          const pulse = 1 + Math.sin(now / 400) * 0.08;
+          // Three-layer atmospheric glow (skip while panning/dragging).
+          const gc = isHL ? "250,204,21" : "251,191,36";
+          const breathe = 1 + Math.sin(now / 700) * 0.12; // slow, gentle
+
+          // Layer 1 — soft radial gradient halo (large, fading)
+          const outerR = nr * 3.8 * breathe;
+          const grad = ctx.createRadialGradient(n.x, n.y, nr * 0.5, n.x, n.y, outerR);
+          grad.addColorStop(0, `rgba(${gc},0.28)`);
+          grad.addColorStop(0.4, `rgba(${gc},0.10)`);
+          grad.addColorStop(1, `rgba(${gc},0)`);
           ctx.beginPath();
-          ctx.arc(n.x, n.y, nr * pulse + 5, 0, Math.PI * 2);
-          ctx.strokeStyle = isHL ? "rgba(250,204,21,0.3)" : "rgba(251,191,36,0.25)";
-          ctx.lineWidth = 1;
+          ctx.arc(n.x, n.y, outerR, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+
+          // Layer 2 — middle bloom ring (canvas shadow for soft glow)
+          ctx.save();
+          ctx.shadowColor = `rgba(${gc},0.7)`;
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, nr * 1.9 * breathe, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(${gc},0.30)`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+
+          // Layer 3 — inner crisp ring (tight definition)
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, nr + 3.5, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(${gc},0.65)`;
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
 
@@ -879,7 +912,7 @@ export default function GalaxyView({
 
           ctx.globalAlpha = a;
           ctx.fillStyle = isHLN ? "rgba(230,235,245,0.95)" : "rgba(180,186,196,0.85)";
-          ctx.shadowBlur = isHLN ? 2 : 0;
+          ctx.shadowBlur = isHLN ? 5 : 0;
           ctx.fillText(n.name || n.label, n.x, (n.y ?? 0) + (nodeRadiusMap.get(n.id) ?? baseR) + 4);
           ctx.globalAlpha = 1;
         }
