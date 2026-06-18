@@ -76,6 +76,13 @@ const DEFAULT_SETTINGS: ForceSettings = {
   clusterForce: 0.07,
 };
 
+// Ambient drift (Phase D): once the graph has settled, keep the simulation
+// alive at a very low alpha so nodes drift organically instead of freezing
+// dead (Obsidian-like "breathing"). Set AMBIENT_DRIFT = false to disable if it
+// ever hurts click precision or battery on the target devices.
+const AMBIENT_DRIFT = true;
+const AMBIENT_ALPHA_TARGET = 0.012;
+
 const FS_KEY = "graph-force-settings";
 
 function loadFS(): ForceSettings {
@@ -84,6 +91,40 @@ function loadFS(): ForceSettings {
     if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch {}
   return { ...DEFAULT_SETTINGS };
+}
+
+// Layout cache (Phase B): persist node positions so re-entering the graph
+// restores the last layout instead of re-exploding from a fresh seed. The
+// cache is keyed only by node id (not by scope/user) on purpose — shared node
+// ids keep a stable position across views, which matches Obsidian's behavior.
+// Bump the version suffix to invalidate stale entries after a layout change.
+const LAYOUT_CACHE_KEY = "graph-layout-v1";
+const LAYOUT_CACHE_MAX = 2000; // cap stored nodes to bound localStorage size
+
+function readLayoutCache(): Record<string, { x: number; y: number }> {
+  try {
+    const raw = localStorage.getItem(LAYOUT_CACHE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+// Debounced persist of current node positions. Captured only after the
+// simulation has cooled (see tick handler) so we don't thrash localStorage
+// every frame — important since ambient drift (Phase D) keeps ticking.
+let _layoutWriteTimer: ReturnType<typeof setTimeout> | null = null;
+function persistLayout(nodes: SimNode[]) {
+  if (_layoutWriteTimer) clearTimeout(_layoutWriteTimer);
+  _layoutWriteTimer = setTimeout(() => {
+    try {
+      const data: Record<string, { x: number; y: number }> = {};
+      for (let i = 0; i < nodes.length && i < LAYOUT_CACHE_MAX; i++) {
+        const n = nodes[i];
+        if (n.x != null && n.y != null) data[n.id] = { x: n.x, y: n.y };
+      }
+      localStorage.setItem(LAYOUT_CACHE_KEY, JSON.stringify(data));
+    } catch {}
+  }, 1200);
 }
 
 // ── Component ──
@@ -191,18 +232,28 @@ export default function GalaxyView({
 
   // ── Build simulation ──
   const buildSim = useCallback(
-    (nodes: SimNode[], links: SimLink[], startAlpha = 1) => {
+    (nodes: SimNode[], links: SimLink[], startAlpha = 1, prewarm = false) => {
       if (simRef.current) simRef.current.stop();
 
       const cx = dims.w / 2;
       const cy = dims.h / 2;
-      const r = Math.min(dims.w, dims.h) * 0.3;
+      // Spiral (Archimedean) seed instead of a ring (Phase A). A ring causes
+      // every node to be pushed outward at once by the repulsion force → a
+      // violent "explosion" that looks tangled while settling. A spiral spreads
+      // nodes with monotonically increasing radius so the initial charge is
+      // gentler and more even. Combined with pre-warm below, the first visible
+      // frame is already close to a stable layout.
+      const total = nodes.length || 1;
+      const maxR = Math.min(dims.w, dims.h) * 0.32;
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
         if (n.x == null) {
-          const angle = (2 * Math.PI * i) / nodes.length;
-          n.x = cx + r * Math.cos(angle);
-          n.y = cy + r * Math.sin(angle);
+          const t = (i + 0.5) / total;                  // 0..1 along the spiral
+          const turns = Math.max(2, Math.sqrt(total));   // more nodes → more turns
+          const angle = t * Math.PI * 2 * turns;
+          const radius = maxR * Math.sqrt(t);            // √ keeps spacing roughly even
+          n.x = cx + radius * Math.cos(angle);
+          n.y = cy + radius * Math.sin(angle);
         }
       }
 
@@ -227,7 +278,7 @@ export default function GalaxyView({
             .distance(forceSettings.linkDistance)
             .strength(0.6)
         )
-        .force("charge", forceManyBody<SimNode>().strength(forceSettings.repel))
+        .force("charge", forceManyBody<SimNode>().strength(forceSettings.repel).theta(0.7))
         .force("center", forceCenter(cx, cy).strength(forceSettings.centerStrength))
         .force(
           "clusterX",
@@ -239,8 +290,20 @@ export default function GalaxyView({
         )
         .force("collide", forceCollide<SimNode>().radius(NODE_RADIUS + 3))
         .alpha(startAlpha)
-        .alphaDecay(0.02)
-        .velocityDecay(0.4);
+        .alphaDecay(0.035)
+        .velocityDecay(0.35);
+
+      // Pre-warm (Phase A): advance the physics off-screen by several hundred
+      // ticks so the graph reaches a near-stable state BEFORE the first paint —
+      // the user sees a gentle settle instead of a violent explosion. Then drop
+      // alpha to a calm level for the visible animation. Only the fresh full-load
+      // path opts in (prewarm=true); incremental rebuilds and the timeline
+      // streaming pass keep the cheap/gentle path so they don't pay this cost or
+      // lose their streaming feel.
+      if (prewarm) {
+        for (let i = 0; i < 300; i++) sim.tick();
+        sim.alpha(0.3).alphaTarget(0);
+      }
 
       simRef.current = sim;
       nodesRef.current = nodes;
@@ -258,6 +321,9 @@ export default function GalaxyView({
           }
         }
         if (moved) dirtyRef.current = true;
+        // Phase B: once the layout has cooled, snapshot positions to the cache
+        // (debounced) so the next visit restores them.
+        if (sim.alpha() < 0.05) persistLayout(nodes);
       });
     },
     [dims.w, dims.h, forceSettings]
@@ -292,6 +358,7 @@ export default function GalaxyView({
     for (const n of nodesRef.current) existingMap.set(n.id, n);
 
     const latestId = data.nodes[data.nodes.length - 1]?.data.id;
+    const layoutCache = readLayoutCache(); // Phase B: restore last positions
 
     const nodes: SimNode[] = data.nodes.map((n) => {
       const existing = existingMap.get(n.data.id);
@@ -312,7 +379,9 @@ export default function GalaxyView({
         document_id: n.data.document_id, baseSize: n.data.size || 20,
         degree: 0, opacity: 1, x: undefined, y: undefined,
       };
-      if (n.data.id === latestId) { nn.x = dims.w / 2; nn.y = dims.h / 2; }
+      const cachedPos = layoutCache[n.data.id];
+      if (cachedPos) { nn.x = cachedPos.x; nn.y = cachedPos.y; }              // Phase B: restore
+      else if (n.data.id === latestId) { nn.x = dims.w / 2; nn.y = dims.h / 2; }
       return nn;
     });
 
@@ -322,7 +391,9 @@ export default function GalaxyView({
     }));
 
     computeDegree(nodes, links);
-    buildSim(nodes, links, existingMap.size > 0 ? 0.05 : 1);
+    // Fresh full load → pre-warm so the first frame is near-stable; incremental
+    // update (new doc while open) → gentle nudge at low alpha, no pre-warm.
+    buildSim(nodes, links, existingMap.size > 0 ? 0.05 : 1, existingMap.size === 0);
     initialCenterDoneRef.current = false;
   }, [data, buildSim, dims.w, dims.h]);
 
@@ -445,7 +516,7 @@ export default function GalaxyView({
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Phase C: cap at 2x — 3-4x on hi-DPI wastes fillrate for little visible gain
     canvas.width = dims.w * dpr;
     canvas.height = dims.h * dpr;
     canvas.style.width = `${dims.w}px`;
@@ -679,11 +750,25 @@ export default function GalaxyView({
       ctx.translate(t.x, t.y);
       ctx.scale(t.k, t.k);
 
+      // Viewport culling bounds in world coordinates (Phase C). Margin scales
+      // with zoom so labels/glow just outside the canvas edge aren't clipped
+      // mid-animation. Nodes/edges fully outside are skipped in the loops below.
+      const vMargin = 40 / t.k;
+      const vx0 = -t.x / t.k - vMargin;
+      const vy0 = -t.y / t.k - vMargin;
+      const vx1 = (dims.w - t.x) / t.k + vMargin;
+      const vy1 = (dims.h - t.y) / t.k + vMargin;
+
       // ── Edges ──
       for (const l of linksRef.current) {
         const s = l.source as SimNode;
         const tg = l.target as SimNode;
         if (s.x == null || s.y == null || tg.x == null || tg.y == null) continue;
+
+        // Phase C: skip edges whose both endpoints are on the same outside side
+        // of the viewport. Edges crossing the viewport are still drawn.
+        if ((s.x < vx0 && tg.x < vx0) || (s.x > vx1 && tg.x > vx1) ||
+            (s.y < vy0 && tg.y < vy0) || (s.y > vy1 && tg.y > vy1)) continue;
 
         const lk = `${s.id}--${tg.id}`;
         const isHL = highlightSet.has(s.id) && highlightSet.has(tg.id);
@@ -712,6 +797,9 @@ export default function GalaxyView({
         if (n.x == null || n.y == null) continue;
         const nr = n.type === "Experiment" ? baseR * 1.3 : baseR;
         nodeRadiusMap.set(n.id, nr);
+        // Phase C: skip nodes outside the viewport. The radius map is still
+        // built for every node so the label pass below can resolve it.
+        if (n.x < vx0 || n.x > vx1 || n.y < vy0 || n.y > vy1) continue;
         const isD = dimmed?.has(n.id);
         const isH = hovId === n.id;
         const isNb = isHov && hovId && adjacentByIdRef.current.get(hovId)?.has(n.id);
@@ -772,6 +860,8 @@ export default function GalaxyView({
 
         for (const n of nodesRef.current) {
           if (n.x == null || n.y == null) continue;
+          // Phase C: don't render labels for off-screen nodes
+          if (n.x < vx0 || n.x > vx1 || n.y < vy0 || n.y > vy1) continue;
           const isDN = dimmed?.has(n.id);
           const isHN = hovId === n.id;
           const isHLN = curHL === n.id;
@@ -840,6 +930,28 @@ export default function GalaxyView({
       canvas.removeEventListener("click", onClick);
     };
   }, [dims]);
+
+  // ── Ambient drift (Phase D) ──
+  // After the graph settles (alpha drops below the threshold), reheat the
+  // simulation to a very low alpha so it never freezes — nodes keep an organic,
+  // barely-perceptible drift. Re-arms automatically after each rebuild (new sim
+  // object) and after a drag settles. Active drags are excluded naturally: the
+  // drag handler keeps alpha high, so the `alpha < 0.02` guard won't fire.
+  useEffect(() => {
+    if (!AMBIENT_DRIFT) return;
+    let armed = false;
+    let lastSim: ReturnType<typeof forceSimulation<SimNode, SimLink>> | null = null;
+    const iv = setInterval(() => {
+      const sim = simRef.current;
+      if (!sim) { armed = false; lastSim = null; return; }
+      if (sim !== lastSim) { armed = false; lastSim = sim; } // fresh layout → re-arm after settle
+      if (!armed && sim.alpha() < 0.02) {
+        sim.alphaTarget(AMBIENT_ALPHA_TARGET).alpha(0.02).restart();
+        armed = true;
+      }
+    }, 1500);
+    return () => clearInterval(iv);
+  }, []);
 
   // ── Timeline ──
   useEffect(() => {
