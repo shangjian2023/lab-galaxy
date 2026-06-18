@@ -70,6 +70,37 @@ def award_points(user, db, change: int, reason: str) -> int:
     return new_level
 
 
+# ── Credit score ──
+# Credit reflects borrowing reliability + contribution quality (baseline 100,
+# clamped 0..200). Adjusted on discrete events (equipment return/reject, post
+# featured, best answer). Overdue penalty is deferred until a due-date feature
+# exists. Composite blends level (60%) + credit (40%) into a 0..1 score used
+# for highlights and titles.
+
+def adjust_credit(user, delta: int) -> None:
+    """Adjust a user's credit score, clamped to [0, 200]. Caller commits."""
+    user.credit_score = max(0, min(200, (getattr(user, "credit_score", 100) or 100) + delta))
+
+
+def composite_score(user) -> float:
+    """Blend level (1..9) and credit (0..200) into 0..1. Level weighs 60%."""
+    level_norm = min(1.0, max(0.0, (getattr(user, "level", 1) - 1) / 8.0))
+    credit_norm = min(1.0, max(0.0, (getattr(user, "credit_score", 100) or 100) / 200.0))
+    return round(level_norm * 0.6 + credit_norm * 0.4, 3)
+
+
+def credit_title(user) -> dict:
+    """Return {title, tier} for highlight display based on composite score."""
+    c = composite_score(user)
+    if c >= 0.8:
+        return {"title": "高信誉学者", "tier": "high"}
+    if c >= 0.6:
+        return {"title": "可靠学者", "tier": "good"}
+    if c >= 0.35:
+        return {"title": "新晋学者", "tier": "normal"}
+    return {"title": "", "tier": "low"}
+
+
 async def count_today(db, user_id, reason: str) -> int:
     """Count a user's points-log entries with `reason` since midnight UTC today.
 

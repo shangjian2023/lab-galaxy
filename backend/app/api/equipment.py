@@ -1,13 +1,16 @@
+from datetime import datetime
+from typing import Optional
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_admin
-from app.models.models import EquipmentRequest, EquipmentCatalogItem, User
+from app.models.models import EquipmentCatalogItem, EquipmentRequest, User
+from app.services.points import adjust_credit
 from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
-import uuid
 
 router = APIRouter()
 
@@ -21,11 +24,12 @@ class EquipmentRequestCreate(BaseModel):
     title: str
     description: str = ""
     quantity: int = 1
+    catalog_item_id: Optional[str] = None  # link to a catalog item to track stock
 
 
 class EquipmentRequestReply(BaseModel):
     status: str
-    reply: str
+    reply: str = ""
 
 
 class EquipmentRequestResponse(BaseModel):
@@ -38,6 +42,9 @@ class EquipmentRequestResponse(BaseModel):
     quantity: int
     status: str
     admin_reply: Optional[str]
+    catalog_item_id: Optional[str]
+    catalog_name: Optional[str]
+    returned_at: Optional[datetime]
     created_at: Optional[datetime]
 
 
@@ -45,6 +52,9 @@ class CatalogItemCreate(BaseModel):
     name: str
     icon: str = "🔧"
     description: str = ""
+    image_url: Optional[str] = None
+    stock: int = 0
+    unit: str = "个"
     sort_order: int = 0
 
 
@@ -52,6 +62,9 @@ class CatalogItemUpdate(BaseModel):
     name: Optional[str] = None
     icon: Optional[str] = None
     description: Optional[str] = None
+    image_url: Optional[str] = None
+    stock: Optional[int] = None
+    unit: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
 
@@ -61,6 +74,9 @@ class CatalogItemResponse(BaseModel):
     name: str
     icon: str
     description: Optional[str]
+    image_url: Optional[str]
+    stock: int
+    unit: str
     sort_order: int
     is_active: bool
     created_at: Optional[datetime]
@@ -100,13 +116,20 @@ def _catalog_to_response(row: EquipmentCatalogItem) -> CatalogItemResponse:
         name=row.name,
         icon=row.icon,
         description=row.description,
+        image_url=row.image_url,
+        stock=row.stock,
+        unit=row.unit,
         sort_order=row.sort_order,
         is_active=row.is_active,
         created_at=row.created_at,
     )
 
 
-def _request_to_response(row: EquipmentRequest, user_nickname: Optional[str] = None) -> EquipmentRequestResponse:
+def _request_to_response(
+    row: EquipmentRequest,
+    user_nickname: Optional[str] = None,
+    catalog_name: Optional[str] = None,
+) -> EquipmentRequestResponse:
     return EquipmentRequestResponse(
         id=str(row.id),
         user_id=str(row.user_id),
@@ -117,6 +140,9 @@ def _request_to_response(row: EquipmentRequest, user_nickname: Optional[str] = N
         quantity=row.quantity,
         status=row.status,
         admin_reply=row.admin_reply,
+        catalog_item_id=str(row.catalog_item_id) if getattr(row, "catalog_item_id", None) else None,
+        catalog_name=catalog_name,
+        returned_at=getattr(row, "returned_at", None),
         created_at=row.created_at,
     )
 
@@ -160,6 +186,9 @@ async def create_catalog_item(
         name=payload.name,
         icon=payload.icon,
         description=payload.description,
+        image_url=payload.image_url,
+        stock=payload.stock,
+        unit=payload.unit or "个",
         sort_order=payload.sort_order,
     )
     db.add(item)
@@ -192,6 +221,12 @@ async def update_catalog_item(
         row.icon = payload.icon
     if payload.description is not None:
         row.description = payload.description
+    if payload.image_url is not None:
+        row.image_url = payload.image_url
+    if payload.stock is not None:
+        row.stock = payload.stock
+    if payload.unit is not None:
+        row.unit = payload.unit
     if payload.sort_order is not None:
         row.sort_order = payload.sort_order
     if payload.is_active is not None:
@@ -240,12 +275,25 @@ async def create_request(
     if not payload.title or not payload.title.strip():
         raise HTTPException(status_code=400, detail="title must not be empty")
 
+    catalog_item_id = None
+    if payload.catalog_item_id:
+        try:
+            catalog_item_id = uuid.UUID(payload.catalog_item_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid catalog_item_id format")
+        exists = (await db.execute(
+            select(EquipmentCatalogItem.id).where(EquipmentCatalogItem.id == catalog_item_id)
+        )).scalar_one_or_none()
+        if not exists:
+            raise HTTPException(status_code=404, detail="关联的器材不存在")
+
     request = EquipmentRequest(
         user_id=current_user.id,
         request_type=payload.request_type,
         title=payload.title.strip(),
         description=payload.description,
         quantity=payload.quantity,
+        catalog_item_id=catalog_item_id,
     )
     db.add(request)
     await db.commit()
@@ -301,8 +349,9 @@ async def admin_list_requests(
     total = (await db.execute(total_stmt)).scalar() or 0
 
     stmt = (
-        select(EquipmentRequest, User.nickname)
+        select(EquipmentRequest, User.nickname, EquipmentCatalogItem.name)
         .join(User, EquipmentRequest.user_id == User.id, isouter=True)
+        .join(EquipmentCatalogItem, EquipmentRequest.catalog_item_id == EquipmentCatalogItem.id, isouter=True)
     )
     if base_conditions:
         stmt = stmt.where(*base_conditions)
@@ -311,7 +360,7 @@ async def admin_list_requests(
     rows = (await db.execute(stmt)).all()
 
     items = [
-        _request_to_response(row.EquipmentRequest, user_nickname=row.nickname)
+        _request_to_response(row.EquipmentRequest, user_nickname=row.nickname, catalog_name=row.name)
         for row in rows
     ]
     return {"total": total, "items": items}
@@ -324,7 +373,11 @@ async def admin_reply_request(
     _admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin: approve or reject an equipment request."""
+    """Admin: approve or reject an equipment request.
+
+    Approve decrements the linked catalog item's stock (rejects if insufficient).
+    Reject dings the requester's credit (-1).
+    """
     if payload.status not in ("approved", "rejected"):
         raise HTTPException(status_code=400, detail="status must be 'approved' or 'rejected'")
 
@@ -333,10 +386,28 @@ async def admin_reply_request(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid request_id format")
 
-    stmt = select(EquipmentRequest).where(EquipmentRequest.id == rid)
-    row = (await db.execute(stmt)).scalar_one_or_none()
+    row = (await db.execute(select(EquipmentRequest).where(EquipmentRequest.id == rid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    was_rejected = row.status == "rejected"
+
+    if payload.status == "approved":
+        # Decrement stock for linked equipment (reject the whole request if insufficient)
+        if row.request_type == "equipment" and row.catalog_item_id:
+            item = (await db.execute(
+                select(EquipmentCatalogItem).where(EquipmentCatalogItem.id == row.catalog_item_id)
+            )).scalar_one_or_none()
+            if item is None:
+                raise HTTPException(status_code=404, detail="关联的器材不存在")
+            if item.stock < row.quantity:
+                raise HTTPException(status_code=400, detail=f"库存不足（剩余 {item.stock} {item.unit}）")
+            item.stock -= row.quantity
+    elif payload.status == "rejected" and not was_rejected:
+        # Credit penalty for a rejected request (once)
+        requester = (await db.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
+        if requester:
+            adjust_credit(requester, -1)
 
     row.status = payload.status
     row.admin_reply = payload.reply
@@ -344,3 +415,75 @@ async def admin_reply_request(
     await db.refresh(row)
 
     return _request_to_response(row)
+
+
+@router.post("/admin/requests/{request_id}/return")
+async def admin_mark_returned(
+    request_id: str,
+    _admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: mark an approved equipment request as returned.
+
+    Restores the linked catalog stock and rewards the borrower's credit (+2).
+    """
+    try:
+        rid = uuid.UUID(request_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid request_id format")
+
+    row = (await db.execute(select(EquipmentRequest).where(EquipmentRequest.id == rid))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if row.status != "approved":
+        raise HTTPException(status_code=400, detail="仅已通过的申请可标记归还")
+
+    # Restore stock
+    if row.request_type == "equipment" and row.catalog_item_id:
+        item = (await db.execute(
+            select(EquipmentCatalogItem).where(EquipmentCatalogItem.id == row.catalog_item_id)
+        )).scalar_one_or_none()
+        if item is not None:
+            item.stock += row.quantity
+
+    row.status = "returned"
+    row.returned_at = datetime.utcnow()
+
+    # Credit reward for returning on time
+    borrower = (await db.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
+    if borrower:
+        adjust_credit(borrower, 2)
+
+    await db.commit()
+    await db.refresh(row)
+    return _request_to_response(row)
+
+
+@router.get("/borrowed")
+async def my_borrowed(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current user's currently-borrowed equipment (approved, not returned)."""
+    rows = (await db.execute(
+        select(EquipmentRequest, EquipmentCatalogItem.name)
+        .join(EquipmentCatalogItem, EquipmentRequest.catalog_item_id == EquipmentCatalogItem.id, isouter=True)
+        .where(
+            EquipmentRequest.user_id == current_user.id,
+            EquipmentRequest.request_type == "equipment",
+            EquipmentRequest.status == "approved",
+        )
+        .order_by(EquipmentRequest.created_at.desc())
+    )).all()
+    return {
+        "items": [
+            {
+                "id": str(r.EquipmentRequest.id),
+                "title": r.EquipmentRequest.title,
+                "catalog_name": r.name,
+                "quantity": r.EquipmentRequest.quantity,
+                "created_at": r.EquipmentRequest.created_at.isoformat() if r.EquipmentRequest.created_at else None,
+            }
+            for r in rows
+        ]
+    }

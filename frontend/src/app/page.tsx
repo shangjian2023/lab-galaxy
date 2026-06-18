@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
-import { getDashboard, listForumThreads, type DashboardData, type ForumThread } from "@/lib/api";
+import { getDashboard, getFeaturedFeed, type DashboardData, type FeaturedItem } from "@/lib/api";
 
 // ── Feature modules ──
 const MODULES = [
@@ -83,52 +83,41 @@ const MODULES = [
   },
 ];
 
-// ── Featured posts carousel items ──
+// ── Featured dynamics feed ──
 const CAROUSEL_INTERVAL = 5000;
 
-const BOARD_LABELS: Record<string, string> = {
-  methodology: "方法论堂", graph_hall: "图谱议事厅", emergency_room: "实验急诊室",
-  aha_square: "Aha! 广场", cross_discipline: "学科撞车", announcements: "📢 公告",
-};
-
-function useCarouselItems() {
-  const [items, setItems] = useState<ForumThread[]>([]);
+function useFeaturedFeed() {
+  const [items, setItems] = useState<FeaturedItem[]>([]);
   useEffect(() => {
-    Promise.all([
-      listForumThreads({ board: "announcements", sort: "newest", page: 1, page_size: 5 }).catch(() => ({ items: [] })),
-      listForumThreads({ sort: "hot", page: 1, page_size: 5 }).catch(() => ({ items: [] })),
-    ]).then(([annRes, hotRes]) => {
-      const ann = (annRes as any).items ?? [];
-      const hot = (hotRes as any).items ?? [];
-      setItems([...ann, ...hot]);
-    });
+    getFeaturedFeed().then((res) => setItems(res.items)).catch(() => {});
   }, []);
   return items;
 }
 
 function FeaturedCarousel() {
-  const posts = useCarouselItems();
+  const items = useFeaturedFeed();
   const [idx, setIdx] = useState(0);
 
-  const next = useCallback(() => setIdx((i) => (posts.length ? (i + 1) % posts.length : 0)), [posts.length]);
+  const next = useCallback(() => setIdx((i) => (items.length ? (i + 1) % items.length : 0)), [items.length]);
 
   useEffect(() => {
-    if (!posts.length) return;
+    if (!items.length) return;
     const t = setInterval(next, CAROUSEL_INTERVAL);
     return () => clearInterval(t);
-  }, [posts.length, next]);
+  }, [items.length, next]);
 
-  if (!posts.length) {
+  if (!items.length) {
     return (
-      <div className="flex h-56 items-center justify-center rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
-        <p className="text-sm text-[#6B5D50]">暂无精选帖子，去 <Link href="/forum" className="text-[#9A8C73] hover:underline">知识发酵池</Link> 发一帖吧</p>
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
+        <p className="text-sm text-[#6B5D50]">暂无精选内容，去 <Link href="/forum" className="text-[#9A8C73] hover:underline">知识发酵池</Link> 发一帖吧</p>
       </div>
     );
   }
 
+  const cur = items[idx];
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
-      <div className="relative h-56">
+      <div className="relative h-64">
         <AnimatePresence mode="wait">
           <motion.div
             key={idx}
@@ -136,32 +125,32 @@ function FeaturedCarousel() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center"
+            className="absolute inset-0 flex flex-col items-center justify-center px-10 text-center"
           >
-            <span className={`mb-2 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
-              posts[idx].is_announcement
-                ? "bg-[#9A8C73]/20 text-[#6B5D50]"
-                : posts[idx].is_featured
-                ? "bg-[#9A8C73]/15 text-[#9A8C73]"
-                : "bg-[#DBC7B5]/40 text-[#6B5D50]"
-            }`}>
-              {posts[idx].is_announcement ? "📢 系统公告" : posts[idx].is_featured ? "✨ 精华" : BOARD_LABELS[posts[idx].board] || posts[idx].board}
+            {cur.image_url && (
+              <img src={cur.image_url} alt="" className="mb-3 h-24 w-24 rounded-xl object-cover shadow-md" />
+            )}
+            <span className="mb-2 rounded-full bg-[#9A8C73]/15 px-2.5 py-0.5 text-[10px] font-medium text-[#9A8C73]">
+              {cur.badge}
             </span>
-            <h3 className="relative mb-1 text-xl font-bold text-[#8C3232]">
-              {posts[idx].title}
+            <h3 className="relative mb-1 line-clamp-2 text-2xl font-bold text-[#8C3232]">
+              {cur.title}
               <span className="absolute inset-0 pointer-events-none overflow-hidden" style={{
                 background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%)",
                 animation: "shimmer 8s ease-in-out infinite",
               }} />
             </h3>
-            <p className="mt-1 line-clamp-2 text-sm text-[#6B5D50]">{posts[idx].content?.slice(0, 100)}…</p>
+            {cur.subtitle && <p className="mt-1 text-sm text-[#6B5D50]">{cur.subtitle}</p>}
+            <Link href={cur.href} className="mt-3 rounded-lg bg-[#9A8C73] px-4 py-1.5 text-xs font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-[#8C7D70]">
+              {cur.type === "equipment" ? "去借用" : "查看详情"}
+            </Link>
           </motion.div>
         </AnimatePresence>
       </div>
 
       {/* Dots */}
       <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-        {posts.map((_, i) => (
+        {items.map((_, i) => (
           <button
             key={i}
             onClick={() => setIdx(i)}
@@ -174,13 +163,13 @@ function FeaturedCarousel() {
 
       {/* Arrows */}
       <button
-        onClick={() => setIdx((i) => (i - 1 + posts.length) % posts.length)}
+        onClick={() => setIdx((i) => (i - 1 + items.length) % items.length)}
         className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-[#F4F1EE]/80 p-1 text-[#6B5D50] opacity-0 shadow-sm transition-opacity hover:bg-[#F4F1EE] group-hover:opacity-100"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
       </button>
       <button
-        onClick={() => setIdx((i) => (i + 1) % posts.length)}
+        onClick={() => setIdx((i) => (i + 1) % items.length)}
         className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-[#F4F1EE]/80 p-1 text-[#6B5D50] opacity-0 shadow-sm transition-opacity hover:bg-[#F4F1EE] group-hover:opacity-100"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -290,47 +279,44 @@ export default function Home() {
         <StatCard label="当前等级" value={stats.level} href="/growth" suffix=" 级" />
       </motion.section>
 
-      {/* Feature modules + carousel */}
-      <div className="mb-8 grid gap-6 lg:grid-cols-3">
-        {/* Modules grid (2 cols) */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="col-span-2 grid grid-cols-2 gap-3 sm:grid-cols-3"
-        >
-          {MODULES.map((m, i) => (
-            <Link
-              key={m.label}
-              href={m.href}
-              className={`group relative overflow-hidden rounded-xl border border-[#DBC7B5]/30 bg-gradient-to-br ${m.gradient} p-5 transition-all hover:border-[#9A8C73]/40 hover:shadow-lg hover:shadow-[#9A8C73]/5 hover:-translate-y-0.5`}
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg ${m.iconBg}`}>
-                {m.icon}
-              </div>
-              <h3 className="text-sm font-bold text-[#8C3232] group-hover:text-[#6B2020] transition-colors">
-                {m.label}
-              </h3>
-              <p className="mt-1 text-[11px] text-[#6B5D50] line-clamp-2">{m.desc}</p>
-            </Link>
-          ))}
-        </motion.section>
+      {/* Featured dynamics — full-width hero (enlarged & prominent) */}
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="mb-8"
+      >
+        <div className="mb-3 flex items-center justify-between px-1">
+          <h2 className="text-base font-bold text-[#4a3e34]">✨ 精选动态</h2>
+          <Link href="/forum" className="text-[11px] text-[#9A8C73] hover:underline">知识发酵池 →</Link>
+        </div>
+        <FeaturedCarousel />
+      </motion.section>
 
-        {/* Featured carousel */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-col"
-        >
-          <div className="mb-3 flex items-center justify-between px-1">
-            <h2 className="text-sm font-bold text-[#4a3e34]">精选动态</h2>
-            <Link href="/forum" className="text-[11px] text-[#9A8C73] hover:underline">查看全部 →</Link>
-          </div>
-          <FeaturedCarousel />
-        </motion.section>
-      </div>
+      {/* Feature modules — full-width grid */}
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+      >
+        {MODULES.map((m, i) => (
+          <Link
+            key={m.label}
+            href={m.href}
+            className={`group relative overflow-hidden rounded-xl border border-[#DBC7B5]/30 bg-gradient-to-br ${m.gradient} p-5 transition-all hover:border-[#9A8C73]/40 hover:shadow-lg hover:shadow-[#9A8C73]/5 hover:-translate-y-0.5`}
+            style={{ animationDelay: `${i * 60}ms` }}
+          >
+            <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg ${m.iconBg}`}>
+              {m.icon}
+            </div>
+            <h3 className="text-sm font-bold text-[#8C3232] group-hover:text-[#6B2020] transition-colors">
+              {m.label}
+            </h3>
+            <p className="mt-1 text-[11px] text-[#6B5D50] line-clamp-2">{m.desc}</p>
+          </Link>
+        ))}
+      </motion.section>
 
       {/* Recent docs + points */}
       <motion.section

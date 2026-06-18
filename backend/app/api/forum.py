@@ -13,7 +13,7 @@ from app.core.deps import get_current_user, require_admin
 from app.models.models import (
     ForumReply, ForumThread, PointsLog, ReplyLike, ThreadBookmark, ThreadLike, User,
 )
-from app.services.points import POINTS_RULES, calc_level, award_points
+from app.services.points import POINTS_RULES, calc_level, award_points, adjust_credit
 
 router = APIRouter(prefix="/forum", tags=["forum"])
 
@@ -501,6 +501,7 @@ async def change_thread_status(
         author = (await db.execute(select(User).where(User.id == t.created_by))).scalar_one_or_none()
         if author:
             award_points(author, db, POINTS_RULES["forum_featured"], "帖子被设为精华")
+            adjust_credit(author, 3)
 
     await db.commit()
     return {"status": t.status, "is_featured": t.is_featured}
@@ -542,6 +543,7 @@ async def mark_best_answer(
     answerer = (await db.execute(select(User).where(User.id == r.created_by))).scalar_one_or_none()
     if answerer and answerer.id != t.created_by:
         award_points(answerer, db, POINTS_RULES["forum_best_answer"], "回答被采纳为最佳答案")
+        adjust_credit(answerer, 3)
 
     await db.commit()
     return {"status": "ok", "thread_status": t.status}
@@ -654,6 +656,99 @@ async def admin_toggle_featured(
         author = (await db.execute(select(User).where(User.id == t.created_by))).scalar_one_or_none()
         if author:
             award_points(author, db, POINTS_RULES["forum_featured"], "帖子被设为精华")
+            adjust_credit(author, 3)
 
     await db.commit()
     return {"is_featured": t.is_featured}
+
+
+@router.get("/featured-feed")
+async def featured_feed(db: AsyncSession = Depends(get_db)):
+    """Multi-factor featured feed for the homepage carousel.
+
+    score = quality × recency_decay × fairness_boost × newness_boost × jitter
+      - quality: likes/replies/views + featured/announcement bonus
+      - recency: exp(-age/14d) → old posts naturally rotate out (no domination)
+      - fairness: under-exposed posts (low featured_count) get boosted
+      - newness: fresh posts (<48h) get extra traffic support
+      - jitter: small random so equal scores reshuffle each load
+    Deduped per author (1 each). ~20% of slots are in-stock equipment.
+    Increments featured_count on selected threads (persists fairness state).
+    """
+    import math
+    import random
+    from datetime import timedelta
+
+    from app.models.models import EquipmentCatalogItem
+
+    now = datetime.utcnow()
+    cutoff = now - timedelta(days=60)
+    threads = (await db.execute(
+        select(ForumThread).where(ForumThread.created_at >= cutoff).order_by(ForumThread.created_at.desc()).limit(120)
+    )).scalars().all()
+
+    scored = []
+    seen_authors = set()
+    for t in threads:
+        if t.created_by in seen_authors:
+            continue
+        age_days = max(0.0, (now - t.created_at).total_seconds() / 86400) if t.created_at else 30.0
+        quality = (
+            (t.like_count or 0) * 2
+            + (t.reply_count or 0) * 1.5
+            + (t.view_count or 0) * 0.1
+            + (12 if t.is_featured else 0)
+            + (8 if t.is_announcement else 0)
+        )
+        recency = math.exp(-age_days / 14.0)
+        fairness = 1.0 + max(0, 5 - (t.featured_count or 0)) * 0.3
+        newness = 1.6 if age_days * 24 < 48 else 1.0
+        jitter = random.uniform(0.85, 1.15)
+        score = (quality + 1) * recency * fairness * newness * jitter
+        scored.append((score, t))
+        seen_authors.add(t.created_by)
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = scored[:8]
+
+    author_ids = {t.created_by for _, t in top}
+    author_map = {}
+    if author_ids:
+        users = (await db.execute(select(User).where(User.id.in_(author_ids)))).scalars().all()
+        author_map = {u.id: (u.nickname or u.username) for u in users}
+
+    items = []
+    for _, t in top:
+        t.featured_count = (t.featured_count or 0) + 1
+        badge = "📢 公告" if t.is_announcement else ("✨ 精华" if t.is_featured else "💬 讨论")
+        items.append({
+            "type": "thread",
+            "id": str(t.id),
+            "title": t.title,
+            "badge": badge,
+            "subtitle": author_map.get(t.created_by, ""),
+            "href": f"/forum/thread/{t.id}",
+            "image_url": None,
+        })
+
+    # Equipment mix: ~2 in-stock items rotated in
+    equip = (await db.execute(
+        select(EquipmentCatalogItem)
+        .where(EquipmentCatalogItem.is_active == True, EquipmentCatalogItem.stock > 0)
+        .order_by(EquipmentCatalogItem.sort_order).limit(6)
+    )).scalars().all()
+    if equip:
+        for e in random.sample(list(equip), min(2, len(equip))):
+            items.append({
+                "type": "equipment",
+                "id": str(e.id),
+                "title": e.name,
+                "badge": f"{e.icon or '🔧'} 可借用",
+                "subtitle": f"余量 {e.stock} {e.unit}",
+                "href": "/equipment",
+                "image_url": e.image_url,
+            })
+
+    random.shuffle(items)
+    await db.commit()  # persist featured_count increments
+    return {"items": items}

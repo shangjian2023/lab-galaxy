@@ -75,6 +75,17 @@ async def get_profile(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+@router.get("/me/credit")
+async def my_credit(current_user: User = Depends(get_current_user)):
+    """Return the user's credit score, composite (level+credit blend), and title/tier."""
+    from app.services.points import composite_score, credit_title
+    return {
+        "credit_score": current_user.credit_score,
+        "composite": composite_score(current_user),
+        **credit_title(current_user),
+    }
+
+
 @router.patch("/me", response_model=UserProfile)
 async def update_profile(
     body: UserUpdate,

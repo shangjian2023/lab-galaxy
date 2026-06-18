@@ -1027,6 +1027,9 @@ export interface EquipmentCatalogItem {
   name: string;
   icon: string;
   description: string | null;
+  image_url: string | null;
+  stock: number;
+  unit: string;
   sort_order: number;
   is_active: boolean;
   created_at: string | null;
@@ -1042,6 +1045,9 @@ export interface EquipmentRequestItem {
   quantity: number;
   status: string;
   admin_reply: string | null;
+  catalog_item_id: string | null;
+  catalog_name: string | null;
+  returned_at: string | null;
   created_at: string | null;
 }
 
@@ -1053,11 +1059,11 @@ export function getAllCatalogItems() {
   return request<{ items: EquipmentCatalogItem[] }>("/equipment/catalog/all");
 }
 
-export function createCatalogItem(data: { name: string; icon: string; description: string; sort_order: number }) {
+export function createCatalogItem(data: { name: string; icon: string; description: string; image_url?: string; stock?: number; unit?: string; sort_order: number }) {
   return request<EquipmentCatalogItem>("/equipment/admin/catalog", "POST", data);
 }
 
-export function updateCatalogItem(id: string, data: { name?: string; icon?: string; description?: string; sort_order?: number; is_active?: boolean }) {
+export function updateCatalogItem(id: string, data: { name?: string; icon?: string; description?: string; image_url?: string; stock?: number; unit?: string; sort_order?: number; is_active?: boolean }) {
   return request<EquipmentCatalogItem>(`/equipment/admin/catalog/${id}`, "PUT", data);
 }
 
@@ -1070,6 +1076,7 @@ export function submitEquipmentRequest(data: {
   title: string;
   description?: string;
   quantity?: number;
+  catalog_item_id?: string;
 }) {
   return request<{ id: string; message: string }>("/equipment/requests", "POST", data);
 }
@@ -1091,6 +1098,32 @@ export function adminListEquipmentRequests(page = 1, status?: string) {
 
 export function adminReplyEquipmentRequest(id: string, data: { status: string; reply: string }) {
   return request<EquipmentRequestItem>(`/equipment/admin/requests/${id}`, "PATCH", data);
+}
+
+export function markEquipmentReturned(id: string) {
+  return request<EquipmentRequestItem>(`/equipment/admin/requests/${id}/return`, "POST");
+}
+
+export function getBorrowedEquipment() {
+  return request<{ items: { id: string; title: string; catalog_name: string | null; quantity: number; created_at: string | null }[] }>("/equipment/borrowed");
+}
+
+export function getMyCredit() {
+  return request<{ credit_score: number; composite: number; title: string; tier: string }>("/users/me/credit");
+}
+
+export interface FeaturedItem {
+  type: "thread" | "equipment";
+  id: string;
+  title: string;
+  badge: string;
+  subtitle: string;
+  href: string;
+  image_url: string | null;
+}
+
+export function getFeaturedFeed() {
+  return request<{ items: FeaturedItem[] }>("/forum/featured-feed");
 }
 
 // ── Achievements ──

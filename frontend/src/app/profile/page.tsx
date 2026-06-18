@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem } from "@/lib/api";
+import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem, getMyCredit, getBorrowedEquipment } from "@/lib/api";
 import LevelBadge from "@/components/growth/LevelBadge";
 import Link from "next/link";
 
@@ -23,6 +23,8 @@ export default function ProfilePage() {
   const [savedUser, setSavedUser] = useState<typeof user>(null);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
+  const [credit, setCredit] = useState<{ credit_score: number; composite: number; title: string; tier: string } | null>(null);
+  const [borrowed, setBorrowed] = useState<{ id: string; title: string; catalog_name: string | null; quantity: number; created_at: string | null }[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
@@ -34,6 +36,8 @@ export default function ProfilePage() {
     if (user) {
       getDashboard().then(setDashboard).catch(() => {});
       listAchievements().then(setAchievements).catch(() => setAchievements([]));
+      getMyCredit().then(setCredit).catch(() => {});
+      getBorrowedEquipment().then((r) => setBorrowed(r.items)).catch(() => {});
     }
   }, [user]);
 
@@ -134,6 +138,17 @@ export default function ProfilePage() {
             <p className="mt-0.5 text-sm text-[#6B5D50]">@{displayUser.username}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <LevelBadge level={displayUser.level} icon="" frame="" nickname={displayUser.nickname || displayUser.username} avatar={null} points={displayUser.points} size="sm" />
+              {credit && credit.title && (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold transition-all duration-200 hover:-translate-y-0.5 ${
+                  credit.tier === "high"
+                    ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm"
+                    : credit.tier === "good"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-[#9A8C73]/15 text-[#6B5D50]"
+                }`}>
+                  ⭐ {credit.title} · 信用{credit.credit_score}
+                </span>
+              )}
               {displayUser.display_id && (
                 <span className="rounded-full bg-[#9A8C73]/15 px-2 py-0.5 text-[10px] font-mono font-bold text-[#6B5D50]">
                   ID: {displayUser.display_id}
@@ -167,6 +182,24 @@ export default function ProfilePage() {
           <span>注册时间: <span className="font-medium text-[#4a3e34]">{new Date(displayUser.created_at).toLocaleDateString("zh-CN")}</span></span>
         </div>
       </div>
+
+      {/* Borrowed equipment */}
+      {borrowed.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-6" style={{ backdropFilter: "blur(12px)" }}>
+          <h2 className="mb-3 flex items-center justify-between text-sm font-bold text-[#8C3232]">
+            <span>正在借用</span>
+            <span className="text-xs font-normal text-[#9A8C73]">{borrowed.length} 项</span>
+          </h2>
+          <div className="space-y-2">
+            {borrowed.map((b) => (
+              <div key={b.id} className="flex items-center justify-between rounded-lg bg-[#DBC7B5]/20 px-3 py-2">
+                <span className="truncate text-sm text-[#4a3e34]">{b.catalog_name || b.title}</span>
+                <span className="ml-2 shrink-0 text-xs font-medium text-[#8C3232]">× {b.quantity}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Achievements card */}
       <div className="mt-6 rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-8" style={{ backdropFilter: "blur(12px)" }}>

@@ -25,6 +25,7 @@ export default function EquipmentPage() {
   const [title, setTitle] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [description, setDescription] = useState("");
+  const [catalogItemId, setCatalogItemId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -64,11 +65,13 @@ export default function EquipmentPage() {
         title: title.trim(),
         description: description.trim(),
         quantity,
+        catalog_item_id: catalogItemId || undefined,
       });
       setSuccessMsg("申请已提交，等待管理员审核");
       setTitle("");
       setDescription("");
       setQuantity(1);
+      setCatalogItemId(null);
       loadMyRequests();
     } catch (err: unknown) {
       setErrorMsg((err as Error).message || "提交失败，请重试");
@@ -77,9 +80,10 @@ export default function EquipmentPage() {
     }
   };
 
-  const openFormForItem = (itemName: string) => {
+  const openFormForItem = (item: EquipmentCatalogItem) => {
     setReqType("equipment");
-    setTitle(itemName);
+    setCatalogItemId(item.id);
+    setTitle(item.name);
     setDescription("");
     setQuantity(1);
     setSuccessMsg("");
@@ -89,6 +93,7 @@ export default function EquipmentPage() {
 
   const openLabSpaceForm = () => {
     setReqType("lab_space");
+    setCatalogItemId(null);
     setTitle("");
     setDescription("");
     setSuccessMsg("");
@@ -100,11 +105,13 @@ export default function EquipmentPage() {
     pending: "待审核",
     approved: "已批准",
     rejected: "已拒绝",
+    returned: "已归还",
   };
   const statusColor: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-700",
     approved: "bg-green-100 text-green-700",
     rejected: "bg-red-100 text-red-700",
+    returned: "bg-gray-200 text-gray-600",
   };
 
   if (authLoading) {
@@ -158,14 +165,25 @@ export default function EquipmentPage() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => openFormForItem(item.name)}
+                onClick={() => openFormForItem(item)}
                 className="group cursor-pointer rounded-xl border-2 border-gray-200 bg-white p-4 text-left transition-all hover:border-orange-400 hover:shadow-lg active:scale-95"
               >
-                <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
+                {item.image_url ? (
+                  <div className="mb-2 h-20 w-full overflow-hidden rounded-lg bg-gray-100">
+                    <img src={item.image_url} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
+                  </div>
+                ) : (
+                  <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
+                )}
                 <h3 className="mt-2 text-sm font-semibold text-black">{item.name}</h3>
-                <p className="mt-1 text-xs text-gray-700">{item.description}</p>
-                <div className="mt-2 text-xs text-orange-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  点击申请 &rarr;
+                <p className="mt-1 line-clamp-2 text-xs text-gray-700">{item.description}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className={`text-xs font-medium ${item.stock > 0 ? "text-green-600" : "text-gray-400"}`}>
+                    余量 {item.stock} {item.unit}
+                  </span>
+                  <span className="text-xs text-orange-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    申请 &rarr;
+                  </span>
                 </div>
               </button>
             ))}
