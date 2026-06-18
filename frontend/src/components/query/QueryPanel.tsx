@@ -26,7 +26,10 @@ const STAGES: StageDef[] = [
   { key: "finishing", label: "正在整理回答…", icon: "doc" },
 ];
 
-const STAGE_DELAYS = [1200, 2800, 5000]; // ms to advance to next stage
+// Time to advance to the next loading stage. Slowed down (~10s each) so the
+// staged animation doesn't look obviously fake/flickery; the streaming answer
+// overlay takes over visually once the first token arrives anyway.
+const STAGE_DELAYS = [10000, 20000, 30000]; // ms to advance to next stage
 
 function StageIcon({ icon, active, done }: { icon: string; active: boolean; done: boolean }) {
   if (done) {
@@ -134,11 +137,17 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
     const history = useQueryHistoryStore.getState().getHistoryMessages();
     // Streaming answer accumulator — shown live while the LLM generates.
     let streamAnswer = "";
+    // Capture meta from retrieval so the history item keeps source docs, entities,
+    // and heuristic suggestions/related queries (the stream no longer emits a JSON
+    // envelope from the LLM, so we rebuild these modules from retrieval results).
+    // Stored in a mutable holder so TS sees the type across the async closure.
+    const captured: { meta: { highlighted_nodes: string[]; source_documents: { id: string; title: string; relevance: number }[]; entities: { id: string; name: string; type: string }[] } | null } = { meta: null };
     try {
       await naturalLanguageQueryStream(q, history, {
-        onMeta: (meta) => {
-          if (meta.highlighted_nodes.length > 0) {
-            onHighlightNodes(meta.highlighted_nodes);
+        onMeta: (m) => {
+          captured.meta = m;
+          if (m.highlighted_nodes.length > 0) {
+            onHighlightNodes(m.highlighted_nodes);
           }
         },
         onDelta: (text) => {
@@ -152,24 +161,34 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
           streamAnswer += `\n\n⚠️ ${msg}`;
         },
       });
+      const meta = captured.meta;
+      const ents = (meta?.entities ?? []).map((e) => ({
+        id: e.id, name: e.name, type: e.type, summary: "", document_id: undefined as string | undefined,
+      }));
       addItem(q, {
         answer: streamAnswer || "（无回答内容）",
-        highlighted_nodes: [],
-        source_documents: [],
-        suggestions: [],
-        related_queries: [],
-        entities: [],
+        highlighted_nodes: meta?.highlighted_nodes ?? [],
+        source_documents: meta?.source_documents ?? [],
+        // Heuristic suggestions/related queries from retrieved entities, since the
+        // streaming answer is plain text (no JSON envelope from the LLM).
+        suggestions: ents.slice(0, 4).map((e) => `深入了解「${e.name}」`),
+        related_queries: ents.slice(0, 4).map((e) => `${e.name} 还和什么相关？`),
+        entities: ents,
       });
       setQuery("");
       fetchQuota();
     } catch {
+      const meta = captured.meta;
+      const ents = (meta?.entities ?? []).map((e) => ({
+        id: e.id, name: e.name, type: e.type, summary: "", document_id: undefined as string | undefined,
+      }));
       addItem(q, {
         answer: streamAnswer || "查询失败，请稍后重试。",
-        highlighted_nodes: [],
-        source_documents: [],
+        highlighted_nodes: meta?.highlighted_nodes ?? [],
+        source_documents: meta?.source_documents ?? [],
         suggestions: [],
         related_queries: [],
-        entities: [],
+        entities: ents,
       });
       setQuery("");
       setStreamAnswer(null);
@@ -229,9 +248,11 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
         </button>
       </div>
 
-      {/* Loading animation — right below input */}
+      {/* Loading animation — shown while waiting for the first answer token.
+          Once the streamed answer appears (streamAnswer), this collapses so the
+          live answer below takes over — no need to keep a fake spinner running. */}
       <AnimatePresence>
-        {loading && (
+        {loading && !streamAnswer && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
