@@ -163,12 +163,18 @@ async def list_threads(
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
 
     if sort == "hot":
-        # Combined score: likes * 5 + replies * 2 + views * 0.1, decayed by age
-        hot_score = (
+        # Quality score with recency decay (~30-day half-life) and random jitter.
+        # Recency decay prevents old posts from permanently dominating;
+        # jitter gives equal-quality posts different orderings each load.
+        quality = (
             ForumThread.like_count * 5
             + ForumThread.reply_count * 2
             + ForumThread.view_count * 0.1
+            + 1  # base so even zero-engagement new posts appear
         )
+        age_hours = func.extract("epoch", func.now() - ForumThread.created_at) / 3600.0
+        recency = func.exp(-age_hours / 720.0)  # ~30-day half-life
+        hot_score = quality * recency + func.random() * 3
         order = hot_score.desc()
     else:
         order_map = {
