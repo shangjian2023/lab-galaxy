@@ -18,22 +18,17 @@ POINTS_RULES = {
     "ai_parse_complete": 30,     # AI 解析完成
     "publish_template": 100,     # 发布模板
     "template_adopted": 200,     # 模板被收藏
-    "comment_liked": 20,         # 评论被点赞
-    "insight_accepted": 40,      # 洞察被采纳
-    "graph_contribution": 60,    # 图谱贡献
-    "admin_featured": 80,        # 管理员加精
+    "comment_liked": 20,         # 回复被点赞
     # —— 活跃 / 参与 ——
-    "login_daily": 5,            # 每日登录
-    "login_streak_7": 60,        # 连续登录 7 天
-    "ai_query": 2,               # AI 问答（每日上限另控）
-    # —— 论坛（社区激励）——
+    "login_daily": 5,            # 每日登录（每日1次）
+    "ai_query": 5,               # AI 问答（每日上限10次）
+    # —— 论坛 / 团队（社区激励）——
     "forum_post": 10,
     "forum_reply": 4,
     "forum_featured": 25,
     "forum_best_answer": 20,
-    "forum_valid_objection": 50,
-    "forum_vote_established": 5,
-    "thread_create": 20,         # 发布系统公告（修复 KeyError）
+    "forum_vote_established": 5, # 团队投票参与率达多数
+    "thread_create": 20,         # 发布系统公告
 }
 
 
@@ -73,3 +68,25 @@ def award_points(user, db, change: int, reason: str) -> int:
     if new_level > user.level:
         user.level = new_level
     return new_level
+
+
+async def count_today(db, user_id, reason: str) -> int:
+    """Count a user's points-log entries with `reason` since midnight UTC today.
+
+    Used for daily caps on farmable actions (ai_query ≤ 10/day, login_daily ≤ 1/day)
+    so a script can't grind infinite points. Reads PointsLog — no schema change.
+    """
+    from datetime import UTC, datetime, time as dtime
+
+    from sqlalchemy import func, select
+
+    from app.models.models import PointsLog
+
+    start = datetime.combine(datetime.now(UTC).date(), dtime.min).replace(tzinfo=UTC)
+    return (await db.execute(
+        select(func.count()).select_from(PointsLog).where(
+            PointsLog.user_id == user_id,
+            PointsLog.reason == reason,
+            PointsLog.created_at >= start,
+        )
+    )).scalar() or 0

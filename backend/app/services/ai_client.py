@@ -58,18 +58,6 @@ async def write_to_graph(document_id: str, entities: list[dict], relations: list
             raise AIServiceError(f"Write-graph failed: {e}")
 
 
-async def trigger_insight_discovery() -> dict:
-    """Call the AI service to discover insights from the knowledge graph."""
-    async with httpx.AsyncClient(timeout=60) as client:
-        try:
-            resp = await client.get(f"{AI_SERVICE_URL}/insights/discover")
-            resp.raise_for_status()
-            return resp.json()
-        except httpx.HTTPError as e:
-            logger.error(f"Insight discovery failed: {e}")
-            return {"insights": [], "total": 0}
-
-
 async def query_natural_language(question: str, history: list[dict] | None = None) -> dict:
     """Send a natural language query to the AI service RAG pipeline."""
     async with httpx.AsyncClient(timeout=180) as client:

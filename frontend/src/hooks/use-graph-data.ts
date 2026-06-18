@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getGraphData, getTimelineData, getMatrixData, discoverInsights } from "@/lib/api";
+import { getGraphData, getTimelineData, getMatrixData } from "@/lib/api";
 
 export function useGraphData(
   nodeType?: string,
@@ -29,14 +29,5 @@ export function useMatrixData(scope?: string) {
     queryKey: ["graph", "matrix", scope],
     queryFn: () => getMatrixData(scope),
     enabled: typeof window !== "undefined" && !!localStorage.getItem("token"),
-  });
-}
-
-export function useInsights(enabled: boolean) {
-  return useQuery({
-    queryKey: ["insights"],
-    queryFn: discoverInsights,
-    enabled,
-    staleTime: 60_000,
   });
 }

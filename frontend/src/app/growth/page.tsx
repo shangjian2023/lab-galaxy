@@ -121,20 +121,15 @@ const RULE_LABELS: Record<string, string> = {
   ai_parse_complete: "AI 解析完成",
   publish_template: "发布模板",
   template_adopted: "模板被收藏",
-  comment_liked: "评论被点赞",
-  insight_accepted: "洞察被采纳",
-  graph_contribution: "图谱贡献",
-  admin_featured: "管理员加精",
+  comment_liked: "回复被点赞",
   // 活跃 / 参与
   login_daily: "每日登录",
-  login_streak_7: "连续登录7天",
   ai_query: "AI 智能问答",
-  // 论坛
+  // 论坛 / 团队
   forum_post: "论坛发帖",
   forum_reply: "论坛回复",
   forum_featured: "帖子被加精",
   forum_best_answer: "回答被采纳",
-  forum_valid_objection: "有效异议",
-  forum_vote_established: "投票成立",
+  forum_vote_established: "发起团队投票达多数",
   thread_create: "发布系统公告",
 };

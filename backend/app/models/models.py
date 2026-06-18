@@ -298,3 +298,30 @@ class DailyUsage(Base):
     date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     query_count: Mapped[int] = mapped_column(Integer, default=0)
     upload_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# ── Team Polls ──
+
+class TeamPoll(Base):
+    __tablename__ = "team_polls"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    team_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("teams.id", ondelete="CASCADE"))
+    question: Mapped[str] = mapped_column(String(200))
+    options: Mapped[list[str]] = mapped_column(ARRAY(String))
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    status: Mapped[str] = mapped_column(String(20), default="open")  # open / closed
+    creator_awarded: Mapped[bool] = mapped_column(Boolean, default=False)
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class TeamPollVote(Base):
+    __tablename__ = "team_poll_votes"
+    __table_args__ = (UniqueConstraint("poll_id", "user_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    poll_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("team_polls.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    option_index: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

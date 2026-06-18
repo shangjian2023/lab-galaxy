@@ -462,6 +462,11 @@ async def toggle_reply_like(
     else:
         db.add(ReplyLike(user_id=current_user.id, reply_id=reply_id))
         r.like_count += 1
+        # Reward the reply author when their reply gets liked (skip self-like)
+        if r.created_by != current_user.id:
+            author = (await db.execute(select(User).where(User.id == r.created_by))).scalar_one_or_none()
+            if author:
+                award_points(author, db, POINTS_RULES["comment_liked"], "回复被点赞")
         await db.commit()
         return {"is_liked": True, "like_count": r.like_count}
 

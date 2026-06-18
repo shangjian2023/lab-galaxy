@@ -188,6 +188,9 @@ async def publish_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db)
     cfg = (await db.execute(select(AIConfig).where(AIConfig.key == "template_review_required"))).scalar_one_or_none()
     review_required = cfg and cfg.value.lower() == "true" if cfg else False
     tpl.status = "pending_review" if review_required else "published"
+    # Award publish points when it goes live directly (no review needed)
+    if not review_required:
+        award_points(current_user, db, POINTS_RULES["publish_template"], "发布模板")
     await db.commit()
     return {"status": tpl.status}
 
@@ -198,6 +201,11 @@ async def review_template(tpl_id: uuid.UUID, action: str = Query(..., pattern="^
     if not tpl:
         raise HTTPException(404)
     tpl.status = "published" if action == "approve" else "rejected"
+    # Award publish points to the creator on approval (the path that required review)
+    if action == "approve":
+        creator = (await db.execute(select(User).where(User.id == tpl.created_by))).scalar_one_or_none()
+        if creator:
+            award_points(creator, db, POINTS_RULES["publish_template"], "模板审核通过")
     await db.commit()
     return {"status": tpl.status}
 

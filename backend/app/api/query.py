@@ -10,6 +10,7 @@ from app.core.deps import get_current_user
 from app.models.models import User
 from app.services.ai_client import query_natural_language, query_natural_language_stream
 from app.services.usage import check_query_quota, increment_query
+from app.services.points import award_points, POINTS_RULES, count_today
 
 router = APIRouter(prefix="/query", tags=["query"])
 
@@ -44,7 +45,10 @@ async def ask_question(
     result = await query_natural_language(body.question, body.history)
     if not quota["unlimited"]:
         await increment_query(db, current_user.id)
-        await db.commit()
+    # Daily-capped reward for using the AI Q&A (core feature), max 10/day
+    if await count_today(db, current_user.id, "AI 问答") < 10:
+        award_points(current_user, db, POINTS_RULES["ai_query"], "AI 问答")
+    await db.commit()
     return result
 
 
@@ -67,7 +71,9 @@ async def ask_question_stream(
         )
     if not quota["unlimited"]:
         await increment_query(db, current_user.id)
-        await db.commit()
+    if await count_today(db, current_user.id, "AI 问答") < 10:
+        award_points(current_user, db, POINTS_RULES["ai_query"], "AI 问答")
+    await db.commit()
 
     history = [h.model_dump() for h in body.history]
 

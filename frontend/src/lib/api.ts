@@ -459,25 +459,6 @@ export function toggleFavorite(docId: string) {
   return request<{ is_favorite: boolean }>(`/workbench/favorites/${docId}`, "POST");
 }
 
-// ========== Insights ==========
-
-export interface InsightEvent {
-  type: string;
-  id: string;
-  significance: number;
-  title: string;
-  description: string;
-  message: string;
-  nodes: string[];
-  experiments: { id: string; name: string }[];
-  shared_entity?: { id: string; name: string; summary?: string; type?: string };
-  confidence?: number;
-}
-
-export function discoverInsights() {
-  return request<{ insights: InsightEvent[]; total: number }>("/insights/discover");
-}
-
 // ========== Templates & Growth ==========
 
 export interface TemplateItem {
@@ -827,6 +808,36 @@ export interface GrowthTimelineResponse {
 
 export function getTeamGrowth(teamId: string) {
   return request<GrowthTimelineResponse>(`/teams/${teamId}/growth`);
+}
+
+// ---------- Team Polls ----------
+
+export interface TeamPoll {
+  id: string;
+  question: string;
+  options: string[];
+  status: "open" | "closed";
+  created_by: string;
+  closes_at: string | null;
+  created_at: string;
+  counts: Record<string, number>; // {option_index: votes}
+  my_vote: number | null;
+}
+
+export function listPolls(teamId: string) {
+  return request<TeamPoll[]>(`/teams/${teamId}/polls`);
+}
+
+export function createPoll(teamId: string, question: string, options: string[], closes_at?: string) {
+  return request<TeamPoll>(`/teams/${teamId}/polls`, "POST", { question, options, closes_at });
+}
+
+export function votePoll(teamId: string, pollId: string, option_index: number) {
+  return request<{ ok: boolean }>(`/teams/${teamId}/polls/${pollId}/vote`, "POST", { option_index });
+}
+
+export function closePoll(teamId: string, pollId: string) {
+  return request<{ status: string }>(`/teams/${teamId}/polls/${pollId}/close`, "POST");
 }
 
 export function searchGraphNodes(q: string, nodeType?: string, limit = 20, scope?: string, teamId?: string) {
