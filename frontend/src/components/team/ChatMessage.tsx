@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { ChatMessageItem } from "@/lib/api";
+import SmartNodeLink from "../graph/SmartNodeLink";
 
 interface Props {
   msg: ChatMessageItem;
@@ -22,14 +24,14 @@ function MentionHighlight({ content }: { content: string }) {
       parts.push(content.slice(lastIndex, match.index));
     }
     parts.push(
-      <Link
+      <SmartNodeLink
         key={match.index}
-        href={`/graph?node=${match[2]}`}
+        nodeId={match[2]}
+        displayName={match[1]}
         className="rounded bg-[#9A8C73]/15 px-1 py-0.5 font-medium underline decoration-[#9A8C73]/40 underline-offset-2 hover:bg-[#9A8C73]/25"
-        title={`查看: ${match[1]}`}
       >
         @{match[1]}
-      </Link>
+      </SmartNodeLink>
     );
     lastIndex = match.index + match[0].length;
   }

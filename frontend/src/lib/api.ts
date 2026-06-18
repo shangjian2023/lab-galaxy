@@ -444,12 +444,13 @@ export interface CardStreamResponse {
   cards: CardItem[];
 }
 
-export function getCardStream(params?: { year?: number; experiment_type?: string; favorite_only?: boolean; page?: number }) {
+export function getCardStream(params?: { year?: number; experiment_type?: string; favorite_only?: boolean; page?: number; include_doc?: string }) {
   const qs = new URLSearchParams();
   if (params?.year) qs.set("year", String(params.year));
   if (params?.experiment_type) qs.set("experiment_type", params.experiment_type);
   if (params?.favorite_only) qs.set("favorite_only", "true");
   if (params?.page) qs.set("page", String(params.page));
+  if (params?.include_doc) qs.set("include_doc", params.include_doc);
   const query = qs.toString();
   return request<CardStreamResponse>(`/workbench/cards${query ? `?${query}` : ""}`);
 }
@@ -779,6 +780,22 @@ export function searchGraphNodes(q: string, nodeType?: string, limit = 20, scope
 
 export function getNodeContext(nodeId: string) {
   return request<{ accessible: boolean; scope: string; node: { id: string; name: string; type: string; summary: string; document_id: string | null; created_by: string | null } }>(`/graph/node/${nodeId}/context`);
+}
+
+export interface RelationTreeNode {
+  id: string;
+  name: string;
+  type: string;
+  summary: string;
+  document_id?: string | null;
+  rel_type?: string;
+  children: RelationTreeNode[];
+}
+
+export function getRelationTree(rootId: string, targetType?: string) {
+  const params = new URLSearchParams({ root_id: rootId });
+  if (targetType) params.set("target_type", targetType);
+  return request<{ root: RelationTreeNode }>(`/graph/tree?${params}`);
 }
 
 // ========== Forum ==========

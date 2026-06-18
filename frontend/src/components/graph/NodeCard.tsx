@@ -16,7 +16,7 @@ interface Props {
   onJumpToWorkbench?: (documentId: string) => void;
 }
 
-import { TYPE_LABELS } from "@/lib/utils";
+import { TYPE_LABELS, TYPE_COLORS } from "@/lib/utils";
 
 export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
   return (
@@ -35,7 +35,7 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
                 <div
                   className="rounded-full"
                   style={{
-                    backgroundColor: node.color,
+                    backgroundColor: node.color || TYPE_COLORS[node.type] || "#6b7280",
                     width: Math.max(12, Math.min((node.size || 20) * 0.4, 28)),
                     height: Math.max(12, Math.min((node.size || 20) * 0.4, 28)),
                   }}
@@ -53,7 +53,7 @@ export default function NodeCard({ node, onClose, onJumpToWorkbench }: Props) {
             <div className="mb-3">
               <span
                 className="rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                style={{ backgroundColor: node.color }}
+                style={{ backgroundColor: node.color || TYPE_COLORS[node.type] || "#6b7280" }}
               >
                 {TYPE_LABELS[node.type] || node.type}
               </span>

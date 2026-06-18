@@ -35,7 +35,14 @@ function WorkbenchPageContent() {
     if (!user) return;
     setIsLoadingCards(true);
     try {
-      const res = await getCardStream({ page: p, favorite_only: filterFavorites || undefined });
+      // On the first page, ask the backend to include the target doc (e.g. the
+      // source doc of a @-mentioned node that isn't owned by the user) so it can
+      // be opened & selected from the workbench.
+      const res = await getCardStream({
+        page: p,
+        favorite_only: filterFavorites || undefined,
+        include_doc: p === 1 && !append ? (targetDocId || undefined) : undefined,
+      });
       if (append) {
         setCards((prev) => [...prev, ...res.cards]);
       } else {
@@ -45,7 +52,7 @@ function WorkbenchPageContent() {
     } finally {
       setIsLoadingCards(false);
     }
-  }, [user, filterFavorites]);
+  }, [user, filterFavorites, targetDocId]);
 
   useEffect(() => { loadTree(); }, [loadTree]);
   useEffect(() => { void loadCards(1, false); setPage(1); }, [filterFavorites, loadCards]);

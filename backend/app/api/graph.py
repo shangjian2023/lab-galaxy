@@ -34,6 +34,17 @@ def _driver():
 VALID_LABELS = {"Experiment", "Equipment", "Theory", "Consumable", "Tool", "Concept"}
 VALID_REL_TYPES = {"USES", "BASED_ON", "SIMILAR_TO", "REQUIRES", "RELATED_TO"}
 
+# A node is visible to a set of documents if it belongs to ANY of them. Nodes
+# carry both a scalar `document_id` (first owning doc, for backward compat) and a
+# list `document_ids` (all docs that share this entity, since MERGE is by name).
+# This fragment is the canonical "node belongs to a visible doc" predicate.
+# Usage: substitute "{n}" with the node variable and provide $doc_ids param.
+_DOC_VISIBLE = (
+    "{n}.document_id IS NULL "
+    "OR {n}.document_id IN $doc_ids "
+    "OR ANY(x IN coalesce({n}.document_ids, []) WHERE x IN $doc_ids)"
+)
+
 NODE_COLORS = {
     "Experiment": "#3b82f6",
     "Equipment": "#ef4444",
@@ -120,13 +131,17 @@ async def _visible_document_ids(
         if not all_doc_ids:
             return []
 
-        # Filter in Python for visibility check
+        # Filter in Python for visibility check (also apply year filter here,
+        # since this branch returns early and skips the shared years handling below)
         docs = (await db.execute(
             select(Document).where(Document.id.in_(all_doc_ids))
         )).scalars().all()
 
+        year_set = set(years) if years else None
         visible = []
         for doc in docs:
+            if year_set is not None and doc.experiment_year not in year_set:
+                continue
             if doc.uploaded_by == current_user.id:
                 visible.append(str(doc.id))
             elif doc.privacy == "public" and doc.status == "completed":
@@ -151,28 +166,6 @@ async def _visible_document_ids(
     return [str(doc_id) for doc_id in rows]
 
 
-def _get_team_user_ids_query(current_user_id, team_id: str | None = None):
-    """Build a subquery to get user IDs belonging to the team(s) of the current user.
-
-    SECURITY: When team_id is provided, verify the current user is actually a member.
-    """
-    from app.models.models import TeamMember
-    if team_id:
-        # Must verify current user belongs to this team
-        return (
-            select(TeamMember.user_id)
-            .where(TeamMember.team_id == team_id)
-            # The caller must also verify current_user is a member separately
-        )
-    team_ids_stmt = (
-        select(TeamMember.team_id)
-        .where(TeamMember.user_id == current_user_id)
-    )
-    return (
-        select(TeamMember.user_id)
-        .where(TeamMember.team_id.in_(team_ids_stmt))
-    )
-
 
 async def _check_team_membership(db: AsyncSession, current_user: User, team_id: str) -> bool:
     """Verify that the current user is a member of the given team."""
@@ -192,16 +185,12 @@ async def _visible_node_ids(db: AsyncSession, current_user: User) -> set[str]:
     node_ids: set[str] = set()
     async with driver.session() as session:
         if visible_doc_ids:
-            query = """
-            MATCH (n)
-            WHERE n.document_id IS NULL OR n.document_id IN $doc_ids
-            RETURN n.id AS id
-            """
+            query = "MATCH (n) WHERE " + _DOC_VISIBLE.format(n="n") + " RETURN n.id AS id"
             records = await session.run(query, doc_ids=visible_doc_ids)
         else:
             query = """
             MATCH (n)
-            WHERE n.document_id IS NULL
+            WHERE n.document_id IS NULL AND (n.document_ids IS NULL OR size(n.document_ids) = 0)
             RETURN n.id AS id
             """
             records = await session.run(query)
@@ -253,9 +242,9 @@ async def get_graph_data(
             conditions.append("(n.created_at IS NULL OR n.created_at <= $to_date)")
             params["to_date"] = to_date_param
         if visible_doc_ids:
-            conditions.append("(n.document_id IS NULL OR n.document_id IN $doc_ids)")
+            conditions.append("(" + _DOC_VISIBLE.format(n="n") + ")")
         else:
-            conditions.append("n.document_id IS NULL")
+            conditions.append("n.document_id IS NULL AND (n.document_ids IS NULL OR size(n.document_ids) = 0)")
 
         if conditions:
             node_query += " WHERE " + " AND ".join(conditions)
@@ -317,19 +306,24 @@ async def get_available_years(
     scope: str | None = Query(None, description="Document scope: public, private, team"),
     team_id: str | None = Query(None, description="Specific team ID for team scope"),
 ):
-    """Return distinct experiment years that have documents with graph data."""
-    if scope == "public":
-        condition = Document.privacy == "public"
-    elif scope == "private":
-        condition = (Document.uploaded_by == current_user.id) & (Document.privacy == "private")
-    elif scope == "team":
-        condition = Document.uploaded_by.in_(_get_team_user_ids_query(current_user.id, team_id))
-    else:
-        condition = (Document.uploaded_by == current_user.id) | (Document.privacy == "public")
+    """Return distinct experiment years that have documents with graph data.
+
+    Reuses _visible_document_ids so the year list is always consistent with the
+    actual nodes shown in /data (previously this used a different visibility rule
+    for 'private' scope, which caused year filters to omit years whose nodes were
+    visible in the graph).
+    """
+    visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope, team_id=team_id)
+    if not visible_doc_ids:
+        return {"years": []}
 
     stmt = (
         select(Document.experiment_year)
-        .where(condition & Document.experiment_year.isnot(None) & (Document.status == "completed"))
+        .where(
+            Document.id.in_(visible_doc_ids),
+            Document.experiment_year.isnot(None),
+            Document.status == "completed",
+        )
         .distinct()
         .order_by(Document.experiment_year.desc())
     )
@@ -352,7 +346,7 @@ async def get_timeline_data(
         if visible_doc_ids:
             query = """
             MATCH (n)
-            WHERE n.name IS NOT NULL AND (n.document_id IS NULL OR n.document_id IN $doc_ids)
+            WHERE n.name IS NOT NULL AND (""" + _DOC_VISIBLE.format(n="n") + """)
             RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary
             ORDER BY n.name
             """
@@ -360,7 +354,7 @@ async def get_timeline_data(
         else:
             query = """
             MATCH (n)
-            WHERE n.name IS NOT NULL AND n.document_id IS NULL
+            WHERE n.name IS NOT NULL AND n.document_id IS NULL AND (n.document_ids IS NULL OR size(n.document_ids) = 0)
             RETURN n.id AS id, labels(n) AS labels, n.name AS name, n.summary AS summary
             ORDER BY n.name
             """
@@ -394,19 +388,20 @@ async def get_matrix_data(
 
     async with driver.session() as session:
         if visible_doc_ids:
-            query = """
-            MATCH (a)-[r]->(b)
-            WHERE a.id IS NOT NULL AND b.id IS NOT NULL
-              AND (a.document_id IS NULL OR a.document_id IN $doc_ids)
-              AND (b.document_id IS NULL OR b.document_id IN $doc_ids)
-            RETURN labels(a) AS src_labels, labels(b) AS tgt_labels, type(r) AS rel_type, count(*) AS count
-            """
+            query = (
+                "MATCH (a)-[r]->(b) "
+                "WHERE a.id IS NOT NULL AND b.id IS NOT NULL "
+                "AND (" + _DOC_VISIBLE.format(n="a") + ") "
+                "AND (" + _DOC_VISIBLE.format(n="b") + ") "
+                "RETURN labels(a) AS src_labels, labels(b) AS tgt_labels, type(r) AS rel_type, count(*) AS count"
+            )
             records = await session.run(query, doc_ids=visible_doc_ids)
         else:
             query = """
             MATCH (a)-[r]->(b)
             WHERE a.id IS NOT NULL AND b.id IS NOT NULL
-              AND a.document_id IS NULL AND b.document_id IS NULL
+              AND a.document_id IS NULL AND (a.document_ids IS NULL OR size(a.document_ids) = 0)
+              AND b.document_id IS NULL AND (b.document_ids IS NULL OR size(b.document_ids) = 0)
             RETURN labels(a) AS src_labels, labels(b) AS tgt_labels, type(r) AS rel_type, count(*) AS count
             """
             records = await session.run(query)
@@ -594,9 +589,9 @@ async def suggest_node_relations(
     node_id = body.get("node_id", "")
     if not node_id:
         return {"suggestions": []}
-    visible_node_ids = await _visible_node_ids(db, current_user)
-    if node_id not in visible_node_ids:
-        raise HTTPException(status_code=403, detail="无权访问此节点")
+    # Any logged-in user can request relation suggestions for a shared node.
+    # The suggestions only contain relation *types/candidates already visible*
+    # to the user (see suggest_relations filtering).
     return await suggest_relations(node_id)
 
 
@@ -640,21 +635,25 @@ async def get_relation_tree(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get a relation tree rooted at a specific node, optionally filtered by target type."""
+    """Get a relation tree rooted at a specific node, optionally filtered by target type.
+
+    Direction: a node @-mentioned in a post/chat is viewable by any logged-in user,
+    along with its direct neighbours and their source documents — same permissions
+    as the user's own nodes. So neither the root nor its neighbours are filtered by
+    the viewer's document visibility here; only the bulk /graph/data endpoint
+    enforces that.
+    """
     driver = _driver()
-    visible_node_ids = await _visible_node_ids(db, current_user)
     async with driver.session() as session:
-        # Get root node
+        # Get root node (with document_id)
         root_result = await session.run(
-            "MATCH (n {id: $id}) RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary",
+            "MATCH (n {id: $id}) RETURN n.id AS id, n.name AS name, labels(n) AS labels, "
+            "n.summary AS summary, n.document_id AS document_id",
             id=root_id,
         )
         root_record = await root_result.single()
         if not root_record:
             raise HTTPException(status_code=404, detail="节点不存在")
-
-        if root_record["id"] not in visible_node_ids:
-            raise HTTPException(status_code=403, detail="无权访问此节点")
 
         root_type = _node_type(root_record["labels"])
         root = {
@@ -662,29 +661,29 @@ async def get_relation_tree(
             "name": root_record["name"] or "",
             "type": root_type,
             "summary": root_record["summary"] or "",
+            "document_id": root_record.get("document_id"),
             "children": [],
         }
 
-        # Get related nodes
+        # Get related nodes — include document_id, no visibility filter (shared context)
         if target_type and target_type in VALID_LABELS:
             rel_query = """
                 MATCH (n {id: $id})-[r]-(m:{target_type})
-                WHERE m.id IN $visible_ids
+                WHERE m.id <> $id
                 RETURN m.id AS id, m.name AS name, labels(m) AS labels, m.summary AS summary,
-                       type(r) AS rel_type
+                       m.document_id AS document_id, type(r) AS rel_type
                 LIMIT 50
             """.replace("{target_type}", target_type)
         else:
             rel_query = """
                 MATCH (n {id: $id})-[r]-(m)
-                WHERE m.id <> $id AND m.id IN $visible_ids
+                WHERE m.id <> $id
                 RETURN m.id AS id, m.name AS name, labels(m) AS labels, m.summary AS summary,
-                       type(r) AS rel_type
+                       m.document_id AS document_id, type(r) AS rel_type
                 LIMIT 50
             """
 
-        visible_list = list(visible_node_ids) if visible_node_ids else ["__none__"]
-        rel_result = await session.run(rel_query, id=root_id, visible_ids=visible_list)
+        rel_result = await session.run(rel_query, id=root_id)
         children = []
         async for record in rel_result:
             child_type = _node_type(record["labels"])
@@ -693,6 +692,7 @@ async def get_relation_tree(
                 "name": record["name"] or "",
                 "type": child_type,
                 "summary": record["summary"] or "",
+                "document_id": record.get("document_id"),
                 "rel_type": record["rel_type"] or "RELATED_TO",
                 "children": [],
             })
@@ -717,23 +717,17 @@ async def search_graph_nodes(
     visible_doc_ids = await _visible_document_ids(db, current_user, scope=scope, team_id=team_id)
     async with driver.session() as session:
         if node_type and node_type in VALID_LABELS:
-            cypher = """
-                MATCH (n:{label})
-                WHERE n.name CONTAINS $q
-                  AND (n.document_id IS NULL OR n.document_id IN $doc_ids)
-                RETURN n.id AS id, n.name AS name, labels(n) AS labels,
-                       n.summary AS summary, n.document_id AS document_id
-                LIMIT $limit
-            """.replace("{label}", node_type)
+            cypher = (
+                "MATCH (n:{label}) WHERE n.name CONTAINS $q AND (".format(label=node_type)
+                + _DOC_VISIBLE.format(n="n")
+                + ") RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary, n.document_id AS document_id LIMIT $limit"
+            )
         else:
-            cypher = """
-                MATCH (n)
-                WHERE n.name CONTAINS $q
-                  AND (n.document_id IS NULL OR n.document_id IN $doc_ids)
-                RETURN n.id AS id, n.name AS name, labels(n) AS labels,
-                       n.summary AS summary, n.document_id AS document_id
-                LIMIT $limit
-            """
+            cypher = (
+                "MATCH (n) WHERE n.name CONTAINS $q AND ("
+                + _DOC_VISIBLE.format(n="n")
+                + ") RETURN n.id AS id, n.name AS name, labels(n) AS labels, n.summary AS summary, n.document_id AS document_id LIMIT $limit"
+            )
 
         doc_ids_param = visible_doc_ids if visible_doc_ids else ["__none__"]
         result = await session.run(cypher, q=q, limit=limit, doc_ids=doc_ids_param)
@@ -788,22 +782,22 @@ async def get_node_context(
     doc_id = record.get("document_id")
     created_by = record.get("created_by")
 
-    # Check accessibility and determine scope
-    accessible = False
-    scope = "none"
+    # Direction: any logged-in user can VIEW a node that has been @-mentioned /
+    # shared (e.g. in forum posts or team chat). So `accessible` is True as long
+    # as the node exists. The bulk graph data endpoint (/graph/data) still
+    # enforces strict per-document visibility — here we only decide which scope
+    # the node *belongs to*, so the frontend can jump to the most useful view.
+    accessible = True
+    scope = "none"  # 'none' = node visible but not in any of the user's graph scopes
 
     if doc_id:
-        # Check document visibility
-        from sqlalchemy import text as sql_text
         doc = (await db.execute(
             select(Document).where(Document.id == doc_id)
         )).scalar_one_or_none()
         if doc:
             if doc.privacy == "public" and doc.status == "completed":
-                accessible = True
                 scope = "public"
             elif doc.uploaded_by == current_user.id and doc.status != "pending_review":
-                accessible = True
                 scope = "personal"
             elif doc.visible_teams:
                 user_teams = (await db.execute(
@@ -812,11 +806,9 @@ async def get_node_context(
                 user_team_strs = [str(t) for t in user_teams]
                 doc_teams = [t for t in doc.visible_teams if t]
                 if any(t in user_team_strs for t in doc_teams):
-                    accessible = True
                     scope = "team"
     elif created_by == str(current_user.id):
         # Document-less node created by current user
-        accessible = True
         scope = "personal"
 
     return {"accessible": accessible, "scope": scope, "node": node_data}

@@ -31,8 +31,19 @@ export default function SmartNodeLink({ nodeId, displayName, className, children
       }
       setResolved({ scope: ctx.scope, node: ctx.node.name || displayName });
       // Navigate to the correct scope
-      const scopeParam = ctx.scope === "team" ? "&scope=private" : ctx.scope === "public" ? "&scope=public" : "";
-      window.location.href = `/graph?node=${nodeId}${scopeParam}`;
+      // Backend returns: "personal" | "team" | "public" | "none"
+      // Frontend graph page expects: "private" | "team" | "public"
+      const scopeMap: Record<string, string> = {
+        personal: "&scope=private",
+        team: "&scope=team",
+        public: "&scope=public",
+      };
+      const scopeParam = scopeMap[ctx.scope] || "";
+      // scope="none" = node is viewable but not in any of the user's graph
+      // scopes (someone else's private doc that was @-mentioned). Mark as
+      // guest mode so the graph page loads just this node + its neighbours.
+      const guestParam = ctx.scope === "none" ? "&guest=1" : "";
+      window.location.href = `/graph?node=${nodeId}${scopeParam}${guestParam}`;
     } catch {
       setError("无法验证节点权限");
     } finally {

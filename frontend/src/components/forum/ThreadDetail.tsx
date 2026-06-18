@@ -8,6 +8,7 @@ import { getBoardInfo, getPostTypeInfo } from "./PostTypeBadge";
 import { getStatusInfo } from "./StatusBadge";
 import AuthorBadge from "./AuthorBadge";
 import MentionHighlight from "./MentionHighlight";
+import SmartNodeLink from "../graph/SmartNodeLink";
 import { timeAgo } from "./timeAgo";
 import { toggleThreadLike, toggleThreadBookmark, toggleReplyLike } from "@/lib/api";
 
@@ -104,13 +105,14 @@ export default function ThreadDetail({ thread, replies, onStatusChange }: Props)
         {thread.graph_node_ids && thread.graph_node_ids.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {thread.graph_node_ids.map((nid) => (
-              <Link
+              <SmartNodeLink
                 key={nid}
-                href={`/graph?node=${nid}`}
+                nodeId={nid}
+                displayName={nid.slice(0, 8)}
                 className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-600 ring-1 ring-blue-200/40 hover:bg-blue-100"
               >
                 🔗 图谱节点 {nid.slice(0, 8)}...
-              </Link>
+              </SmartNodeLink>
             ))}
           </div>
         )}

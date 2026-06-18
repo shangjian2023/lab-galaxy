@@ -9,6 +9,8 @@ import {
   getTimelineData,
   getMatrixData,
   cleanupOrphanedNodes,
+  getNodeContext,
+  getRelationTree,
   type CytoscapeData,
   type TimelineEntry,
   type MatrixEntry,
@@ -22,6 +24,7 @@ import GraphToolbar, { type ViewMode } from "@/components/graph/GraphToolbar";
 import DraggablePixelChar from "@/components/graph/DraggablePixelChar";
 import QueryPanel from "@/components/query/QueryPanel";
 import TeamManager from "@/components/graph/TeamManager";
+import { useQueryHistoryStore } from "@/stores/query-history-store";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface SelectedNode {
@@ -181,6 +184,7 @@ function GraphPageContent() {
   const targetNodeId = searchParams.get("node");
   const teamIdFromUrl = searchParams.get("team_id");
   const scopeFromUrl = searchParams.get("scope");
+  const guestFromUrl = searchParams.get("guest") === "1";
   const [viewType, setViewType] = useState<ViewMode>("galaxy");
   const [nodeType, setNodeType] = useState("");
   const [keyword, setKeyword] = useState("");
@@ -198,34 +202,38 @@ function GraphPageContent() {
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const graphSignatureRef = useRef("");
   const appliedNodeParamRef = useRef<string | null>(null);
+  const [isGuestView, setIsGuestView] = useState(false); // viewing a shared node not in own scope
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [expListOpen, setExpListOpen] = useState(false);
-  const [graphScope, setGraphScope] = useState<"public" | "team" | "private">("private");
+  const [graphScope, setGraphScope] = useState<"public" | "team" | "private">(
+    scopeFromUrl === "private" || scopeFromUrl === "public" || scopeFromUrl === "team"
+      ? scopeFromUrl
+      : teamIdFromUrl
+        ? "team"
+        : "private"
+  );
   const [activeTeamId, setActiveTeamId] = useState<string | undefined>(teamIdFromUrl || undefined);
   const [showTeamManager, setShowTeamManager] = useState(false);
 
-  // Auto-select team scope when team_id is in URL; auto-select scope from URL param
-  useEffect(() => {
-    if (teamIdFromUrl) {
-      setActiveTeamId(teamIdFromUrl);
-      setGraphScope("team");
-    } else if (scopeFromUrl === "private" || scopeFromUrl === "public" || scopeFromUrl === "team") {
-      setGraphScope(scopeFromUrl);
-      if (scopeFromUrl === "team" && teamIdFromUrl) {
-        setActiveTeamId(teamIdFromUrl);
-      }
-    }
-  }, [teamIdFromUrl, scopeFromUrl]);
+  // NOTE: graphScope & activeTeamId are initialized directly from URL params
+  // above (not via useEffect) so the first data load already uses the correct
+  // scope — this prevents the race where the first load runs with the default
+  // "private" scope and the target node goes missing.
 
-  // Experiment list derived from graph data
-  const experiments = useMemo(
-    () =>
-      galaxyData.nodes
-        .filter((n) => n.data.type === "Experiment")
-        .map((n) => ({ id: n.data.id, name: n.data.name }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-CN")),
-    [galaxyData.nodes],
-  );
+  // Experiment list derived from graph data (deduplicated by node id — polling
+  // refreshes can momentarily carry duplicates before React reconciles)
+  const experiments = useMemo(() => {
+    const seen = new Set<string>();
+    return galaxyData.nodes
+      .filter((n) => {
+        if (n.data.type !== "Experiment") return false;
+        if (seen.has(n.data.id)) return false;
+        seen.add(n.data.id);
+        return true;
+      })
+      .map((n) => ({ id: n.data.id, name: n.data.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+  }, [galaxyData.nodes]);
 
   // ESC to exit fullscreen
   useEffect(() => {
@@ -237,16 +245,18 @@ function GraphPageContent() {
     return () => window.removeEventListener("keydown", handler);
   }, [isFullscreen]);
 
-  // Load available years and default to latest
+  // Load available years. When targeting a node via URL (?node=), select ALL
+  // years so the target node's document is guaranteed to load — otherwise the
+  // default "latest year only" filter can hide the node and break the jump.
   useEffect(() => {
     if (!user) return;
     getGraphYears(graphScope, activeTeamId).then((res) => {
       setAvailableYears(res.years);
       if (res.years.length > 0) {
-        setSelectedYears([res.years[0]]);
+        setSelectedYears(targetNodeId ? [...res.years] : [res.years[0]]);
       }
     });
-  }, [user, graphScope, activeTeamId]);
+  }, [user, graphScope, activeTeamId, targetNodeId]);
 
   const applyGalaxyData = useCallback((data: CytoscapeData, fromPolling = false) => {
     const nextSignature = graphSignature(data);
@@ -259,9 +269,17 @@ function GraphPageContent() {
   }, []);
 
   const loadGalaxy = useCallback(async (fromPolling = false) => {
-    const data = await getGraphData(nodeType || undefined, keyword || undefined, undefined, fromDate, toDate, selectedYears.length > 0 ? selectedYears : undefined, graphScope, activeTeamId);
+    // While a target node from the URL hasn't been resolved yet, ignore the year
+    // filter so the node is guaranteed to be in the loaded data. Once resolved
+    // (appliedNodeParamRef matches targetNodeId), normal year filtering resumes
+    // so the user can narrow down again.
+    const hasPendingTarget = !!targetNodeId && appliedNodeParamRef.current !== targetNodeId;
+    const effectiveYears = hasPendingTarget
+      ? undefined
+      : (selectedYears.length > 0 ? selectedYears : undefined);
+    const data = await getGraphData(nodeType || undefined, keyword || undefined, undefined, fromDate, toDate, effectiveYears, graphScope, activeTeamId);
     applyGalaxyData(data, fromPolling);
-  }, [nodeType, keyword, fromDate, toDate, selectedYears, graphScope, activeTeamId, applyGalaxyData]);
+  }, [nodeType, keyword, fromDate, toDate, selectedYears, graphScope, activeTeamId, applyGalaxyData, targetNodeId]);
 
   const loadTimeline = useCallback(async () => {
     const data = await getTimelineData(graphScope, activeTeamId);
@@ -275,6 +293,10 @@ function GraphPageContent() {
 
   useEffect(() => {
     if (!user) return;
+    // In guest mode the graph shows a shared node's mini-graph; skip loading
+    // the user's own graph data entirely (otherwise it races with the guest
+    // load and overwrites the mini-graph).
+    if (viewType === "galaxy" && guestFromUrl) return;
     if (viewType === "galaxy") {
       void loadGalaxy();
       return;
@@ -284,15 +306,16 @@ function GraphPageContent() {
       return;
     }
     void loadMatrix();
-  }, [user, viewType, loadGalaxy, loadTimeline, loadMatrix]);
+  }, [user, viewType, loadGalaxy, loadTimeline, loadMatrix, guestFromUrl]);
 
   useEffect(() => {
     if (!user || viewType !== "galaxy") return;
+    if (isGuestView) return; // don't poll & overwrite the guest mini-graph
     const timer = window.setInterval(() => {
       void loadGalaxy(true);
     }, POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [user, viewType, loadGalaxy]);
+  }, [user, viewType, loadGalaxy, isGuestView]);
 
   useEffect(() => {
     if (!targetNodeId || viewType !== "galaxy") {
@@ -305,12 +328,84 @@ function GraphPageContent() {
     if (!targetNodeId || viewType !== "galaxy") return;
     if (appliedNodeParamRef.current === targetNodeId) return;
     const targetNode = galaxyData.nodes.find((node) => node.data.id === targetNodeId)?.data;
-    if (!targetNode) return;
-    setSelectedNode(toSelectedNode(targetNode));
-    setHighlightedNodeId(targetNode.id);
-    setQueryHighlightedNodes([]);
-    appliedNodeParamRef.current = targetNodeId;
+    if (targetNode) {
+      // Node is in the currently-loaded graph data: highlight & pan to it.
+      setSelectedNode(toSelectedNode(targetNode));
+      setHighlightedNodeId(targetNode.id);
+      setQueryHighlightedNodes([]);
+      appliedNodeParamRef.current = targetNodeId;
+    }
+    // else: node belongs to a document the user can't see in bulk (guest view).
+    // Handled by the guest-loading effect below.
   }, [targetNodeId, galaxyData, viewType]);
+
+  // Guest view: the target node is not in any of the user's graph scopes (it
+  // was @-mentioned from someone else's private doc). Load its relation tree and
+  // render it as a temporary "mini graph" centred on the node, so the user can
+  // see & locate the shared node. This replaces the user's own graph until they
+  // return. Direction: any logged-in user can view a shared node.
+  useEffect(() => {
+    if (!guestFromUrl || !targetNodeId || viewType !== "galaxy") return;
+    if (appliedNodeParamRef.current === targetNodeId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const tree = await getRelationTree(targetNodeId);
+        if (cancelled || !tree.root) return;
+        const root = tree.root;
+        const nodes: CytoscapeData["nodes"] = [
+          { data: { id: root.id, label: root.name || root.id.slice(0, 8), name: root.name, type: root.type, summary: root.summary, color: "", document_id: root.document_id ?? null, size: 28 } },
+          ...root.children.map((c) => ({
+            data: { id: c.id, label: c.name || c.id.slice(0, 8), name: c.name, type: c.type, summary: c.summary, color: "", document_id: c.document_id ?? null, size: 20 },
+          })),
+        ];
+        const edges: CytoscapeData["edges"] = root.children.map((c) => ({
+          data: { id: `${root.id}--${c.id}`, source: root.id, target: c.id, type: c.rel_type || "RELATED_TO", confidence: 1 },
+        }));
+        const guestData: CytoscapeData = { nodes, edges };
+        setGalaxyData(guestData);
+        setIsGuestView(true);
+        setSelectedNode({ id: root.id, name: root.name, type: root.type, summary: root.summary, color: "", document_id: root.document_id ?? null });
+        setHighlightedNodeId(root.id);
+        setQueryHighlightedNodes([]);
+        appliedNodeParamRef.current = targetNodeId;
+      } catch {
+        // fall back to context-only detail card
+        getNodeContext(targetNodeId)
+          .then((ctx) => {
+            if (cancelled || !ctx.node) return;
+            setSelectedNode({ id: ctx.node.id, name: ctx.node.name, type: ctx.node.type, summary: ctx.node.summary, color: "", document_id: ctx.node.document_id });
+          })
+          .catch(() => {});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [guestFromUrl, targetNodeId, viewType]);
+
+  // ── Restore last natural-language query highlight on mount ──
+  // The QueryPanel's history is persisted (zustand), but queryHighlightedNodes /
+  // highlightedNodeId are component state and are lost when navigating away and
+  // back. If the user isn't coming from a node-jump URL, restore the most recent
+  // query's highlighted nodes so the graph doesn't look "empty" after returning.
+  const restoredQueryRef = useRef(false);
+  useEffect(() => {
+    if (restoredQueryRef.current) return;
+    if (targetNodeId) return; // node-jump takes priority
+    if (viewType !== "galaxy") return;
+    if (galaxyData.nodes.length === 0) return; // data not loaded yet
+    const latest = useQueryHistoryStore.getState().items[0];
+    if (!latest?.result.highlighted_nodes?.length) return;
+    const ids = latest.result.highlighted_nodes;
+    setQueryHighlightedNodes(ids);
+    const firstNode = galaxyData.nodes.find((n) => n.data.id === ids[0])?.data;
+    if (firstNode) {
+      setSelectedNode(toSelectedNode(firstNode));
+      setHighlightedNodeId(ids[0]);
+    }
+    restoredQueryRef.current = true;
+  }, [targetNodeId, viewType, galaxyData.nodes]);
 
   if (loading) {
     return (
@@ -345,11 +440,15 @@ function GraphPageContent() {
       setHighlightedNodeId(null);
       return;
     }
+    // Only pan/highlight if the node actually exists in the currently loaded
+    // data. If it's filtered out (year/scope), we still store queryHighlightedNodes
+    // so they glow once visible, but avoid pointing highlightedNodeId at a node
+    // that GalaxyView can never find (which previously caused "跳走就看不见" 感觉).
     const firstNode = galaxyData.nodes.find((node) => node.data.id === nodeIds[0])?.data;
     if (firstNode) {
       setSelectedNode(toSelectedNode(firstNode));
+      setHighlightedNodeId(nodeIds[0]);
     }
-    setHighlightedNodeId(nodeIds[0]);
   };
 
   const handleJumpToWorkbench = (documentId: string) => {
@@ -378,6 +477,26 @@ function GraphPageContent() {
     // Reset years when scope changes
     setAvailableYears([]);
     setSelectedYears([]);
+    // Leaving guest view if active
+    if (isGuestView) {
+      setIsGuestView(false);
+      router.replace("/graph");
+    }
+    // Clear any resolved-node marker so loadGalaxy's hasPendingTarget logic and
+    // the node-position effect re-run cleanly for the new scope (otherwise a
+    // stale targetNodeId from a prior jump could suppress year filtering).
+    appliedNodeParamRef.current = null;
+  };
+
+  const exitGuestView = () => {
+    setIsGuestView(false);
+    setSelectedNode(null);
+    setHighlightedNodeId(null);
+    setQueryHighlightedNodes([]);
+    appliedNodeParamRef.current = null;
+    // Remove ?node & ?guest from URL and reload own graph
+    router.replace("/graph");
+    void loadGalaxy();
   };
 
   const handleTimelineAnimate = () => {
@@ -428,6 +547,7 @@ function GraphPageContent() {
             timelineMode={timelineMode}
             timelineData={timelineData}
             onTimelineDone={() => setTimelineMode(false)}
+            suppressInitialCenter={!!targetNodeId}
           />
           <NodeCard
             node={selectedNode}
@@ -534,6 +654,21 @@ function GraphPageContent() {
           onManageTeams={() => setShowTeamManager(true)}
         />
       </div>
+
+      {/* Guest view banner: shown when viewing a shared node not in own scope */}
+      {isGuestView && (
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-orange-200/50 bg-orange-50/60 px-4 py-2.5">
+          <span className="text-xs font-medium text-orange-800">
+            🔗 正在查看他人分享的节点及其关联（不在此图谱范围内）
+          </span>
+          <button
+            onClick={exitGuestView}
+            className="rounded-lg bg-orange-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-600"
+          >
+            ← 返回我的图谱
+          </button>
+        </div>
+      )}
 
       {/* Team Manager Modal */}
       <TeamManager open={showTeamManager} onClose={() => setShowTeamManager(false)} />

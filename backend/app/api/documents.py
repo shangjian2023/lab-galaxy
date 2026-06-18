@@ -28,6 +28,20 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+
+def _can_view_document(doc: Document, current_user: User) -> bool:
+    """Permission rule for *viewing* a document (status / download).
+
+    Direction: a node @-mentioned in a post/chat is viewable by any logged-in
+    user, along with its source document — so a completed document is visible to
+    everyone. Non-completed (parsing / pending_review / draft / error) docs are
+    still owner+admin only, since they aren't shared yet. Write operations
+    (reprocess / delete / confirm) always require owner+admin regardless.
+    """
+    if doc.uploaded_by == current_user.id or current_user.role == "admin":
+        return True
+    return doc.status == "completed"
+
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx"}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 VALID_PRIVACY = {"public", "team", "private"}
@@ -249,17 +263,23 @@ async def _process_single(doc_id: str, file_data: bytes, filename: str):
             logger.info(f"Doc {doc_id} awaiting confirmation for {len(warnings)} duplicate(s)")
         else:
             # No duplicates — write graph and mark completed
+            graph_write_error = None
             try:
                 await _write_graph_for_doc(doc_id, entities, relations)
             except Exception as e:
-                logger.warning(f"Graph write failed for doc {doc_id} (non-fatal): {e}")
+                # Don't silently swallow — record the failure so users/admins can see
+                # which documents have extraction but no graph data, and reprocess them.
+                logger.warning(f"Graph write failed for doc {doc_id}: {e}", exc_info=True)
+                graph_write_error = f"知识图谱写入失败：{e}"
 
             async with async_session() as db:
                 doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
                 if doc:
                     doc.status = "completed"
                     doc.extraction_result = json.dumps(result, ensure_ascii=False)
-                    doc.error_message = None
+                    # Surface graph-write failures instead of hiding them; the doc is
+                    # still usable (extraction succeeded) but the graph will be empty.
+                    doc.error_message = graph_write_error
                     await db.commit()
 
     except Exception as e:
@@ -482,7 +502,7 @@ async def document_status(
     doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
-    if doc.uploaded_by != current_user.id and current_user.role != "admin":
+    if not _can_view_document(doc, current_user):
         raise HTTPException(status_code=403, detail="无权访问此文档")
 
     return DocumentResponse.from_orm(doc)
@@ -663,7 +683,7 @@ async def download_document(
     doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
-    if doc.uploaded_by != current_user.id and current_user.role != "admin":
+    if not _can_view_document(doc, current_user):
         raise HTTPException(status_code=403, detail="无权访问此文档")
 
     try:
