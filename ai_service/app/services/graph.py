@@ -66,6 +66,30 @@ async def write_entities_and_relations(
             "summary": ent.get("summary", ""),
         })
 
+    # Safety net: if the orphan filter dropped EVERY entity, the relation
+    # source/target IDs likely don't match entity ids (an upstream ID-mapping
+    # mismatch). Rather than writing zero nodes (which leaves the doc graph-empty
+    # while looking "completed"), fall back to keeping all named entities.
+    if not valid_entities and entities:
+        logger.warning(
+            f"All {len(entities)} entities were dropped as orphans — possible ID mismatch. "
+            "Falling back to keeping all named entities."
+        )
+        for ent in entities:
+            raw_name = ent.get("name", "").strip()
+            if not raw_name:
+                continue
+            entity_type = ent.get("type", "Concept")
+            if entity_type not in VALID_LABELS:
+                entity_type = "Concept"
+            valid_entities.append({
+                "id": ent["id"],
+                "name": _normalize_name(raw_name),
+                "raw_name": raw_name,
+                "type": entity_type,
+                "summary": ent.get("summary", ""),
+            })
+
     async with driver.session() as session:
         # Delete old graph data for this document to prevent duplicates on reprocessing
         await session.run("""
@@ -86,12 +110,17 @@ async def write_entities_and_relations(
             query = f"""
             UNWIND $batch AS ent
             MERGE (n:{entity_type} {{name: ent.name}})
-            ON CREATE SET n.id = ent.id, n.created_at = datetime(), n.summary = ent.summary, n.display_name = ent.raw_name
+            ON CREATE SET n.id = ent.id, n.created_at = datetime(), n.summary = ent.summary,
+                          n.display_name = ent.raw_name, n.document_id = $doc_id, n.document_ids = [$doc_id]
             ON MATCH SET n.summary = CASE
                 WHEN n.summary IS NULL OR n.summary = '' THEN ent.summary
                 ELSE n.summary
             END
-            SET n.document_id = $doc_id
+            ON MATCH SET n.document_ids = CASE
+                WHEN n.document_ids IS NULL THEN [$doc_id]
+                WHEN $doc_id IN n.document_ids THEN n.document_ids
+                ELSE n.document_ids + $doc_id
+            END
             RETURN ent.id AS input_id, n.id AS node_id
             """
             result = await session.run(query, batch=batch, doc_id=document_id)
@@ -125,8 +154,13 @@ async def write_entities_and_relations(
             UNWIND $batch AS rel
             MATCH (a {{id: rel.source_id}}), (b {{id: rel.target_id}})
             MERGE (a)-[r:{rel_type}]->(b)
+            ON CREATE SET r.document_id = $doc_id, r.document_ids = [$doc_id]
             SET r.confidence = rel.confidence,
-                r.document_id = $doc_id
+                r.document_ids = CASE
+                    WHEN r.document_ids IS NULL THEN [$doc_id]
+                    WHEN $doc_id IN r.document_ids THEN r.document_ids
+                    ELSE r.document_ids + $doc_id
+                END
             """
             await session.run(query, batch=batch, doc_id=document_id)
 
