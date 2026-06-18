@@ -106,14 +106,16 @@ async def count_today(db, user_id, reason: str) -> int:
 
     Used for daily caps on farmable actions (ai_query ≤ 10/day, login_daily ≤ 1/day)
     so a script can't grind infinite points. Reads PointsLog — no schema change.
+    Note: PointsLog.created_at is TIMESTAMP WITHOUT TIME ZONE (naive), so we
+    compare against a naive datetime to avoid the naive/aware subtraction error.
     """
-    from datetime import UTC, datetime, time as dtime
+    from datetime import datetime, time as dtime
 
     from sqlalchemy import func, select
 
     from app.models.models import PointsLog
 
-    start = datetime.combine(datetime.now(UTC).date(), dtime.min).replace(tzinfo=UTC)
+    start = datetime.combine(datetime.utcnow().date(), dtime.min)
     return (await db.execute(
         select(func.count()).select_from(PointsLog).where(
             PointsLog.user_id == user_id,
