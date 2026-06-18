@@ -39,25 +39,26 @@ def get_neo4j_driver():
 
 def init_llm_clients():
     provider = get_setting("LLM_PROVIDER")
+    llm_timeout = get_setting("LLM_TIMEOUT")
     if provider == "anthropic":
         import anthropic
-        kwargs = {"api_key": get_setting("ANTHROPIC_API_KEY")}
+        kwargs = {"api_key": get_setting("ANTHROPIC_API_KEY"), "timeout": llm_timeout}
         _llm_clients["anthropic"] = anthropic.AsyncAnthropic(**kwargs)
-        logger.info(f"Anthropic client initialized (model={get_setting('ANTHROPIC_MODEL')})")
+        logger.info(f"Anthropic client initialized (model={get_setting('ANTHROPIC_MODEL')}, timeout={llm_timeout}s)")
     elif provider == "openai":
         from openai import AsyncOpenAI
-        kwargs = {"api_key": get_setting("OPENAI_API_KEY")}
+        kwargs = {"api_key": get_setting("OPENAI_API_KEY"), "timeout": llm_timeout}
         base_url = get_setting("OPENAI_BASE_URL")
         if base_url:
             kwargs["base_url"] = base_url
         _llm_clients["openai"] = AsyncOpenAI(**kwargs)
-        logger.info(f"OpenAI client initialized (model={get_setting('OPENAI_MODEL')}, base_url={base_url or 'default'})")
+        logger.info(f"OpenAI client initialized (model={get_setting('OPENAI_MODEL')}, base_url={base_url or 'default'}, timeout={llm_timeout}s)")
 
     if provider == "anthropic" and "openai" not in _llm_clients:
         openai_key = get_setting("OPENAI_API_KEY")
         if openai_key:
             from openai import AsyncOpenAI
-            kwargs = {"api_key": openai_key}
+            kwargs = {"api_key": openai_key, "timeout": llm_timeout}
             base_url = get_setting("OPENAI_BASE_URL")
             if base_url:
                 kwargs["base_url"] = base_url
@@ -66,7 +67,7 @@ def init_llm_clients():
         anthropic_key = get_setting("ANTHROPIC_API_KEY")
         if anthropic_key:
             import anthropic
-            _llm_clients["anthropic"] = anthropic.AsyncAnthropic(api_key=anthropic_key)
+            _llm_clients["anthropic"] = anthropic.AsyncAnthropic(api_key=anthropic_key, timeout=llm_timeout)
 
 
 async def reload_llm_clients():

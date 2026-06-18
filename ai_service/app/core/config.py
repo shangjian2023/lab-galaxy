@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str = ""  # custom base URL for OpenAI-compatible APIs
     ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
     OPENAI_MODEL: str = "gpt-4o"
+    LLM_TIMEOUT: float = 90.0  # seconds per LLM call (network read)
+    LLM_MAX_RETRIES: int = 2  # extra attempts on timeout/transient errors
 
     # Vector Index
     EMBEDDING_MODEL: str = "BAAI/bge-small-zh-v1.5"

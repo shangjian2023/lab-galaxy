@@ -603,6 +603,65 @@ export function naturalLanguageQuery(question: string, history: ChatMessage[] = 
   return request<QueryResult>("/query", "POST", { question, history });
 }
 
+/**
+ * Streaming natural-language query over SSE.
+ * Calls onMeta once (with nodes to highlight + source docs), onDelta for each
+ * answer text chunk, and onDone when the stream finishes.
+ */
+export async function naturalLanguageQueryStream(
+  question: string,
+  history: ChatMessage[],
+  handlers: {
+    onMeta?: (meta: { highlighted_nodes: string[]; source_documents: { id: string; title: string; relevance: number }[]; entities: { id: string; name: string; type: string }[] }) => void;
+    onDelta?: (text: string) => void;
+    onDone?: () => void;
+    onError?: (message: string) => void;
+  },
+  signal?: AbortSignal,
+): Promise<void> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const res = await fetch(`${API_BASE}/query/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ question, history }),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`流式查询失败: ${res.status}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    // SSE events separated by "\n\n"
+    let idx: number;
+    while ((idx = buffer.indexOf("\n\n")) >= 0) {
+      const raw = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      const line = raw.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      const payload = line.slice(5).trim();
+      if (!payload) continue;
+      try {
+        const ev = JSON.parse(payload);
+        if (ev.type === "meta") handlers.onMeta?.(ev);
+        else if (ev.type === "delta") handlers.onDelta?.(ev.text);
+        else if (ev.type === "done") handlers.onDone?.();
+        else if (ev.type === "error") handlers.onError?.(ev.message);
+      } catch {
+        // ignore malformed line
+      }
+    }
+  }
+  handlers.onDone?.();
+}
+
 export function suggestRelations(nodeId: string) {
   return request<{ suggestions: { source_id: string; target_id: string; target_name?: string; type: string; confidence: number; reason: string }[] }>("/graph/suggest-relations", "POST", { node_id: nodeId });
 }

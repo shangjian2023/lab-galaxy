@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { naturalLanguageQuery, type QueryResult } from "@/lib/api";
+import { naturalLanguageQueryStream } from "@/lib/api";
 import { useQueryHistoryStore, type QueryHistoryItem } from "@/stores/query-history-store";
 import MarkdownRenderer from "./MarkdownRenderer";
 
@@ -80,6 +80,7 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
   const { items, addItem, clearItems, removeItem } = useQueryHistoryStore();
   const historyRef = useRef<HTMLDivElement>(null);
   const stageTimerRefs = useRef<NodeJS.Timeout[]>([]);
+  const [streamAnswer, setStreamAnswer] = useState<{ q: string; text: string } | null>(null);
 
   // Fetch quota on mount
   useEffect(() => {
@@ -131,17 +132,28 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
     if (overrideQuery) setQuery(overrideQuery);
     setLoading(true);
     const history = useQueryHistoryStore.getState().getHistoryMessages();
+    // Streaming answer accumulator — shown live while the LLM generates.
+    let streamAnswer = "";
     try {
-      const res = await naturalLanguageQuery(q, history);
-      addItem(q, res);
-      setQuery("");
-      fetchQuota(); // refresh quota after query
-      if (res.highlighted_nodes.length > 0) {
-        onHighlightNodes(res.highlighted_nodes);
-      }
-    } catch {
+      await naturalLanguageQueryStream(q, history, {
+        onMeta: (meta) => {
+          if (meta.highlighted_nodes.length > 0) {
+            onHighlightNodes(meta.highlighted_nodes);
+          }
+        },
+        onDelta: (text) => {
+          streamAnswer += text;
+          setStreamAnswer({ q, text: streamAnswer });
+        },
+        onDone: () => {
+          setStreamAnswer(null);
+        },
+        onError: (msg) => {
+          streamAnswer += `\n\n⚠️ ${msg}`;
+        },
+      });
       addItem(q, {
-        answer: "查询失败，请稍后重试。",
+        answer: streamAnswer || "（无回答内容）",
         highlighted_nodes: [],
         source_documents: [],
         suggestions: [],
@@ -149,6 +161,18 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
         entities: [],
       });
       setQuery("");
+      fetchQuota();
+    } catch {
+      addItem(q, {
+        answer: streamAnswer || "查询失败，请稍后重试。",
+        highlighted_nodes: [],
+        source_documents: [],
+        suggestions: [],
+        related_queries: [],
+        entities: [],
+      });
+      setQuery("");
+      setStreamAnswer(null);
     } finally {
       setLoading(false);
     }
@@ -242,6 +266,31 @@ export default function QueryPanel({ onHighlightNodes, onSourceClick }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Streaming answer — shown live while the LLM generates tokens */}
+      {streamAnswer && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-white/40 p-5 ring-1 ring-white/60"
+        >
+          <div className="mb-3 flex items-start gap-2">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600">问</span>
+            <p className="text-sm font-medium text-gray-800">{streamAnswer.q}</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-600">答</span>
+            <div className="min-w-0 flex-1 text-sm leading-relaxed text-gray-700">
+              {streamAnswer.text ? (
+                <MarkdownRenderer content={streamAnswer.text} />
+              ) : (
+                <span className="inline-block h-4 w-2 animate-pulse bg-blue-400 align-middle" />
+              )}
+              <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-blue-500 align-middle" />
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* History list */}
       {items.length > 0 && (

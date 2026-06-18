@@ -1,9 +1,12 @@
 """Natural language query and AI suggestion endpoints."""
 
+import json
+
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.services.query import natural_language_query, suggest_relations
+from app.services.query import natural_language_query, natural_language_query_stream, suggest_relations
 
 router = APIRouter()
 
@@ -36,6 +39,30 @@ async def query(body: QueryRequest):
         logger.error(f"Query error: {e}\n{tb}")
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=500, content={"error": str(e)[:500], "detail": "查询处理失败，请稍后重试"})
+
+
+@router.post("/query/stream")
+async def query_stream(body: QueryRequest):
+    """Streaming natural language query — Server-Sent Events.
+
+    Emits one JSON event per line:
+      data: {"type":"meta","highlighted_nodes":[...],"source_documents":[...],"entities":[...]}
+      data: {"type":"delta","text":"...answer token..."}
+      data: {"type":"done"}
+      data: {"type":"error","message":"..."}
+    Meta is available before the answer starts streaming so the UI can
+    highlight nodes immediately.
+    """
+    history = [m.model_dump() for m in body.history]
+
+    async def event_gen():
+        try:
+            async for ev in natural_language_query_stream(body.question, history):
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)[:200]}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream")
 
 
 @router.post("/suggest-relations")
