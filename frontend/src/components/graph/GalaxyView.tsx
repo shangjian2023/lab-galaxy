@@ -15,6 +15,7 @@ import {
 import { zoom, zoomIdentity, type ZoomTransform } from "d3-zoom";
 import { select } from "d3-selection";
 import type { CytoscapeData, TimelineEntry } from "@/lib/api";
+import { TYPE_COLORS } from "@/lib/utils";
 
 // ── Types ──
 
@@ -61,16 +62,10 @@ interface Props {
   forceSettings: ForceSettings;
   timelineMode: boolean;
   onTimelineDone?: () => void;
+  /** When true (navigated via ?node=...), skip the default initial-center
+   * animation so it doesn't fight the pan-to-highlighted effect. */
+  suppressInitialCenter?: boolean;
 }
-
-const TYPE_COLORS: Record<string, string> = {
-  Experiment: "#7c3aed",
-  Equipment: "#dc2626",
-  Theory: "#2563eb",
-  Consumable: "#d97706",
-  Tool: "#059669",
-  Concept: "#6b7280",
-};
 
 const DEFAULT_SETTINGS: ForceSettings = {
   centerStrength: 0.05,
@@ -101,6 +96,7 @@ export default function GalaxyView({
   queryHighlightedNodes = [],
   timelineMode,
   onTimelineDone,
+  suppressInitialCenter = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -350,17 +346,59 @@ export default function GalaxyView({
 
   // ── Pan to highlighted ──
   useEffect(() => {
-    if (!highlightedNodeId || !zoomBehaviorRef.current || !canvasRef.current) return;
-    const node = nodesRef.current.find((n) => n.id === highlightedNodeId);
-    if (!node || node.x == null) return;
-    const t = transformRef.current;
-    const targetTransform = zoomIdentity.translate(dims.w / 2 - node.x! * t.k, dims.h / 2 - node.y! * t.k).scale(t.k);
-    zoomBehaviorRef.current.transform(select(canvasRef.current), targetTransform);
-  }, [highlightedNodeId, dims]);
+    if (!highlightedNodeId) return;
+
+    let cancelled = false;
+    let retryCount = 0;
+    const maxRetries = 15; // 15 × 100ms = 1.5s window for sim to settle
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    const tryPan = () => {
+      if (cancelled) return;
+
+      // Zoom behavior / canvas not ready yet
+      if (!zoomBehaviorRef.current || !canvasRef.current) {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          timers.push(setTimeout(tryPan, 100));
+        }
+        return;
+      }
+
+      const node = nodesRef.current.find((n) => n.id === highlightedNodeId);
+      // Node not in current data, or coordinates not computed yet
+      if (!node || node.x == null || node.y == null) {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          timers.push(setTimeout(tryPan, 100));
+        }
+        return;
+      }
+
+      const t = transformRef.current;
+      const targetTransform = zoomIdentity.translate(dims.w / 2 - node.x * t.k, dims.h / 2 - node.y * t.k).scale(t.k);
+      zoomBehaviorRef.current.transform(select(canvasRef.current), targetTransform);
+    };
+
+    tryPan();
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [highlightedNodeId, dims, data.nodes.length]);
 
   // ── Initial center ──
   useEffect(() => {
     if (initialCenterDoneRef.current || !data.nodes.length) return;
+    // When navigating via ?node=..., the pan-to-highlighted effect is responsible
+    // for centering on the target. Skip the default initial-center animation so
+    // it doesn't override the highlight pan (highlightedNodeId may still be null
+    // at this exact moment because it's set one render after data arrives).
+    if (suppressInitialCenter || highlightedNodeId) {
+      initialCenterDoneRef.current = true;
+      return;
+    }
     const timer = setTimeout(() => {
       const sim = simRef.current;
       if (!sim || !zoomBehaviorRef.current || !canvasRef.current) return;
@@ -399,7 +437,7 @@ export default function GalaxyView({
       return () => cancelAnimationFrame(raf);
     }, 600);
     return () => clearTimeout(timer);
-  }, [data.nodes.length, dims]);
+  }, [data.nodes.length, dims, suppressInitialCenter, highlightedNodeId]);
 
   // ── Canvas render ──
   useEffect(() => {
@@ -433,6 +471,7 @@ export default function GalaxyView({
 
     let dragNode: SimNode | null = null;
     let didDrag = false;
+    let isInteracting = false; // true while panning/zooming/dragging — used to skip purely decorative per-frame effects
 
     const zb = zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([0.1, 6])
@@ -443,6 +482,8 @@ export default function GalaxyView({
         const [mx, my] = transformPoint(evt.clientX - rect.left, evt.clientY - rect.top);
         return !findNode(mx, my);
       })
+      .on("start", () => { isInteracting = true; })
+      .on("end", () => { isInteracting = false; dirtyRef.current = true; markDirty(); })
       .on("zoom", (event) => {
         transformRef.current = event.transform;
         dirtyRef.current = true;
@@ -463,6 +504,7 @@ export default function GalaxyView({
         dragNode.fy = dragNode.y;
         simRef.current?.alphaTarget(0.15).restart();
         canvas.style.cursor = "grabbing";
+        isInteracting = true;
         dirtyRef.current = true;
         markDirty();
       }
@@ -494,6 +536,7 @@ export default function GalaxyView({
         dragNode.fy = null;
         simRef.current?.alphaTarget(0);
         dragNode = null;
+        isInteracting = false;
         dirtyRef.current = true;
         markDirty();
       }
@@ -565,14 +608,18 @@ export default function GalaxyView({
 
       const t = transformRef.current;
       const zoomLevel = t.k;
-
+      const interacting = isInteracting;
       const sim = simRef.current;
       const wasSimActive = simActive;
       simActive = sim ? sim.alpha() > 0.001 : false;
 
       const targetHA = hoveredRef.current ? 1 : 0;
       const curHA = hoverAlphaRef.current;
-      if (Math.abs(curHA - targetHA) > 0.001) {
+      if (interacting) {
+        // Freeze the hover alpha transition while panning/dragging — the smooth
+        // fade is imperceptible mid-interaction and advancing it forces extra frames.
+        if (Math.abs(curHA - targetHA) > 0.05) hoverAlphaRef.current = targetHA;
+      } else if (Math.abs(curHA - targetHA) > 0.001) {
         hoverAlphaRef.current += (targetHA - curHA) * HOVER_TRANSITION_SPEED;
         dirtyRef.current = true;
       }
@@ -643,17 +690,17 @@ export default function GalaxyView({
         const isHE = hovId && (s.id === hovId || tg.id === hovId);
         const isD = (isHov && dimmedEdges?.has(lk)) || (!isHov && dimmed?.has(s.id) && dimmed?.has(tg.id));
 
-        const alpha = isD ? 0.03 : isHL ? 0.7 : isHE ? 0.5 : 0.25;
-        const w = isHL ? 1.5 : isHE ? 1.2 : Math.max(0.5, 0.8 * fsRef.current.linkWidth);
+        const alpha = isD ? 0.12 : isHL ? 0.85 : isHE ? 0.65 : 0.5;
+        const w = isHL ? 2 : isHE ? 1.6 : Math.max(1, 1.1 * fsRef.current.linkWidth);
 
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(tg.x, tg.y);
         ctx.strokeStyle = isHL
-          ? `rgba(217,182,103,${alpha})`
+          ? `rgba(229,197,122,${alpha})`
           : isHE
-          ? `rgba(170,175,190,${alpha})`
-          : `rgba(140,150,165,${alpha})`;
+          ? `rgba(180,188,205,${alpha})`
+          : `rgba(150,162,180,${alpha})`;
         ctx.lineWidth = w;
         ctx.stroke();
       }
@@ -697,7 +744,8 @@ export default function GalaxyView({
           ctx.fill();
         }
 
-        if (isHL || isQHL) {
+        if ((isHL || isQHL) && !interacting) {
+          // Pulse ring is purely decorative — skip while panning/dragging to keep frame rate up.
           const pulse = 1 + Math.sin(now / 400) * 0.08;
           ctx.beginPath();
           ctx.arc(n.x, n.y, nr * pulse + 5, 0, Math.PI * 2);
@@ -718,6 +766,9 @@ export default function GalaxyView({
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.font = `400 10px ui-sans-serif, system-ui, sans-serif`;
+        // Only highlighted/hovered labels get a shadow (shadowBlur is GPU-expensive;
+        // applying it to 100+ labels every frame is the main frame-drop cause).
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
 
         for (const n of nodesRef.current) {
           if (n.x == null || n.y == null) continue;
@@ -738,12 +789,11 @@ export default function GalaxyView({
 
           ctx.globalAlpha = a;
           ctx.fillStyle = isHLN ? "rgba(230,235,245,0.95)" : "rgba(180,186,196,0.85)";
-          ctx.shadowColor = "rgba(0,0,0,0.5)";
-          ctx.shadowBlur = 2;
+          ctx.shadowBlur = isHLN ? 2 : 0;
           ctx.fillText(n.name || n.label, n.x, (n.y ?? 0) + (nodeRadiusMap.get(n.id) ?? baseR) + 4);
-          ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         }
+        ctx.shadowBlur = 0;
       }
 
       // ── Hovered label on top layer ──

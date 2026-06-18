@@ -12,3 +12,14 @@ export const TYPE_LABELS: Record<string, string> = {
   Tool: "工具",
   Concept: "概念",
 };
+
+// Canonical node-type colors. Shared by GalaxyView (canvas render) and NodeCard
+// (detail card) so they never drift out of sync. Backend NODE_COLORS mirrors this.
+export const TYPE_COLORS: Record<string, string> = {
+  Experiment: "#7c3aed",
+  Equipment: "#dc2626",
+  Theory: "#2563eb",
+  Consumable: "#d97706",
+  Tool: "#059669",
+  Concept: "#6b7280",
+};
