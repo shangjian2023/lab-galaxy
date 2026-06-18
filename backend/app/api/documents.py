@@ -280,6 +280,13 @@ async def _process_single(doc_id: str, file_data: bytes, filename: str):
                     # Surface graph-write failures instead of hiding them; the doc is
                     # still usable (extraction succeeded) but the graph will be empty.
                     doc.error_message = graph_write_error
+                    # Award AI parse points to the doc owner (core loop). NOTE: a
+                    # reprocess re-runs this path and re-awards — intentional tiny
+                    # bonus on a rare owner action; not worth a DB flag to prevent.
+                    owner = (await db.execute(select(User).where(User.id == doc.uploaded_by))).scalar_one_or_none()
+                    if owner:
+                        from app.services.points import award_points, POINTS_RULES
+                        award_points(owner, db, POINTS_RULES["ai_parse_complete"], "AI 解析完成")
                     await db.commit()
 
     except Exception as e:
@@ -338,6 +345,11 @@ async def upload_document(
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
+
+    # Award upload points (core contribution loop) — once per upload
+    from app.services.points import award_points, POINTS_RULES
+    award_points(current_user, db, POINTS_RULES["upload_doc"], "上传实验资料")
+    await db.commit()
 
     if not quota["unlimited"]:
         await increment_upload(db, current_user.id)
@@ -419,6 +431,12 @@ async def upload_batch(
     await db.commit()
     for doc in docs:
         await db.refresh(doc)
+
+    # Award upload points per document (core contribution loop)
+    from app.services.points import award_points, POINTS_RULES
+    for _doc in docs:
+        award_points(current_user, db, POINTS_RULES["upload_doc"], "上传实验资料")
+    await db.commit()
 
     if not quota["unlimited"] and docs:
         await increment_upload(db, current_user.id)
@@ -583,6 +601,11 @@ async def confirm_ingest(
     doc.error_message = None
     extraction.pop("duplicate_warnings", None)
     doc.extraction_result = json.dumps(extraction, ensure_ascii=False)
+    # Award AI parse points to the doc owner (core loop) — overwrite/coexist path
+    from app.services.points import award_points, POINTS_RULES
+    owner = (await db.execute(select(User).where(User.id == doc.uploaded_by))).scalar_one_or_none()
+    if owner:
+        award_points(owner, db, POINTS_RULES["ai_parse_complete"], "AI 解析完成")
     await db.commit()
     await db.refresh(doc)
 

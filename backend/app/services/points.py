@@ -2,33 +2,38 @@
 
 LEVEL_CONFIG = [
     {"level": 1, "title": "见习学者", "icon": "·", "points": 0, "frame": "none"},
-    {"level": 2, "title": "助理学者", "icon": "★", "points": 600, "frame": "copper"},
-    {"level": 3, "title": "正式学者", "icon": "★★", "points": 1800, "frame": "silver"},
-    {"level": 4, "title": "高级学者", "icon": "★★★", "points": 3600, "frame": "gold"},
-    {"level": 5, "title": "资深学者", "icon": "◆", "points": 6000, "frame": "diamond"},
-    {"level": 6, "title": "首席学者", "icon": "◆◆", "points": 10800, "frame": "rainbow"},
-    {"level": 7, "title": "荣誉学者", "icon": "⚜", "points": 18000, "frame": "dark_gold"},
-    {"level": 8, "title": "院士", "icon": "👑", "points": 30000, "frame": "crown"},
-    {"level": 9, "title": "传奇院士", "icon": "🌌", "points": 50000, "frame": "galaxy"},
+    {"level": 2, "title": "助理学者", "icon": "★", "points": 80, "frame": "copper"},
+    {"level": 3, "title": "正式学者", "icon": "★★", "points": 250, "frame": "silver"},
+    {"level": 4, "title": "高级学者", "icon": "★★★", "points": 600, "frame": "gold"},
+    {"level": 5, "title": "资深学者", "icon": "◆", "points": 1200, "frame": "diamond"},
+    {"level": 6, "title": "首席学者", "icon": "◆◆", "points": 2200, "frame": "rainbow"},
+    {"level": 7, "title": "荣誉学者", "icon": "⚜", "points": 3800, "frame": "dark_gold"},
+    {"level": 8, "title": "院士", "icon": "👑", "points": 6000, "frame": "crown"},
+    {"level": 9, "title": "传奇院士", "icon": "🌌", "points": 9000, "frame": "galaxy"},
 ]
 
 POINTS_RULES = {
-    "upload_doc": 50,
-    "ai_parse_complete": 30,
-    "publish_template": 100,
-    "template_adopted": 200,
-    "comment_liked": 20,
-    "insight_accepted": 40,
-    "graph_contribution": 60,
-    "login_streak_7": 70,
-    "admin_featured": 80,
-    # Forum
-    "forum_post": 3,
-    "forum_reply": 1,
-    "forum_featured": 20,
-    "forum_best_answer": 15,
+    # —— 内容贡献（平台核心循环）——
+    "upload_doc": 50,            # 上传实验资料
+    "ai_parse_complete": 30,     # AI 解析完成
+    "publish_template": 100,     # 发布模板
+    "template_adopted": 200,     # 模板被收藏
+    "comment_liked": 20,         # 评论被点赞
+    "insight_accepted": 40,      # 洞察被采纳
+    "graph_contribution": 60,    # 图谱贡献
+    "admin_featured": 80,        # 管理员加精
+    # —— 活跃 / 参与 ——
+    "login_daily": 5,            # 每日登录
+    "login_streak_7": 60,        # 连续登录 7 天
+    "ai_query": 2,               # AI 问答（每日上限另控）
+    # —— 论坛（社区激励）——
+    "forum_post": 10,
+    "forum_reply": 4,
+    "forum_featured": 25,
+    "forum_best_answer": 20,
     "forum_valid_objection": 50,
     "forum_vote_established": 5,
+    "thread_create": 20,         # 发布系统公告（修复 KeyError）
 }
 
 
