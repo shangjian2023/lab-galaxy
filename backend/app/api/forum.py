@@ -689,9 +689,11 @@ async def featured_feed(db: AsyncSession = Depends(get_db)):
     )).scalars().all()
 
     scored = []
-    seen_authors = set()
+    author_count: dict[str, int] = {}
+    MAX_PER_AUTHOR = 3
     for t in threads:
-        if t.created_by in seen_authors:
+        uid = str(t.created_by)
+        if author_count.get(uid, 0) >= MAX_PER_AUTHOR:
             continue
         age_days = max(0.0, (now - t.created_at).total_seconds() / 86400) if t.created_at else 30.0
         quality = (
@@ -707,7 +709,7 @@ async def featured_feed(db: AsyncSession = Depends(get_db)):
         jitter = random.uniform(0.85, 1.15)
         score = (quality + 1) * recency * fairness * newness * jitter
         scored.append((score, t))
-        seen_authors.add(t.created_by)
+        author_count[uid] = author_count.get(uid, 0) + 1
 
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:8]
