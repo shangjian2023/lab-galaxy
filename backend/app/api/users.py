@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -28,24 +29,36 @@ async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="邮箱已被注册")
 
     from sqlalchemy import func as sql_func
-    max_id = (await db.execute(select(sql_func.max(User.display_id)))).scalar()
-    display_id = (max_id + 1) if max_id else 100001
 
     # Check if registration requires approval
     from app.models.models import AIConfig
     cfg = (await db.execute(select(AIConfig).where(AIConfig.key == "registration_require_approval"))).scalar_one_or_none()
     needs_approval = cfg and cfg.value.lower() == "true" if cfg else True
 
-    user = User(
-        username=body.username,
-        email=body.email,
-        hashed_password=hash_password(body.password),
-        is_active=not needs_approval,
-        display_id=display_id,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    # Retry loop to handle display_id race condition: two concurrent registrations
+    # could read the same max(display_id) and collide on the unique constraint.
+    # On IntegrityError we rollback, re-read max, and retry.
+    user = None
+    for _attempt in range(5):
+        max_id = (await db.execute(select(sql_func.max(User.display_id)))).scalar()
+        display_id = (max_id + 1) if max_id else 100001
+        user = User(
+            username=body.username,
+            email=body.email,
+            hashed_password=hash_password(body.password),
+            is_active=not needs_approval,
+            display_id=display_id,
+        )
+        db.add(user)
+        try:
+            await db.commit()
+            await db.refresh(user)
+            break
+        except IntegrityError:
+            await db.rollback()
+            user = None  # detached after rollback
+    if user is None:
+        raise HTTPException(status_code=500, detail="无法生成唯一用户ID，请稍后重试")
 
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)
