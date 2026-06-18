@@ -728,6 +728,7 @@ async def featured_feed(db: AsyncSession = Depends(get_db)):
             "title": t.title,
             "badge": badge,
             "subtitle": author_map.get(t.created_by, ""),
+            "content": (t.content or "")[:120],
             "href": f"/forum/thread/{t.id}",
             "image_url": None,
         })
@@ -739,7 +740,7 @@ async def featured_feed(db: AsyncSession = Depends(get_db)):
         .order_by(EquipmentCatalogItem.sort_order).limit(6)
     )).scalars().all()
     if equip:
-        for e in random.sample(list(equip), min(2, len(equip))):
+        for e in random.sample(list(equip), min(1, len(equip))):
             items.append({
                 "type": "equipment",
                 "id": str(e.id),

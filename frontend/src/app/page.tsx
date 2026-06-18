@@ -140,7 +140,8 @@ function FeaturedCarousel() {
                 animation: "shimmer 8s ease-in-out infinite",
               }} />
             </h3>
-            {cur.subtitle && <p className="mt-1 text-sm text-[#6B5D50]">{cur.subtitle}</p>}
+            {cur.subtitle && <p className="text-xs text-[#9A8C73]">{cur.subtitle}</p>}
+            {cur.content && <p className="mt-1 max-w-md text-sm text-[#6B5D50] line-clamp-2">{cur.content}</p>}
             <Link href={cur.href} className="mt-3 rounded-lg bg-[#9A8C73] px-4 py-1.5 text-xs font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-[#8C7D70]">
               {cur.type === "equipment" ? "去借用" : "查看详情"}
             </Link>

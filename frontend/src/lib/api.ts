@@ -1119,6 +1119,7 @@ export interface FeaturedItem {
   title: string;
   badge: string;
   subtitle: string;
+  content?: string;
   href: string;
   image_url: string | null;
 }
