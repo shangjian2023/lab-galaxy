@@ -682,9 +682,10 @@ async def featured_feed(db: AsyncSession = Depends(get_db)):
     from app.models.models import EquipmentCatalogItem
 
     now = datetime.utcnow()
-    cutoff = now - timedelta(days=60)
+    # No hard cutoff — recency decay (exp(-age/14d)) naturally deprioritizes
+    # old threads while still allowing them to appear if nothing newer exists.
     threads = (await db.execute(
-        select(ForumThread).where(ForumThread.created_at >= cutoff).order_by(ForumThread.created_at.desc()).limit(120)
+        select(ForumThread).order_by(ForumThread.created_at.desc()).limit(200)
     )).scalars().all()
 
     scored = []

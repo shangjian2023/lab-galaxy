@@ -117,7 +117,7 @@ function FeaturedCarousel() {
   const cur = items[idx];
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
-      <div className="relative h-64">
+      <div className="relative h-72">
         <AnimatePresence mode="wait">
           <motion.div
             key={idx}
@@ -279,44 +279,45 @@ export default function Home() {
         <StatCard label="当前等级" value={stats.level} href="/growth" suffix=" 级" />
       </motion.section>
 
-      {/* Featured dynamics — full-width hero (enlarged & prominent) */}
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="mb-8"
-      >
-        <div className="mb-3 flex items-center justify-between px-1">
-          <h2 className="text-base font-bold text-[#4a3e34]">✨ 精选动态</h2>
-          <Link href="/forum" className="text-[11px] text-[#9A8C73] hover:underline">知识发酵池 →</Link>
-        </div>
-        <FeaturedCarousel />
-      </motion.section>
+      {/* Feature modules + featured carousel — original 2+1 grid, carousel taller & prominent */}
+      <div className="mb-8 grid gap-6 lg:grid-cols-3">
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="col-span-2 grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          {MODULES.map((m, i) => (
+            <Link
+              key={m.label}
+              href={m.href}
+              className={`group relative overflow-hidden rounded-xl border border-[#DBC7B5]/30 bg-gradient-to-br ${m.gradient} p-5 transition-all hover:border-[#9A8C73]/40 hover:shadow-lg hover:shadow-[#9A8C73]/5 hover:-translate-y-0.5`}
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg ${m.iconBg}`}>
+                {m.icon}
+              </div>
+              <h3 className="text-sm font-bold text-[#8C3232] group-hover:text-[#6B2020] transition-colors">
+                {m.label}
+              </h3>
+              <p className="mt-1 text-[11px] text-[#6B5D50] line-clamp-2">{m.desc}</p>
+            </Link>
+          ))}
+        </motion.section>
 
-      {/* Feature modules — full-width grid */}
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
-      >
-        {MODULES.map((m, i) => (
-          <Link
-            key={m.label}
-            href={m.href}
-            className={`group relative overflow-hidden rounded-xl border border-[#DBC7B5]/30 bg-gradient-to-br ${m.gradient} p-5 transition-all hover:border-[#9A8C73]/40 hover:shadow-lg hover:shadow-[#9A8C73]/5 hover:-translate-y-0.5`}
-            style={{ animationDelay: `${i * 60}ms` }}
-          >
-            <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg ${m.iconBg}`}>
-              {m.icon}
-            </div>
-            <h3 className="text-sm font-bold text-[#8C3232] group-hover:text-[#6B2020] transition-colors">
-              {m.label}
-            </h3>
-            <p className="mt-1 text-[11px] text-[#6B5D50] line-clamp-2">{m.desc}</p>
-          </Link>
-        ))}
-      </motion.section>
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="flex flex-col"
+        >
+          <div className="mb-3 flex items-center justify-between px-1">
+            <h2 className="text-base font-bold text-[#4a3e34]">✨ 精选动态</h2>
+            <Link href="/forum" className="text-[11px] text-[#9A8C73] hover:underline">查看全部 →</Link>
+          </div>
+          <FeaturedCarousel />
+        </motion.section>
+      </div>
 
       {/* Recent docs + points */}
       <motion.section

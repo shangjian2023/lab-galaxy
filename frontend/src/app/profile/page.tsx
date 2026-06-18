@@ -138,15 +138,17 @@ export default function ProfilePage() {
             <p className="mt-0.5 text-sm text-[#6B5D50]">@{displayUser.username}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <LevelBadge level={displayUser.level} icon="" frame="" nickname={displayUser.nickname || displayUser.username} avatar={null} points={displayUser.points} size="sm" />
-              {credit && credit.title && (
+              {credit && (
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold transition-all duration-200 hover:-translate-y-0.5 ${
                   credit.tier === "high"
                     ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm"
                     : credit.tier === "good"
                     ? "bg-amber-100 text-amber-700"
-                    : "bg-[#9A8C73]/15 text-[#6B5D50]"
+                    : credit.tier === "normal"
+                    ? "bg-[#9A8C73]/15 text-[#6B5D50]"
+                    : "bg-gray-100 text-gray-500"
                 }`}>
-                  ⭐ {credit.title} · 信用{credit.credit_score}
+                  {credit.title ? `⭐ ${credit.title}` : "信用"} · {credit.credit_score}
                 </span>
               )}
               {displayUser.display_id && (

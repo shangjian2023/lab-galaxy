@@ -261,7 +261,7 @@ export default function AdminUsersPage() {
         )}
       </AnimatePresence>
 
-      <div className="glass-card overflow-hidden rounded-xl">
+      <div className="glass-card overflow-x-auto rounded-xl">
         <table className="w-full text-sm">
           <thead className="glass-table-header">
             <tr className="text-left text-gray-700">
