@@ -137,6 +137,37 @@ async def query_natural_language(question: str, history: list[dict] | None = Non
             }
 
 
+async def query_natural_language_stream(question: str, history: list[dict] | None = None):
+    """Stream a natural language query from the AI service as an async generator
+    of raw SSE text chunks (already formatted as 'data: {...}\\n\\n').
+
+    Used by the backend /query/stream route to proxy SSE to the browser without
+    buffering, so the user sees answer tokens as they arrive.
+    """
+    payload: dict = {"question": question}
+    if history:
+        payload["history"] = [
+            h.model_dump() if hasattr(h, "model_dump") else h
+            for h in history
+        ]
+    # Long read timeout for streaming; no overall timeout (stream may take a while)
+    timeout = httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            async with client.stream("POST", f"{AI_SERVICE_URL}/query/stream", json=payload) as resp:
+                if resp.status_code != 200:
+                    body = await resp.aread()
+                    logger.error(f"AI service stream failed: {resp.status_code} body={body[:300]}")
+                    yield f'data: {{"type":"error","message":"AI 服务返回 {resp.status_code}"}}\n\n'
+                    return
+                async for chunk in resp.aiter_bytes():
+                    if chunk:
+                        yield chunk
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.RequestError) as e:
+            logger.error(f"AI service stream error: {e}")
+            yield f'data: {{"type":"error","message":"无法连接到 AI 服务，请稍后重试"}}\n\n'
+
+
 async def suggest_relations(node_id: str) -> dict:
     """Get AI-suggested relationships for a node."""
     async with httpx.AsyncClient(timeout=60) as client:
