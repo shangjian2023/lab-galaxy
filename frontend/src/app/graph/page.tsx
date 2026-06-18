@@ -348,10 +348,38 @@ function GraphPageContent() {
     if (!guestFromUrl || !targetNodeId || viewType !== "galaxy") return;
     if (appliedNodeParamRef.current === targetNodeId) return;
     let cancelled = false;
+
+    // Helper: build a single-node mini-graph from getNodeContext (used when
+    // getRelationTree returns nothing, e.g. an isolated Theory/Concept node).
+    const buildSingleNode = async () => {
+      try {
+        const ctx = await getNodeContext(targetNodeId);
+        if (cancelled || !ctx.node) return;
+        const n = ctx.node;
+        const guestData: CytoscapeData = {
+          nodes: [{ data: { id: n.id, label: n.name, name: n.name, type: n.type, summary: n.summary, color: "", document_id: n.document_id ?? null, size: 28 } }],
+          edges: [],
+        };
+        setGalaxyData(guestData);
+        setIsGuestView(true);
+        setSelectedNode({ id: n.id, name: n.name, type: n.type, summary: n.summary, color: "", document_id: n.document_id ?? null });
+        setHighlightedNodeId(n.id);
+        setQueryHighlightedNodes([]);
+        appliedNodeParamRef.current = targetNodeId;
+      } catch {
+        /* nothing we can do — node doesn't exist or no permission */
+      }
+    };
+
     (async () => {
       try {
         const tree = await getRelationTree(targetNodeId);
-        if (cancelled || !tree.root) return;
+        if (cancelled) return;
+        if (!tree.root) {
+          // No relation tree for this node — fall back to single-node view
+          await buildSingleNode();
+          return;
+        }
         const root = tree.root;
         const nodes: CytoscapeData["nodes"] = [
           { data: { id: root.id, label: root.name || root.id.slice(0, 8), name: root.name, type: root.type, summary: root.summary, color: "", document_id: root.document_id ?? null, size: 28 } },
@@ -370,13 +398,8 @@ function GraphPageContent() {
         setQueryHighlightedNodes([]);
         appliedNodeParamRef.current = targetNodeId;
       } catch {
-        // fall back to context-only detail card
-        getNodeContext(targetNodeId)
-          .then((ctx) => {
-            if (cancelled || !ctx.node) return;
-            setSelectedNode({ id: ctx.node.id, name: ctx.node.name, type: ctx.node.type, summary: ctx.node.summary, color: "", document_id: ctx.node.document_id });
-          })
-          .catch(() => {});
+        // getRelationTree threw — still show the node so the user sees something
+        await buildSingleNode();
       }
     })();
     return () => {
