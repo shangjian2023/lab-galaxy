@@ -242,23 +242,25 @@ body {
 @keyframes card-glow-pulse {
   0%, 100% {
     box-shadow:
-      0 0 8px 2px rgba(249,115,22,0.12),
-      0 0 22px 6px rgba(249,115,22,0.06),
-      inset 0 0 6px 1px rgba(249,115,22,0.03);
-    border-color: rgba(249,115,22,0.35);
+      0 0 12px 4px rgba(249,115,22,0.25),
+      0 0 35px 12px rgba(249,115,22,0.14),
+      0 0 60px 25px rgba(249,115,22,0.06),
+      inset 0 0 10px 2px rgba(249,115,22,0.08);
+    border-color: rgba(249,115,22,0.5);
   }
   50% {
     box-shadow:
-      0 0 14px 5px rgba(249,115,22,0.24),
-      0 0 38px 14px rgba(249,115,22,0.10),
-      inset 0 0 10px 2px rgba(249,115,22,0.06);
-    border-color: rgba(249,115,22,0.7);
+      0 0 20px 8px rgba(249,115,22,0.40),
+      0 0 50px 20px rgba(249,115,22,0.22),
+      0 0 80px 35px rgba(249,115,22,0.10),
+      inset 0 0 15px 4px rgba(249,115,22,0.12);
+    border-color: rgba(249,115,22,0.85);
   }
 }
 .card-glow-selected {
-  animation: card-glow-pulse 2.8s ease-in-out infinite;
-  border: 1.5px solid rgba(249,115,22,0.35);
-  transform: scale(1.008);
+  animation: card-glow-pulse 2.2s ease-in-out infinite;
+  border: 2px solid rgba(249,115,22,0.5);
+  transform: scale(1.015);
 }
 
 /* ── Word-style Preview ── */
