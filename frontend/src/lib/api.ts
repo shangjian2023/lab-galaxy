@@ -49,6 +49,7 @@ export interface UserProfile {
   role: string;
   level: number;
   points: number;
+  credit_score: number;
   is_active: boolean;
   created_at: string;
 }

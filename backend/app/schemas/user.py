@@ -34,6 +34,7 @@ class UserProfile(BaseModel):
     role: str = "user"
     level: int = 1
     points: int = 0
+    credit_score: int = 100
     is_active: bool = True
     created_at: datetime
 

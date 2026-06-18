@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   adminListEquipmentRequests,
   adminReplyEquipmentRequest,
+  markEquipmentReturned,
   getAllCatalogItems,
   createCatalogItem,
   updateCatalogItem,
@@ -17,12 +18,14 @@ const STATUS_LABELS: Record<string, string> = {
   pending: "待审核",
   approved: "已批准",
   rejected: "已拒绝",
+  returned: "已归还",
 };
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700",
   approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
+  returned: "bg-gray-200 text-gray-600",
 };
 
 const QUICK_REPLIES: Record<string, { status: string; reply: string }[]> = {
@@ -88,6 +91,9 @@ function CatalogTab() {
   const [formName, setFormName] = useState("");
   const [formIcon, setFormIcon] = useState("🔧");
   const [formDesc, setFormDesc] = useState("");
+  const [formImage, setFormImage] = useState("");
+  const [formStock, setFormStock] = useState(0);
+  const [formUnit, setFormUnit] = useState("个");
   const [formOrder, setFormOrder] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -108,6 +114,9 @@ function CatalogTab() {
     setFormName(item.name);
     setFormIcon(item.icon);
     setFormDesc(item.description || "");
+    setFormImage(item.image_url || "");
+    setFormStock(item.stock);
+    setFormUnit(item.unit || "个");
     setFormOrder(item.sort_order);
   };
 
@@ -117,6 +126,9 @@ function CatalogTab() {
     setFormName("");
     setFormIcon("🔧");
     setFormDesc("");
+    setFormImage("");
+    setFormStock(0);
+    setFormUnit("个");
     setFormOrder(items.length);
   };
 
@@ -129,6 +141,9 @@ function CatalogTab() {
           name: formName,
           icon: formIcon,
           description: formDesc,
+          image_url: formImage || undefined,
+          stock: formStock,
+          unit: formUnit,
           sort_order: formOrder,
         });
         setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
@@ -137,6 +152,9 @@ function CatalogTab() {
           name: formName,
           icon: formIcon,
           description: formDesc,
+          image_url: formImage || undefined,
+          stock: formStock,
+          unit: formUnit,
           sort_order: formOrder,
         });
         setItems((prev) => [...prev, created]);
@@ -193,11 +211,18 @@ function CatalogTab() {
               }`}
             >
               <div className="flex items-start gap-3">
-                <span className="text-2xl">{item.icon}</span>
+                {item.image_url ? (
+                  <img src={item.image_url} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                ) : (
+                  <span className="text-2xl">{item.icon}</span>
+                )}
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-semibold text-black">{item.name}</h3>
-                  <p className="mt-1 text-xs text-black">{item.description || "暂无描述"}</p>
-                  <div className="mt-2 flex items-center gap-2">
+                  <p className="mt-1 line-clamp-2 text-xs text-black">{item.description || "暂无描述"}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className={`text-xs font-medium ${item.stock > 0 ? "text-green-600" : "text-gray-400"}`}>
+                      库存 {item.stock} {item.unit}
+                    </span>
                     <span className="text-xs text-black">排序: {item.sort_order}</span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -297,6 +322,47 @@ function CatalogTab() {
                 />
               </div>
 
+              {/* Image URL */}
+              <div className="mb-3">
+                <label className="mb-1 block text-sm font-medium text-black">实物图 URL（选填）</label>
+                <input
+                  type="url"
+                  value={formImage}
+                  onChange={(e) => setFormImage(e.target.value)}
+                  placeholder="https://example.com/equipment.jpg"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-black focus:border-orange-400 focus:outline-none"
+                />
+                {formImage && (
+                  <img src={formImage} alt="" className="mt-2 h-20 w-20 rounded-lg object-cover" />
+                )}
+              </div>
+
+              {/* Stock + Unit */}
+              <div className="mb-3 flex gap-3">
+                <div className="flex-1">
+                  <label className="mb-1 block text-sm font-medium text-black">库存数量</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={formStock}
+                    onChange={(e) => setFormStock(parseInt(e.target.value) || 0)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-black focus:border-orange-400 focus:outline-none"
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="mb-1 block text-sm font-medium text-black">单位</label>
+                  <select
+                    value={formUnit}
+                    onChange={(e) => setFormUnit(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-black focus:border-orange-400 focus:outline-none"
+                  >
+                    {["个", "组", "块", "套", "台", "盒", "片", "条", "根", "把"].map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Sort order */}
               <div className="mb-4">
                 <label className="mb-1 block text-sm font-medium text-black">排序序号</label>
@@ -381,10 +447,20 @@ function RequestsTab() {
       });
       setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
       setReplyingTo(null);
-    } catch {
-      alert("回复失败，请重试");
+    } catch (e: unknown) {
+      alert((e as Error).message || "回复失败，请重试");
     } finally {
       setSubmittingReply(false);
+    }
+  };
+
+  const handleMarkReturned = async (item: EquipmentRequestItem) => {
+    if (!confirm(`确认 ${item.title} 已归还？`)) return;
+    try {
+      const updated = await markEquipmentReturned(item.id);
+      setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+    } catch (e: unknown) {
+      alert((e as Error).message || "操作失败");
     }
   };
 
@@ -403,6 +479,7 @@ function RequestsTab() {
           { value: "pending", label: "待审核" },
           { value: "approved", label: "已批准" },
           { value: "rejected", label: "已拒绝" },
+          { value: "returned", label: "已归还" },
         ].map((s) => (
           <button
             key={s.value}
@@ -457,6 +534,11 @@ function RequestsTab() {
                     <td className="px-4 py-3 text-sm text-black">
                       <div>
                         {item.title}
+                        {item.catalog_name && (
+                          <span className="ml-1.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                            {item.catalog_name}
+                          </span>
+                        )}
                         {item.description && (
                           <p className="mt-0.5 text-xs text-black">{item.description}</p>
                         )}
@@ -481,12 +563,22 @@ function RequestsTab() {
                       {item.created_at ? new Date(item.created_at).toLocaleDateString("zh-CN") : "-"}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => openReply(item)}
-                        className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-black transition-colors hover:border-orange-300 hover:text-orange-600"
-                      >
-                        {item.status === "pending" ? "审核" : "修改"}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => openReply(item)}
+                          className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-black transition-colors hover:border-orange-300 hover:text-orange-600"
+                        >
+                          {item.status === "pending" ? "审核" : "修改"}
+                        </button>
+                        {item.status === "approved" && item.request_type === "equipment" && (
+                          <button
+                            onClick={() => handleMarkReturned(item)}
+                            className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-blue-600 transition-colors hover:border-blue-300 hover:text-blue-700"
+                          >
+                            标记归还
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

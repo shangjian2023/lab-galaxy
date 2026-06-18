@@ -272,6 +272,7 @@ export default function AdminUsersPage() {
               <th className="px-4 py-2 font-medium">角色</th>
               <th className="px-4 py-2 font-medium">等级</th>
               <th className="px-4 py-2 font-medium">积分</th>
+              <th className="px-4 py-2 font-medium">信用分</th>
               <th className="px-4 py-2 font-medium">状态</th>
               <th className="px-4 py-2 font-medium">注册时间</th>
               <th className="px-4 py-2 font-medium">操作</th>
@@ -279,7 +280,7 @@ export default function AdminUsersPage() {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="glass-table-row border-t">
+              <tr key={u.id} className={`glass-table-row border-t ${u.credit_score >= 160 ? "border-l-2 border-l-amber-400 bg-amber-50/30" : u.credit_score < 80 ? "border-l-2 border-l-red-300 bg-red-50/20" : ""}`}>
                 <td className="px-4 py-2 font-medium">{u.username}</td>
                 <td className="px-4 py-2 text-gray-700">{u.email}</td>
                 <td className="px-4 py-2 text-gray-700">
@@ -339,6 +340,16 @@ export default function AdminUsersPage() {
                   <button onClick={() => setShowPoints(u.id)} className="text-brand-600 hover:underline">
                     {u.points}
                   </button>
+                </td>
+                <td className="px-4 py-2">
+                  <span className={`text-xs font-medium ${
+                    u.credit_score >= 160 ? "text-amber-600" :
+                    u.credit_score >= 120 ? "text-green-600" :
+                    u.credit_score < 100 ? "text-red-500" : "text-gray-700"
+                  }`}>
+                    {u.credit_score}
+                    {u.credit_score >= 160 && " ⭐"}
+                  </span>
                 </td>
                 <td className="px-4 py-2">
                   {!u.is_active && u.role !== "admin" ? (
