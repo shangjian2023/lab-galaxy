@@ -4,6 +4,7 @@ import { queryClient } from "@/lib/query";
 import { AuthProvider } from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
+import ClickBurstProvider from "@/components/ClickBurstProvider";
 import ToastBar from "@/components/ToastBar";
 import "./globals.css";
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <Navbar />
             <BackButton />
+            <ClickBurstProvider />
             <div className="pt-16" />
             {children}
             <ToastBar />

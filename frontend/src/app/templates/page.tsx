@@ -118,7 +118,7 @@ export default function TemplatesPage() {
         {CATEGORIES.map((c) => (
           <button key={c.value} onClick={() => setCategory(c.value)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              category === c.value ? "bg-orange-100 text-orange-700" : "glass-button text-black"
+              category === c.value ? "bg-[#9A8C73]/15 text-[#6B5D50]" : "glass-button text-black"
             }`}>{c.label}</button>
         ))}
         {user && (
@@ -131,7 +131,7 @@ export default function TemplatesPage() {
         <div className="ml-auto flex items-center gap-2">
           {SORT_OPTIONS.map((s) => (
             <button key={s.value} onClick={() => setSort(s.value)}
-              className={`text-xs font-medium ${sort === s.value ? "text-orange-600" : "text-black hover:text-black"}`}>{s.label}</button>
+              className={`text-xs font-medium ${sort === s.value ? "text-[#9A8C73]" : "text-black hover:text-[#9A8C73]"}`}>{s.label}</button>
           ))}
           <input value={keyword} onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
@@ -143,7 +143,7 @@ export default function TemplatesPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((tpl, i) => (
           <motion.div key={tpl.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-            className="glass-card group p-5 transition-shadow hover:shadow-md">
+            className="glass-card group p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
             {/* Badge */}
             <div className="mb-3 flex items-center gap-2">
               {tpl.is_official && <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">官方</span>}
@@ -153,7 +153,7 @@ export default function TemplatesPage() {
               {tpl.status === "rejected" && <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] text-red-700">已拒绝</span>}
             </div>
 
-            <h3 className="mb-1 text-base font-bold text-gray-800 group-hover:text-orange-600">{tpl.name}</h3>
+            <h3 className="mb-1 text-base font-bold text-gray-800 group-hover:text-[#8C3232] transition-colors">{tpl.name}</h3>
             <p className="mb-3 text-sm text-gray-700 line-clamp-2">{tpl.description || "暂无描述"}</p>
 
             {/* Tags */}
@@ -181,14 +181,15 @@ export default function TemplatesPage() {
                   {tpl.likes}
                 </button>
                 <span>{tpl.bookmarks} 收藏</span>
+                <span>{tpl.downloads || 0} 下载</span>
               </div>
               <div className="flex gap-1.5">
                 <button onClick={() => handlePreview(tpl)}
-                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 transition-colors hover:border-orange-300 hover:text-orange-600">
+                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 transition-colors hover:border-[#9A8C73]/40 hover:text-[#8C3232]">
                   预览
                 </button>
                 <button onClick={() => handleDownload(tpl)}
-                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 transition-colors hover:border-orange-300 hover:text-orange-600">
+                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 transition-colors hover:border-[#9A8C73]/40 hover:text-[#8C3232]">
                   下载 Word
                 </button>
                 <button onClick={() => handleBookmark(tpl.id)}
