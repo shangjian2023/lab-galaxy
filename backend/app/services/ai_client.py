@@ -168,6 +168,36 @@ async def suggest_relations(node_id: str) -> dict:
             return {"suggestions": []}
 
 
+async def reload_user_ai_config(db, user_id) -> None:
+    """If the user has personal AI config (api_key/model/base_url), reload the AI
+    service with it so subsequent calls use the user's settings. If the user has
+    no custom config, do nothing (the global/admin config stays active).
+
+    Note: this sets the AI service's GLOBAL config — concurrent requests from
+    different users with custom configs could race. For a low-traffic platform
+    this is acceptable. For high concurrency, the AI service would need
+    per-request config via headers.
+    """
+    from sqlalchemy import select as sa_select
+    from app.models.models import User
+
+    user = (await db.execute(sa_select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.ai_api_key:
+        return  # no custom config — global config stays
+
+    configs: dict[str, str] = {"OPENAI_API_KEY": user.ai_api_key}
+    if user.ai_base_url:
+        configs["OPENAI_BASE_URL"] = user.ai_base_url
+    if user.ai_model:
+        configs["OPENAI_MODEL"] = user.ai_model
+
+    try:
+        await reload_ai_config(configs)
+        logger.info(f"Reloaded AI service config for user {user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to reload AI config for user {user_id}: {e}")
+
+
 async def reload_ai_config(configs: dict) -> dict:
     """Notify AI service to reload config."""
     async with httpx.AsyncClient(timeout=30) as client:

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem, getMyCredit, getBorrowedEquipment, getMyTeams, getMyForumThreads, getMyEquipmentRequests, type TeamInfo, type EquipmentRequestItem } from "@/lib/api";
+import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem, getMyCredit, getBorrowedEquipment, getMyTeams, getMyForumThreads, getMyEquipmentRequests, getMyAIConfig, updateMyAIConfig, type TeamInfo, type EquipmentRequestItem } from "@/lib/api";
 import LevelBadge from "@/components/growth/LevelBadge";
 import Link from "next/link";
 
@@ -35,6 +35,11 @@ export default function ProfilePage() {
   const [teams, setTeams] = useState<TeamInfo[]>([]);
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [equipmentHistory, setEquipmentHistory] = useState<EquipmentRequestItem[]>([]);
+  const [aiConfig, setAiConfig] = useState<{ api_key: string | null; has_custom_key: boolean; base_url: string | null; model: string | null } | null>(null);
+  const [editingAI, setEditingAI] = useState(false);
+  const [aiKey, setAiKey] = useState("");
+  const [aiUrl, setAiUrl] = useState("");
+  const [aiModel, setAiModel] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
@@ -51,6 +56,7 @@ export default function ProfilePage() {
       getMyTeams().then(setTeams).catch(() => {});
       getMyForumThreads(1).then((r) => setMyPosts((r.items || []).slice(0, 5))).catch(() => {});
       getMyEquipmentRequests().then((r) => setEquipmentHistory(r.items || [])).catch(() => {});
+      getMyAIConfig().then(setAiConfig).catch(() => {});
     }
   }, [user]);
 
@@ -117,6 +123,17 @@ export default function ProfilePage() {
       setAchievements(prev => prev.filter(a => a.id !== id));
     } catch {
       alert("删除失败，请重试");
+    }
+  };
+
+  const handleSaveAI = async () => {
+    try {
+      await updateMyAIConfig({ api_key: aiKey || undefined, base_url: aiUrl || undefined, model: aiModel || undefined });
+      const updated = await getMyAIConfig();
+      setAiConfig(updated);
+      setEditingAI(false);
+    } catch {
+      alert("保存失败，请重试");
     }
   };
 
@@ -267,6 +284,34 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* AI Config */}
+          <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-5 shadow-sm" style={{ backdropFilter: "blur(12px)" }}>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-[#9A8C73]">🤖 AI 配置</h3>
+            {aiConfig?.has_custom_key ? (
+              <p className="mb-2 text-[11px] text-green-600">✓ 使用自定义配置 {aiConfig.model && `(${aiConfig.model})`}</p>
+            ) : (
+              <p className="mb-2 text-[11px] text-[#6B5D50]">使用平台默认配置</p>
+            )}
+            {editingAI ? (
+              <div className="space-y-2">
+                <input type="password" value={aiKey} onChange={(e) => setAiKey(e.target.value)} placeholder="API Key（留空=不改）" className="w-full rounded-lg border border-[#DBC7B5]/40 bg-white/70 px-2.5 py-1.5 text-[11px] outline-none focus:border-[#9A8C73]/50" />
+                <input value={aiUrl} onChange={(e) => setAiUrl(e.target.value)} placeholder="Base URL（如 https://api.openai.com/v1）" className="w-full rounded-lg border border-[#DBC7B5]/40 bg-white/70 px-2.5 py-1.5 text-[11px] outline-none focus:border-[#9A8C73]/50" />
+                <input value={aiModel} onChange={(e) => setAiModel(e.target.value)} placeholder="模型（如 gpt-4o）" className="w-full rounded-lg border border-[#DBC7B5]/40 bg-white/70 px-2.5 py-1.5 text-[11px] outline-none focus:border-[#9A8C73]/50" />
+                <div className="flex gap-1.5">
+                  <button onClick={handleSaveAI} className="flex-1 rounded-lg bg-[#9A8C73] px-2 py-1 text-[10px] font-medium text-white hover:bg-[#8C7D70]">保存</button>
+                  <button onClick={() => setEditingAI(false)} className="flex-1 rounded-lg border border-[#DBC7B5]/40 px-2 py-1 text-[10px] text-[#4a3e34] hover:bg-[#DBC7B5]/15">取消</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setAiKey(""); setAiUrl(aiConfig?.base_url || ""); setAiModel(aiConfig?.model || ""); setEditingAI(true); }}
+                className="rounded-lg border border-[#DBC7B5]/30 bg-[#F4F1EE]/50 px-2.5 py-1 text-[10px] font-medium text-[#4a3e34] transition-all hover:border-[#9A8C73]/30 hover:shadow-sm"
+              >
+                {aiConfig?.has_custom_key ? "修改配置" : "设置我的 AI"}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Right main content (2/3) ── */}

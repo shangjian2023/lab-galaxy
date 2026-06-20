@@ -104,6 +104,39 @@ async def my_credit(current_user: User = Depends(get_current_user)):
     }
 
 
+@router.get("/me/ai-config")
+async def get_my_ai_config(current_user: User = Depends(get_current_user)):
+    """Return the user's personal AI config (API key masked for security)."""
+    key = current_user.ai_api_key
+    masked = (key[:3] + "***" + key[-4:]) if key and len(key) > 8 else (key or None)
+    return {
+        "api_key": masked,
+        "has_custom_key": bool(current_user.ai_api_key),
+        "base_url": current_user.ai_base_url,
+        "model": current_user.ai_model,
+    }
+
+
+@router.patch("/me/ai-config")
+async def update_my_ai_config(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the user's personal AI config. Pass null/empty to clear a field."""
+    if "api_key" in body:
+        val = body["api_key"]
+        # Don't overwrite if the value is the masked version
+        if val and "***" not in str(val):
+            current_user.ai_api_key = val or None
+    if "base_url" in body:
+        current_user.ai_base_url = body["base_url"] or None
+    if "model" in body:
+        current_user.ai_model = body["model"] or None
+    await db.commit()
+    return {"ok": True}
+
+
 @router.patch("/me", response_model=UserProfile)
 async def update_profile(
     body: UserUpdate,

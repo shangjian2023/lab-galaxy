@@ -1114,6 +1114,14 @@ export function getMyCredit() {
   return request<{ credit_score: number; composite: number; title: string; tier: string }>("/users/me/credit");
 }
 
+export function getMyAIConfig() {
+  return request<{ api_key: string | null; has_custom_key: boolean; base_url: string | null; model: string | null }>("/users/me/ai-config");
+}
+
+export function updateMyAIConfig(data: { api_key?: string; base_url?: string; model?: string }) {
+  return request<{ ok: boolean }>("/users/me/ai-config", "PATCH", data);
+}
+
 export interface FeaturedItem {
   type: "thread" | "equipment";
   id: string;

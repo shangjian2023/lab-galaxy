@@ -25,6 +25,10 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Per-user AI config (nullable = use global/admin default)
+    ai_api_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ai_base_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ai_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
 
 class Template(Base):

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.models import User
-from app.services.ai_client import query_natural_language, query_natural_language_stream
+from app.services.ai_client import query_natural_language, query_natural_language_stream, reload_user_ai_config
 from app.services.usage import check_query_quota, increment_query
 from app.services.points import award_points, POINTS_RULES, count_today
 
@@ -42,6 +42,8 @@ async def ask_question(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"今日查询次数已用完（{quota['limit']}/{quota['limit']}），请明天再试",
         )
+    # Apply user's personal AI config if set (falls back to global if not)
+    await reload_user_ai_config(db, current_user.id)
     result = await query_natural_language(body.question, body.history)
     if not quota["unlimited"]:
         await increment_query(db, current_user.id)
@@ -74,6 +76,9 @@ async def ask_question_stream(
     if await count_today(db, current_user.id, "AI 问答") < 10:
         award_points(current_user, db, POINTS_RULES["ai_query"], "AI 问答")
     await db.commit()
+
+    # Apply user's personal AI config if set
+    await reload_user_ai_config(db, current_user.id)
 
     history = [h.model_dump() for h in body.history]
 
