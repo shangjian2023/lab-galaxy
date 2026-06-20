@@ -108,7 +108,7 @@ function FeaturedCarousel() {
 
   if (!items.length) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60 shadow-sm">
         <p className="text-sm text-[#6B5D50]">暂无精选内容，去 <Link href="/forum" className="text-[#9A8C73] hover:underline">知识发酵池</Link> 发一帖吧</p>
       </div>
     );
@@ -116,7 +116,7 @@ function FeaturedCarousel() {
 
   const cur = items[idx];
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60">
+    <div className="group relative overflow-hidden rounded-2xl border border-[#DBC7B5]/40 bg-[#F4F1EE]/60 shadow-sm">
       <div className="relative h-72">
         <AnimatePresence mode="wait">
           <motion.div
@@ -182,7 +182,7 @@ function FeaturedCarousel() {
 // ── Stats card ──
 function StatCard({ label, value, href, suffix }: { label: string; value: number | string; href: string; suffix?: string }) {
   return (
-    <Link href={href} className="group flex flex-col rounded-xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/70 p-4 transition-all hover:border-[#9A8C73]/40 hover:bg-[#F4F1EE] hover:shadow-md hover:shadow-[#9A8C73]/5">
+    <Link href={href} className="group flex flex-col rounded-xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/70 p-4 shadow-sm transition-all hover:border-[#9A8C73]/40 hover:bg-[#F4F1EE] hover:shadow-md hover:shadow-[#9A8C73]/5">
       <span className="text-xs text-[#6B5D50]">{label}</span>
       <span className="mt-1 text-2xl font-bold text-[#4a3e34]">
         {value}<span className="text-sm font-normal text-[#6B5D50]">{suffix}</span>
@@ -244,7 +244,7 @@ export default function Home() {
         transition={{ duration: 0.5 }}
         className="mb-8"
       >
-        <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-8" style={{ backdropFilter: "blur(12px)" }}>
+        <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-8 shadow-sm" style={{ backdropFilter: "blur(12px)" }}>
           <p className="mb-1 text-sm font-medium">
             <span className="text-[#8C3232]">欢迎回来，</span>
             <span className="relative inline-block">
@@ -292,7 +292,7 @@ export default function Home() {
             <Link
               key={m.label}
               href={m.href}
-              className={`group relative overflow-hidden rounded-xl border border-[#DBC7B5]/30 bg-gradient-to-br ${m.gradient} p-5 transition-all hover:border-[#9A8C73]/40 hover:shadow-lg hover:shadow-[#9A8C73]/5 hover:-translate-y-0.5`}
+              className={`group relative overflow-hidden rounded-xl border border-[#DBC7B5]/30 bg-gradient-to-br ${m.gradient} p-5 shadow-sm transition-all hover:border-[#9A8C73]/40 hover:shadow-lg hover:shadow-[#9A8C73]/5 hover:-translate-y-0.5`}
               style={{ animationDelay: `${i * 60}ms` }}
             >
               <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg ${m.iconBg}`}>
@@ -328,7 +328,7 @@ export default function Home() {
         className="grid gap-6 lg:grid-cols-2"
       >
         {/* Recent documents */}
-        <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/70 p-6">
+        <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/70 p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-bold text-[#4a3e34]">最近文档</h2>
             <Link href="/documents" className="text-[11px] text-[#9A8C73] hover:underline">查看全部 →</Link>
@@ -354,7 +354,7 @@ export default function Home() {
         </div>
 
         {/* Recent points */}
-        <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/70 p-6">
+        <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/70 p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-bold text-[#4a3e34]">成长记录</h2>
             <Link href="/growth" className="text-[11px] text-[#9A8C73] hover:underline">查看全部 →</Link>
