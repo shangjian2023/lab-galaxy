@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem, getMyCredit, getBorrowedEquipment, getMyTeams, listMyThreads, getMyEquipmentRequests, type TeamInfo, type EquipmentRequestItem } from "@/lib/api";
+import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem, getMyCredit, getBorrowedEquipment, getMyTeams, getMyForumThreads, getMyEquipmentRequests, type TeamInfo, type EquipmentRequestItem } from "@/lib/api";
 import LevelBadge from "@/components/growth/LevelBadge";
 import Link from "next/link";
 
@@ -49,7 +49,7 @@ export default function ProfilePage() {
       getMyCredit().then(setCredit).catch(() => {});
       getBorrowedEquipment().then((r) => setBorrowed(r.items)).catch(() => {});
       getMyTeams().then(setTeams).catch(() => {});
-      listMyThreads(1).then((r) => setMyPosts((r.items || []).slice(0, 5))).catch(() => {});
+      getMyForumThreads(1).then((r) => setMyPosts((r.items || []).slice(0, 5))).catch(() => {});
       getMyEquipmentRequests().then((r) => setEquipmentHistory(r.items || [])).catch(() => {});
     }
   }, [user]);
