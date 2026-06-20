@@ -41,9 +41,9 @@ export default function AdminDashboard() {
 
   const cards = [
     { label: "用户总数", value: stats.users, href: "/admin/users", icon: "👤", gradient: "from-blue-500/8 to-blue-500/3", text: "text-blue-700" },
-    { label: "待审批", value: stats.pendingUsers, href: "/admin/users", icon: "⏳", gradient: "from-amber-500/8 to-amber-500/3", text: "text-amber-700" },
+    { label: "待审批", value: stats.pendingUsers, href: "/admin/users?status=pending", icon: "⏳", gradient: "from-amber-500/8 to-amber-500/3", text: "text-amber-700" },
     { label: "文档总数", value: stats.documents, href: "/admin/documents", icon: "📄", gradient: "from-green-500/8 to-green-500/3", text: "text-green-700" },
-    { label: "处理中", value: stats.processing, href: "/admin/documents", icon: "⚙️", gradient: "from-yellow-500/8 to-yellow-500/3", text: "text-yellow-700" },
+    { label: "处理中", value: stats.processing, href: "/admin/documents?status=parsing", icon: "⚙️", gradient: "from-yellow-500/8 to-yellow-500/3", text: "text-yellow-700" },
     { label: "图谱节点", value: stats.nodes, href: "/admin/graph", icon: "🕸️", gradient: "from-purple-500/8 to-purple-500/3", text: "text-purple-700" },
     { label: "图谱关系", value: stats.relations, href: "/admin/graph", icon: "🔗", gradient: "from-pink-500/8 to-pink-500/3", text: "text-pink-700" },
     { label: "AI 配置项", value: stats.aiConfigs, href: "/admin/ai", icon: "🤖", gradient: "from-[#9A8C73]/8 to-[#9A8C73]/3", text: "text-[#6B5D50]" },

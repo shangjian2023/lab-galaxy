@@ -114,7 +114,11 @@ async def get_template(tpl_id: uuid.UUID, db: AsyncSession = Depends(get_db), cu
 
 @router.post("/")
 async def create_template(body: TemplateCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    tpl = Template(name=body.name, description=body.description, content=body.content, tags=body.tags, category=body.category, created_by=current_user.id)
+    # Check if review is required; if not, auto-publish
+    cfg = (await db.execute(select(AIConfig).where(AIConfig.key == "template_review_required"))).scalar_one_or_none()
+    review_required = cfg and cfg.value.lower() == "true" if cfg else False
+    initial_status = "pending_review" if review_required else "published"
+    tpl = Template(name=body.name, description=body.description, content=body.content, tags=body.tags, category=body.category, created_by=current_user.id, status=initial_status)
     db.add(tpl)
     await db.commit()
     await db.refresh(tpl)
