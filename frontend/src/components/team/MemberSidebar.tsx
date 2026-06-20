@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { TeamDetail } from "@/lib/api";
 import { inviteToTeam } from "@/lib/api";
+import { getUserAvatarColor } from "@/lib/utils";
 
 interface Props {
   team: TeamDetail;
@@ -89,7 +90,7 @@ export default function MemberSidebar({ team }: Props) {
       <div className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
         {team.members.map((m) => (
           <div key={m.user_id} className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-gray-50">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-xs font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm" style={{ background: getUserAvatarColor(m.user_id).bg }}>
               {(m.nickname || m.username)[0]}
             </div>
             <div className="min-w-0 flex-1">

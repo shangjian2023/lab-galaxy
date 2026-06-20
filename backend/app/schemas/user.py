@@ -36,6 +36,7 @@ class UserProfile(BaseModel):
     points: int = 0
     credit_score: int = 100
     is_active: bool = True
+    last_login: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

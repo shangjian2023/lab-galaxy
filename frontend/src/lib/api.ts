@@ -51,6 +51,7 @@ export interface UserProfile {
   points: number;
   credit_score: number;
   is_active: boolean;
+  last_login: string | null;
   created_at: string;
 }
 

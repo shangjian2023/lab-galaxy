@@ -1,6 +1,8 @@
 """User authentication & profile routes."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,11 +75,14 @@ async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号待审批或已被禁用，请联系管理员")
 
+    # Update last login time
+    user.last_login = datetime.utcnow()
+
     # Daily login reward (once per day)
     from app.services.points import award_points, POINTS_RULES, count_today
     if await count_today(db, user.id, "每日登录") < 1:
         award_points(user, db, POINTS_RULES["login_daily"], "每日登录")
-        await db.commit()
+    await db.commit()
 
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)

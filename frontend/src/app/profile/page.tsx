@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem, getMyCredit, getBorrowedEquipment } from "@/lib/api";
+import { getDashboard, updateProfile, type DashboardData, listAchievements, createAchievement, updateAchievement, deleteAchievement, type AchievementItem, getMyCredit, getBorrowedEquipment, getMyTeams, listMyThreads, getMyEquipmentRequests, type TeamInfo, type EquipmentRequestItem } from "@/lib/api";
 import LevelBadge from "@/components/growth/LevelBadge";
 import Link from "next/link";
 
@@ -32,6 +32,9 @@ export default function ProfilePage() {
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
   const [credit, setCredit] = useState<{ credit_score: number; composite: number; title: string; tier: string } | null>(null);
   const [borrowed, setBorrowed] = useState<{ id: string; title: string; catalog_name: string | null; quantity: number; created_at: string | null }[]>([]);
+  const [teams, setTeams] = useState<TeamInfo[]>([]);
+  const [myPosts, setMyPosts] = useState<any[]>([]);
+  const [equipmentHistory, setEquipmentHistory] = useState<EquipmentRequestItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
@@ -45,6 +48,9 @@ export default function ProfilePage() {
       listAchievements().then(setAchievements).catch(() => setAchievements([]));
       getMyCredit().then(setCredit).catch(() => {});
       getBorrowedEquipment().then((r) => setBorrowed(r.items)).catch(() => {});
+      getMyTeams().then(setTeams).catch(() => {});
+      listMyThreads(1).then((r) => setMyPosts((r.items || []).slice(0, 5))).catch(() => {});
+      getMyEquipmentRequests().then((r) => setEquipmentHistory(r.items || [])).catch(() => {});
     }
   }, [user]);
 
@@ -166,6 +172,9 @@ export default function ProfilePage() {
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-[#DBC7B5]/20 pt-3 text-[11px] text-[#6B5D50]">
             <span>📧 <span className="font-medium text-[#4a3e34]">{displayUser.email}</span></span>
             <span>📅 <span className="font-medium text-[#4a3e34]">{new Date(displayUser.created_at).toLocaleDateString("zh-CN")}</span></span>
+            {displayUser.last_login && (
+              <span>🕐 最近登录 <span className="font-medium text-[#4a3e34]">{new Date(displayUser.last_login).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></span>
+            )}
             {qLimit > 0 && (
               <span>🔍 今日查询 <span className="font-medium text-[#4a3e34]">{qUsed}/{qLimit}</span></span>
             )}
@@ -226,6 +235,38 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Teams */}
+          {teams.length > 0 && (
+            <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-5 shadow-sm" style={{ backdropFilter: "blur(12px)" }}>
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#9A8C73]">👥 我的团队</h3>
+              <div className="space-y-1.5">
+                {teams.map((t) => (
+                  <Link key={t.id} href={`/team/${t.id}`} className="flex items-center gap-2 rounded-lg border border-[#DBC7B5]/20 bg-[#F4F1EE]/50 px-3 py-2 transition-all hover:border-[#9A8C73]/30 hover:shadow-sm">
+                    <span className="text-xs">🏠</span>
+                    <span className="flex-1 truncate text-xs font-medium text-[#4a3e34]">{t.name}</span>
+                    <span className="shrink-0 text-[10px] text-[#6B5D50]">{t.member_count}人</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Equipment history */}
+          {equipmentHistory.length > 0 && (
+            <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-5 shadow-sm" style={{ backdropFilter: "blur(12px)" }}>
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#9A8C73]">🔧 器材记录</h3>
+              <div className="space-y-1.5">
+                {equipmentHistory.slice(0, 6).map((r) => (
+                  <div key={r.id} className="flex items-center gap-2 rounded-lg bg-[#DBC7B5]/15 px-3 py-1.5">
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${r.status === "approved" ? "bg-green-500" : r.status === "pending" ? "bg-yellow-500" : r.status === "returned" ? "bg-gray-400" : "bg-red-400"}`} />
+                    <span className="flex-1 truncate text-[11px] text-[#4a3e34]">{r.title}</span>
+                    <span className="shrink-0 text-[9px] text-[#9A8C73]">{r.status === "approved" ? "借出" : r.status === "pending" ? "待审" : r.status === "returned" ? "已还" : "拒绝"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Right main content (2/3) ── */}
@@ -241,6 +282,20 @@ export default function ProfilePage() {
                     <span className="min-w-0 flex-1 truncate text-xs text-[#4a3e34]">{p.reason}</span>
                     <span className="shrink-0 text-[10px] text-[#9A8C73]">{new Date(p.created_at).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}</span>
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* My posts */}
+          {myPosts.length > 0 && (
+            <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-5 shadow-sm" style={{ backdropFilter: "blur(12px)" }}>
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#9A8C73]">💬 我的帖子</h3>
+              <div className="space-y-1.5">
+                {myPosts.map((p: any) => (
+                  <Link key={p.id} href={`/forum/thread/${p.id}`} className="block truncate rounded-lg px-3 py-1.5 text-xs text-[#4a3e34] transition-colors hover:bg-[#DBC7B5]/15">
+                    {p.title}
+                  </Link>
                 ))}
               </div>
             </div>

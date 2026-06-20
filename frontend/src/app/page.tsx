@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { getDashboard, getFeaturedFeed, type DashboardData, type FeaturedItem } from "@/lib/api";
+import { getTimeGreeting } from "@/lib/utils";
 
 // ── Feature modules ──
 const MODULES = [
@@ -246,7 +247,7 @@ export default function Home() {
       >
         <div className="rounded-2xl border border-[#DBC7B5]/30 bg-[#F4F1EE]/80 p-8 shadow-sm" style={{ backdropFilter: "blur(12px)" }}>
           <p className="mb-1 text-sm font-medium">
-            <span className="text-[#8C3232]">欢迎回来，</span>
+            <span className="text-[#8C3232]">{getTimeGreeting()}，</span>
             <span className="relative inline-block">
               <span className="text-2xl font-bold text-[#8C3232]">{user.nickname || user.username}</span>
               <span className="absolute inset-0 pointer-events-none overflow-hidden" style={{
@@ -257,6 +258,7 @@ export default function Home() {
             <span className="ml-2 inline-flex items-center rounded-full bg-[#8C3232]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#8C3232]">
               Lv.{stats.level}
             </span>
+            <span className="ml-1 text-[#8C3232]">，欢迎回来</span>
           </p>
           <h1 className="text-3xl font-bold text-[#8C3232]">
             让每一份实验知识，都有迹可循

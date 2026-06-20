@@ -281,7 +281,14 @@ export default function AdminUsersPage() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className={`glass-table-row border-t ${u.credit_score >= 160 ? "border-l-2 border-l-amber-400 bg-amber-50/30" : u.credit_score < 80 ? "border-l-2 border-l-red-300 bg-red-50/20" : ""}`}>
-                <td className="px-4 py-2 font-medium">{u.username}</td>
+                <td className="px-4 py-2 font-medium">
+                  <span className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${
+                    u.last_login && (Date.now() - new Date(u.last_login).getTime()) < 5 * 60 * 1000 ? "bg-green-500 shadow-sm shadow-green-500/30"
+                    : u.last_login && (Date.now() - new Date(u.last_login).getTime()) < 60 * 60 * 1000 ? "bg-yellow-500"
+                    : "bg-gray-300"
+                  }`} title={u.last_login ? `最后登录: ${new Date(u.last_login).toLocaleString("zh-CN")}` : "从未登录"} />
+                  {u.username}
+                </td>
                 <td className="px-4 py-2 text-gray-700">{u.email}</td>
                 <td className="px-4 py-2 text-gray-700">
                   {editing === u.id ? (
@@ -370,7 +377,10 @@ export default function AdminUsersPage() {
                   )}
                 </td>
                 <td className="px-4 py-2 text-black">
-                  {new Date(u.created_at).toLocaleDateString("zh-CN")}
+                  <div>{new Date(u.created_at).toLocaleDateString("zh-CN")}</div>
+                  {u.last_login && (
+                    <div className="text-[10px] text-gray-500">登录 {new Date(u.last_login).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1.5">
