@@ -29,6 +29,9 @@ Thumbs.db
 # Docker volumes
 docker/data/
 
+# Local document corpus and development database
+data/
+
 # Logs
 *.log
 logs/
@@ -40,8 +43,10 @@ htmlcov/
 # AI service data (FAISS index, ID maps)
 ai_service/data/
 
-# Claude Code
+# Claude Code and local agent files
 .claude/
+.zcode/
+/NUL
 
 # Test/temp files
 *.docx

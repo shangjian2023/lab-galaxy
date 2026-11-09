@@ -1,35 +1,20 @@
 import type { Metadata } from "next";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/query";
-import { AuthProvider } from "@/components/AuthProvider";
-import Navbar from "@/components/Navbar";
-import BackButton from "@/components/BackButton";
-import ClickBurstProvider from "@/components/ClickBurstProvider";
-import ToastBar from "@/components/ToastBar";
+import { AppProviders } from "@/components/app/AppProviders";
+import { AppShell } from "@/components/app/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "创新实验知识图谱平台",
-  description: "知识图谱驱动的创新实验管理平台",
-  icons: {
-    icon: "/favicon.svg",
-  },
+  title: { default: "Lab Galaxy · 创新实验知识平台", template: "%s · Lab Galaxy" },
+  description: "让实验文档、知识与研究结论连接成可探索的知识网络。",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body style={{ fontFamily: '"KaiTi", "楷体", "STKaiti", "楷体_GB2312", "AR PL UKai CN", serif' }} className="antialiased">
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <Navbar />
-            <BackButton />
-            <ClickBurstProvider />
-            <div className="pt-16" />
-            {children}
-            <ToastBar />
-          </AuthProvider>
-        </QueryClientProvider>
+      <body>
+        <AppProviders>
+          <AppShell>{children}</AppShell>
+        </AppProviders>
       </body>
     </html>
   );

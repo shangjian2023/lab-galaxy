@@ -1,0 +1,30 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const graph_alloc: (a: number) => number;
+export const graph_alloc_u32: (a: number) => number;
+export const graph_alpha: () => number;
+export const graph_bounds: () => [number, number];
+export const graph_config: (a: number, b: number, c: number, d: number, e: number) => void;
+export const graph_done: () => number;
+export const graph_edge_count: () => number;
+export const graph_edges_ptr: () => number;
+export const graph_end_drag: (a: number, b: number, c: number, d: number) => number;
+export const graph_engine_version: () => number;
+export const graph_fixed_ptr: () => number;
+export const graph_heat: (a: number) => void;
+export const graph_init: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint, i: number, j: number, k: number, l: number, m: number) => void;
+export const graph_memory: () => any;
+export const graph_node_count: () => number;
+export const graph_pin_sequence: () => number;
+export const graph_positions_ptr: () => number;
+export const graph_set_ambient: (a: number) => void;
+export const graph_set_center: (a: number, b: number) => void;
+export const graph_set_fixed: (a: number, b: number) => number;
+export const graph_set_target: (a: number, b: number, c: number, d: number) => void;
+export const graph_step: (a: number) => number;
+export const graph_targets_ptr: () => number;
+export const graph_tick: () => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_start: () => void;
