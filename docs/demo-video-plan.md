@@ -183,3 +183,6 @@ ffmpeg -i video.mp4 -stream_loop -1 -i bgm.mp3 \
 | ⑯ | 让下一次发现 | 页脚大字显影 232+ | 232.7 | 6.14 |
 
 混音:BGM(bgm-v4-xfade.wav)volume 0.30 + 人声 1.5×,sidechain ducking(ratio 6),BGM 头 2s/尾 3s(236.8 起)淡入淡出;侧链 apad 防提前 EOF。滤镜:data/demo/tts/v5-filter.txt(git 忽略)。
+
+### v5 字幕重建(同日晚)
+原烧录字幕每条仅停留 ~3s,旁白一句 5-10s,起点对齐仍会句中错位。终案:后期重建字幕层——drawbox 全程遮盖原字幕带(x430 y992 w1060 h68,0x1E1913 全不透明),drawtext(simsun 24px #F2E9DA)按旁白分句 34 条逐句生成,与配音同源同轴,天然 100% 对齐;并补显"通用AI有幻觉"等未上屏句。生成器 scripts/demo/gen-v6-filter.mjs,滤镜 data/demo/tts/v6-filter.txt。注意:该 ffmpeg 构建 drawtext 引号内不保护半角冒号,文案冒号一律全角"："。
