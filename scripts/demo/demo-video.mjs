@@ -299,7 +299,7 @@ async function poll(page, fn, label, timeoutMs = 180000, intervalMs = 2000) {
       await poll(page, () => page.locator("button.knowledge-publish").first().isVisible(), "抽取完成可发布", 300000, 3000);
       await wait(page, 2200);
       await moveAndClick(page, "button.knowledge-publish", "发布到星图", { postClickDelay: 1800 });
-      await subtitle(page, "别家停在存文件,我们直达发布知识", 2400);
+      await subtitle(page, "同类产品上传原文档,我们将知识结构化储存", 2400);
       await subtitle(page, "新知识,落进星图");
       await moveAndClick(page, "a.knowledge-publish", "在真实星图中查看", { postClickDelay: 3000 });
     } else {
@@ -375,7 +375,7 @@ async function poll(page, fn, label, timeoutMs = 180000, intervalMs = 2000) {
       await wait(page, 1200);
       await moveAndClick(page, 'button:has-text("生成邀请令牌")', "生成邀请令牌", { postClickDelay: 1600 });
       await moveAndClick(page, 'button:has-text("复制令牌")', "复制令牌", { postClickDelay: 1400 });
-      await subtitle(page, "一次性邀请,过期作废", 1600);
+      await subtitle(page, "上传团队可见文档,成员共享检索与问答", 2200);
     }
     await subtitle(page, "");
 
