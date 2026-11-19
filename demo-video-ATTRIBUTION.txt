@@ -16,4 +16,4 @@
 
 中文旁白(2026-11-19 v5 起):
 - 音色:MiniMax TTS male-qn-jingying(精英青年),AI 生成,无第三方版权
-- 语速 0.9;主打功能段 happy、其余 neutral;与 BGM 做 sidechain ducking 混音
+- 语速 0.9,全篇 happy(用户指定);与 BGM 做 sidechain ducking 混音;已裁除 TTS 尾部提示音
