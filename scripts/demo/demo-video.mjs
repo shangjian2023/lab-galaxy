@@ -222,10 +222,15 @@ async function poll(page, fn, label, timeoutMs = 180000, intervalMs = 2000) {
     await page.mouse.click(c1.x, c1.y, { button: "right" });
     await wait(page, 800);
     await moveAndClick(page, 'button:has-text("从这里探索")', "右键菜单·从这里探索", { postClickDelay: 1600 });
-    const depthSel = page.locator("select:visible").nth(2);
+    const depthSel = page.locator(".obsidian-exploration-bar select");
     if (await depthSel.isVisible().catch(() => false)) {
+      await wait(page, 1200); // 先看清 1 跳的压暗效果
       await subtitle(page, "一跳、两跳、三跳");
-      for (const d of ["2", "3"]) { await depthSel.selectOption(d).catch(() => {}); await wait(page, 1300); }
+      await moveAndClick(page, depthSel, "深度下拉", { postClickDelay: 300 });
+      await depthSel.selectOption("2").catch(() => {});
+      await wait(page, 2200);
+      await depthSel.selectOption("3").catch(() => {});
+      await wait(page, 2400);
     } else log("WARN depth select 不可见");
     await moveAndClick(page, 'button[aria-label="返回全局图谱"]', "退出局部探索", { postClickDelay: 1500 });
     await subtitle(page, "");
@@ -299,6 +304,12 @@ async function poll(page, fn, label, timeoutMs = 180000, intervalMs = 2000) {
       await poll(page, () => page.locator("button.knowledge-publish").first().isVisible(), "抽取完成可发布", 300000, 3000);
       await wait(page, 2200);
       await moveAndClick(page, "button.knowledge-publish", "发布到星图", { postClickDelay: 1800 });
+      // 发布成败硬校验:出现错误条则当场中止,不让废片进后期
+      const pubOk = await poll(page, () => page.locator("a.knowledge-publish").first().isVisible(), "发布成功(可跳星图)", 15000, 800).catch(() => false);
+      const pubErr = await page.locator("text=知识服务请求失败").first().isVisible().catch(() => false);
+      if (!pubOk || pubErr) {
+        throw new Error(`发布未成功(ok=${pubOk} err=${pubErr})— 中止本 take,检查服务路由`);
+      }
       await subtitle(page, "同类产品上传原文档,我们将知识结构化储存", 2400);
       await subtitle(page, "新知识,落进星图");
       await moveAndClick(page, "a.knowledge-publish", "在真实星图中查看", { postClickDelay: 3000 });

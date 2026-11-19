@@ -1,13 +1,13 @@
 演示视频素材署名 / Attribution
 ================================
 
-视频:lab-galaxy-demo-draft.mp4(2026-11-19)
+视频:lab-galaxy-demo-v4.mp4(2026-11-19)
 
-背景音乐:
-- 曲目:Electrodoodle
-- 作者:Kevin MacLeod (incompetech.com)
-- 授权:Creative Commons: By Attribution 4.0 License
-- 链接:http://creativecommons.org/licenses/by/4.0/
+背景音乐(本地自有曲目,按序连播,接缝 2s 交叉淡化):
+- 曲目 1:Visions — Acreix(0:00 起)
+- 曲目 2:Xenogenesis — TheFatRat(约 3:17 起)
+- 曲目 3:Infinite — Valence(备用,本片时长内未播到)
+- 来源:用户本地曲库(C:\KuGou),仅用于本项目演示,不作再分发
 
 画面素材:
 - 平台界面:本项目(LAB GALAXY 创新实验知识图谱平台)真实运行录制

@@ -8,7 +8,7 @@ const require2 = createRequire(pathToFileURL(resolve(process.cwd(), "package.jso
 const { chromium } = require2("playwright");
 const BASE = "http://localhost:3000";
 const TOKEN = readFileSync(resolve(process.cwd(), "..", "data", "demo-session.token"), "utf8").trim();
-const NODE = "23ca1654-40c0-49a8-a210-de0a1c43ac90"; // HC-05 Bluetooth module
+const NODE = process.env.FLYIN_NODE || "cada2c01-15b5-48f8-aa7f-16ed7579aeac"; // HC-05 Bluetooth module (take 7)
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
