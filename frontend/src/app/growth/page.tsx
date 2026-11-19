@@ -4,22 +4,25 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { getMyGrowth, type GrowthInfo } from "@/lib/api";
 import LevelBadge from "@/components/growth/LevelBadge";
+import { PageHeader } from "@/components/app/PageHeader";
 
 export default function GrowthPage() {
   const [data, setData] = useState<GrowthInfo | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getMyGrowth().then(setData);
+    getMyGrowth().then(setData).catch((reason) => setError(reason instanceof Error ? reason.message : "成长数据暂时不可用"));
   }, []);
 
   if (!data) {
-    return <div className="flex min-h-screen items-center justify-center text-black">加载中...</div>;
+    return <main className="atlas-legacy-page"><PageHeader eyebrow="RESEARCH GROWTH / 成长档案" title="让每一次贡献，都有迹可循。" description="成长值、等级与贡献记录只读取真实账户数据，不使用演示积分。" />{error ? <div className="form-message error" role="alert">{error}。新版成长数据源尚未接通。</div> : <div className="panel empty-state"><h3>正在读取成长档案</h3></div>}</main>;
   }
 
   const { level, level_config, points_rules, recent_points } = data;
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-8 space-y-8">
+    <main className="atlas-legacy-page space-y-8">
+      <PageHeader eyebrow="RESEARCH GROWTH / 成长档案" title="让每一次贡献，都有迹可循。" description="成长值、等级与贡献记录均来自当前真实账户。" />
       {/* Profile card */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between">

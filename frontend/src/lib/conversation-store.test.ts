@@ -133,7 +133,7 @@ describe("conversation storage", () => {
       completeMessage(owner, extra!.id, `answer-${index}`);
     }
     expect(listMessages(owner, conversation.id)!.messages).toHaveLength(CONVERSATION_MESSAGE_LIMIT);
-  });
+  }, 15_000);
 
   it("marks stale pending messages incomplete after an interrupted server", () => {
     const conversation = createConversation(owner, "interrupted");

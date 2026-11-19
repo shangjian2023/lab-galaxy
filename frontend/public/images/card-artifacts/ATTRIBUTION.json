@@ -1,0 +1,185 @@
+{
+  "generatedAt": "2026-11-10T13:15:34.621Z",
+  "generator": "Magpie generate_image with sui-xiang/gpt-image-2.6-flare",
+  "purpose": "Text-free impasto backgrounds and transparent decorative still-life objects for tactile UI cards. Typography, data and controls are rendered separately in HTML.",
+  "promptPractice": "Backgrounds: landscape, evenly distributed low-contrast palette-knife texture, no subject, no text, no logos, no watermark. Objects: one isolated subject, hand-painted gouache and palette-knife texture, transparent background, no writing or branding.",
+  "alphaValidation": "All decorative objects have four channels, fully transparent and nearly or fully opaque source pixels, and transparent pixels retained in optimized WebP output. For the seven new categories, low-alpha backdrop haze below 96 was removed before trimming; five revised sources were selected after visual inspection.",
+  "artifacts": [
+    {
+      "artifact": "network",
+      "file": "/images/card-artifacts/network.webp",
+      "width": 480,
+      "height": 320,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-network",
+      "sourceRevision": "original"
+    },
+    {
+      "artifact": "hardware",
+      "file": "/images/card-artifacts/hardware.webp",
+      "width": 480,
+      "height": 295,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-hardware",
+      "sourceRevision": "original"
+    },
+    {
+      "artifact": "algorithm",
+      "file": "/images/card-artifacts/algorithm.webp",
+      "width": 480,
+      "height": 382,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-algorithm",
+      "sourceRevision": "original"
+    },
+    {
+      "artifact": "software",
+      "file": "/images/card-artifacts/software.webp",
+      "width": 480,
+      "height": 367,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-software",
+      "sourceRevision": "original"
+    },
+    {
+      "artifact": "database",
+      "file": "/images/card-artifacts/database.webp",
+      "width": 363,
+      "height": 480,
+      "sourceAlphaRange": [
+        0,
+        255
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-database",
+      "sourceRevision": "original"
+    },
+    {
+      "artifact": "security",
+      "file": "/images/card-artifacts/security.webp",
+      "width": 478,
+      "height": 480,
+      "sourceAlphaRange": [
+        0,
+        255
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-security",
+      "sourceRevision": "original"
+    },
+    {
+      "artifact": "ai",
+      "file": "/images/card-artifacts/ai.webp",
+      "width": 480,
+      "height": 419,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-ai",
+      "sourceRevision": "-v2"
+    },
+    {
+      "artifact": "mobile",
+      "file": "/images/card-artifacts/mobile.webp",
+      "width": 480,
+      "height": 350,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-mobile",
+      "sourceRevision": "-v2"
+    },
+    {
+      "artifact": "web",
+      "file": "/images/card-artifacts/web.webp",
+      "width": 410,
+      "height": 480,
+      "sourceAlphaRange": [
+        0,
+        255
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-web",
+      "sourceRevision": "-v2"
+    },
+    {
+      "artifact": "os",
+      "file": "/images/card-artifacts/os.webp",
+      "width": 480,
+      "height": 403,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-os",
+      "sourceRevision": "-v2"
+    },
+    {
+      "artifact": "distributed",
+      "file": "/images/card-artifacts/distributed.webp",
+      "width": 480,
+      "height": 381,
+      "sourceAlphaRange": [
+        0,
+        254
+      ],
+      "outputAlphaRange": [
+        0,
+        255
+      ],
+      "className": "artifact-distributed",
+      "sourceRevision": "-v2"
+    }
+  ]
+}

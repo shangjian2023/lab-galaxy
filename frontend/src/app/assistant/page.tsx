@@ -21,7 +21,7 @@ export default async function AssistantPage() {
   }
   return (
     <>
-      <PageHeader eyebrow="RESEARCH COPILOT / 研究助手" title="提问，也要知其来源。" description="围绕真实实验报告进行全文检索，由 Qwen 依据命中原文回答。每一条证据都能回到公开文档与页码。" actions={<Link href="/graph" className="btn btn-secondary"><Network size={15} />查看知识来源</Link>} />
+      <PageHeader eyebrow="THE EVIDENCE ROOM / 证据研究室" title="提问，也要知其来源。" description="把问题放进真实实验报告中寻找答案。每一段生成内容都附带原文证据，历史会话按账号妥善保存。" actions={<Link href="/graph" className="btn btn-secondary"><Network size={15} />查看知识来源</Link>} />
       <div className="assistant-page-grid">
         <ResearchAssistant />
         <aside className="panel context-card">

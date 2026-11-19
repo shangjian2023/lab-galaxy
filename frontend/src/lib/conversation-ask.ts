@@ -1,4 +1,6 @@
-import { searchCorpus, type CorpusSource } from "@/lib/corpus-db";
+import { getCorpusSourcesByChunkIds, searchCorpus, type CorpusSource } from "@/lib/corpus-db";
+import { getKnowledgeNodesByIds } from "./knowledge-nodes";
+import { nodeMentionsToText, parseNodeMentions } from "./node-mentions";
 import { getModelConfig } from "@/lib/server-env";
 import type { Viewer } from "@/lib/auth-types";
 import type { ConversationMessage } from "./conversation-types";
@@ -51,7 +53,21 @@ export async function prepareAsk(
   const message = persist && conversationId !== undefined
     ? createPendingMessage(viewer, conversationId, question)
     : null;
-  const sources = searchCorpus(question, 6, viewer);
+  const retrievalQuestion = nodeMentionsToText(question);
+  const mentions = parseNodeMentions(question);
+  const mentionedNodes = getKnowledgeNodesByIds(viewer, mentions.map((mention) => mention.id));
+  const mentionedSources = getCorpusSourcesByChunkIds(mentionedNodes.map((node) => node.sourceChunkId), viewer)
+    .map((source) => ({
+      ...source,
+      matchedTerms: mentionedNodes.filter((node) => node.sourceChunkId === source.chunkId).map((node) => `@${node.name}`),
+    }));
+  const retrievedSources = searchCorpus(retrievalQuestion, 6, viewer);
+  const seenChunks = new Set<string>();
+  const sources = [...mentionedSources, ...retrievedSources].filter((source) => {
+    if (seenChunks.has(source.chunkId)) return false;
+    seenChunks.add(source.chunkId);
+    return true;
+  }).slice(0, 8);
   if (!sources.length) {
     if (message) completeMessage(viewer, message.id, NO_EVIDENCE_ANSWER, "completed");
     return {
@@ -59,8 +75,8 @@ export async function prepareAsk(
       payload: { answer: NO_EVIDENCE_ANSWER, sources: [], model: null, grounded: false, messageId: message?.id },
     };
   }
-  if (!message) return { prepare: true, viewer, question, conversationId, sources, ephemeral: true };
-  return { prepare: true, viewer, question, conversationId, message, sources };
+  if (!message) return { prepare: true, viewer, question: retrievalQuestion, conversationId, sources, ephemeral: true };
+  return { prepare: true, viewer, question: retrievalQuestion, conversationId, message, sources };
 }
 
 export function evidenceText(sources: CorpusSource[]): string {

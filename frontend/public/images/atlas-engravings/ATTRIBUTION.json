@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-11-13T02:20:23.467Z",
+  "generator": "Magpie generate_image with sui-xiang/gpt-image-2.6-flare",
+  "purpose": "Seven original editorial engravings for the home frontispiece, five genuine capability chapters, and final library reveal. These are decorative visual metaphors, not screenshots, evidence, documents, or experimental results.",
+  "artDirection": "Original copperplate and scientific-atlas imagery in forest green, ink brown, terracotta, dusty blue, rose and warm ivory. No Hermes assets, brand characters, logos, text, watermarks, or fictional software interfaces. All typography and controls are rendered separately in HTML.",
+  "processing": "Locally resized and converted to WebP with sharp. No temporary provider delivery URLs are retained.",
+  "assets": [
+    {
+      "plate": "frontispiece",
+      "file": "/images/atlas-engravings/frontispiece.webp",
+      "source": {
+        "width": 1199,
+        "height": 1312
+      },
+      "output": {
+        "width": 1000,
+        "height": 1094
+      }
+    },
+    {
+      "plate": "documents",
+      "file": "/images/atlas-engravings/documents.webp",
+      "source": {
+        "width": 1536,
+        "height": 1024
+      },
+      "output": {
+        "width": 1200,
+        "height": 800
+      }
+    },
+    {
+      "plate": "knowledge",
+      "file": "/images/atlas-engravings/knowledge.webp",
+      "source": {
+        "width": 1536,
+        "height": 1024
+      },
+      "output": {
+        "width": 1200,
+        "height": 800
+      }
+    },
+    {
+      "plate": "graph",
+      "file": "/images/atlas-engravings/graph.webp",
+      "source": {
+        "width": 1536,
+        "height": 1024
+      },
+      "output": {
+        "width": 1200,
+        "height": 800
+      }
+    },
+    {
+      "plate": "assistant",
+      "file": "/images/atlas-engravings/assistant.webp",
+      "source": {
+        "width": 1536,
+        "height": 1024
+      },
+      "output": {
+        "width": 1200,
+        "height": 800
+      }
+    },
+    {
+      "plate": "collaboration",
+      "file": "/images/atlas-engravings/collaboration.webp",
+      "source": {
+        "width": 1536,
+        "height": 1024
+      },
+      "output": {
+        "width": 1200,
+        "height": 800
+      }
+    },
+    {
+      "plate": "footer",
+      "file": "/images/atlas-engravings/footer.webp",
+      "source": {
+        "width": 1774,
+        "height": 887
+      },
+      "output": {
+        "width": 1600,
+        "height": 800
+      }
+    }
+  ]
+}

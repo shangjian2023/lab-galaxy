@@ -9,12 +9,12 @@ export interface TypeVisual {
 
 /** Static canvas tokens avoid reading CSS variables on every animation frame. */
 export const GRAPH_COLORS = {
-  canvas: "#090f12",
-  panel: "#111a1f",
-  sage: "#738a92",
-  ink: "#a9b9bd",
-  strong: "#d9e8e5",
-  mist: "#52666e",
+  canvas: "#f6f3eb",
+  panel: "#fffdf7",
+  sage: "#aaa79f",
+  ink: "#55544f",
+  strong: "#6d4ba8",
+  mist: "#c8c3b8",
 } as const;
 
 export const TYPE_VISUALS: Record<KnowledgeGroup, TypeVisual> = {
@@ -40,35 +40,11 @@ export function drawNodeShape(
   ctx.globalAlpha = opts.alpha ?? 1;
   ctx.lineJoin = "round";
   ctx.beginPath();
-  if (type === "resource") {
-    ctx.moveTo(x, y - r * 1.12);
-    ctx.lineTo(x + r * 1.12, y);
-    ctx.lineTo(x, y + r * 1.12);
-    ctx.lineTo(x - r * 1.12, y);
-    ctx.closePath();
-  } else if (type === "knowledge") {
-    const side = r * 0.92;
-    ctx.rect(x - side, y - side, side * 2, side * 2);
-  } else {
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-  }
+  ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fillStyle = opts.fill;
   ctx.fill();
   ctx.strokeStyle = opts.stroke;
   ctx.lineWidth = opts.lineWidth;
   ctx.stroke();
-
-  if (type === "experiment") {
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.54, 0, Math.PI * 2);
-    ctx.strokeStyle = opts.detail ?? GRAPH_COLORS.canvas;
-    ctx.lineWidth = Math.max(0.8, opts.lineWidth * 0.7);
-    ctx.stroke();
-  } else if (type === "knowledge") {
-    ctx.beginPath();
-    ctx.arc(x, y, Math.max(1, r * 0.2), 0, Math.PI * 2);
-    ctx.fillStyle = opts.detail ?? GRAPH_COLORS.canvas;
-    ctx.fill();
-  }
   ctx.globalAlpha = 1;
 }

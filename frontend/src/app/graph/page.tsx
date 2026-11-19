@@ -27,7 +27,7 @@ import {
 import { PageHeader } from "@/components/app/PageHeader";
 import { useAuth } from "@/components/app/AuthProvider";
 import { ObsidianGraph, type ObsidianGraphHandle } from "@/components/graph/ObsidianGraph";
-import { demoGraph, groupMeta } from "@/lib/demo-data";
+import { groupMeta } from "@/lib/demo-data";
 import type { KnowledgeGraphData as PersistedKnowledgeGraphData } from "@/lib/knowledge-types";
 import type { ClientState } from "@/lib/graph/engine-client";
 import { DEFAULT_DISPLAY_SETTINGS, type ExplorationDepth, type GraphDisplaySettings, type GraphExploration } from "@/lib/graph/graph-settings";
@@ -37,15 +37,17 @@ import type { KnowledgeGraphData, KnowledgeGroup, KnowledgeNode } from "@/lib/re
 
 const EMPTY_GRAPH: PersistedKnowledgeGraphData = { nodes: [], edges: [] };
 type InspectorTab = "details" | "nodes" | "display" | "physics";
-type GraphSource = "real" | "demo";
+type GraphSource = "corpus" | "mine";
 
 function GraphWorkspace() {
   const params = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const requestedNode = params.get("node");
   const graphRef = useRef<ObsidianGraphHandle>(null);
   const focusNonce = useRef(0);
   const graphRequest = useRef(0);
-  const [source, setSource] = useState<GraphSource>("real");
+  const [source, setSource] = useState<GraphSource>("corpus");
+  const [sourceReady, setSourceReady] = useState(false);
   const [realGraph, setRealGraph] = useState<PersistedKnowledgeGraphData>(EMPTY_GRAPH);
   const [graphLoading, setGraphLoading] = useState(true);
   const [graphError, setGraphError] = useState("");
@@ -63,12 +65,12 @@ function GraphWorkspace() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("details");
   const [expanded, setExpanded] = useState(false);
 
-  const loadRealGraph = useCallback(async () => {
+  const loadGraph = useCallback(async () => {
     const requestId = ++graphRequest.current;
     setGraphLoading(true);
     setGraphError("");
     try {
-      const response = await fetch("/api/knowledge/graph", { cache: "no-store" });
+      const response = await fetch(`/api/knowledge/graph?scope=${source}`, { cache: "no-store" });
       const payload = await response.json().catch(() => null) as (PersistedKnowledgeGraphData & { detail?: string }) | null;
       if (requestId !== graphRequest.current) return;
       if (!response.ok) throw new Error(payload?.detail ?? `图谱读取失败（HTTP ${response.status}）`);
@@ -80,20 +82,52 @@ function GraphWorkspace() {
     } finally {
       if (requestId === graphRequest.current) setGraphLoading(false);
     }
-  }, []);
+  }, [source]);
 
   useEffect(() => {
+    if (authLoading) return;
+    let cancelled = false;
+    setSourceReady(false);
+    const chooseSource = async () => {
+      let nextSource: GraphSource = "corpus";
+      if (user) {
+        try {
+          if (requestedNode) {
+            const response = await fetch(`/api/knowledge/nodes?id=${encodeURIComponent(requestedNode)}`, { cache: "no-store" });
+            const payload = await response.json() as { nodes?: Array<{ sourceScope?: GraphSource }> };
+            const requestedScope = payload.nodes?.[0]?.sourceScope;
+            if (requestedScope === "mine" || requestedScope === "corpus") nextSource = requestedScope;
+          } else {
+            const response = await fetch("/api/ingestion/tasks", { cache: "no-store" });
+            const payload = await response.json() as { tasks?: Array<{ status: string }> };
+            if (response.ok && payload.tasks?.some((task) => task.status === "completed")) nextSource = "mine";
+          }
+        } catch {
+          // 默认来源推断失败时仍提供可切换的公开预置语料。
+        }
+      }
+      if (!cancelled) {
+        setSource(nextSource);
+        setSourceReady(true);
+      }
+    };
+    void chooseSource();
+    return () => { cancelled = true; };
+  }, [authLoading, user?.id, requestedNode]);
+
+  useEffect(() => {
+    if (!sourceReady) return;
     graphRequest.current += 1;
     setRealGraph(EMPTY_GRAPH);
     setSelected(null);
     setExploration(null);
-    void loadRealGraph();
-  }, [user?.id, loadRealGraph]);
+    void loadGraph();
+  }, [user?.id, source, sourceReady, loadGraph]);
 
-  const activeGraph: KnowledgeGraphData = source === "real" ? realGraph : demoGraph;
-  const cacheScope: CacheScope = useMemo(() => source === "real"
-    ? { userId: user?.id ?? "anonymous", scope: "private", teamId: null }
-    : { userId: "demo", scope: "private", teamId: null }, [source, user?.id]);
+  const activeGraph: KnowledgeGraphData = realGraph;
+  const cacheScope: CacheScope = useMemo(() => source === "corpus"
+    ? { userId: "preloaded-corpus", scope: "public", teamId: null }
+    : { userId: user?.id ?? "anonymous", scope: "private", teamId: null }, [source, user?.id]);
 
   const filteredData = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -181,23 +215,23 @@ function GraphWorkspace() {
   return (
     <>
       <PageHeader
-        eyebrow="KNOWLEDGE EXPLORER / 知识星图"
-        title="沿着关系，发现答案。"
-        description="Obsidian 式力导画布：拖拽整理知识，双击固定节点，右键打开局部探索。真实模式只读取已发布且当前账号有权访问的实体关系。"
+        eyebrow="GRAPH VIEW / 关系图谱"
+        title="知识关系图谱"
+        description="以 Obsidian 式全局与局部关系视图探索真实实验知识。拖拽节点、滚轮缩放、双击固定，右键进入局部图谱。"
         actions={<button className="btn btn-secondary" onClick={exportData}><Download size={15} />导出当前数据</button>}
       />
 
       <div className="filter-bar" aria-label="图谱筛选">
         <div className="segmented-control graph-source-control" aria-label="切换图谱数据源">
-          <button className={source === "real" ? "active" : ""} onClick={() => { setSource("real"); setSelected(null); setExploration(null); }}>真实图谱</button>
-          <button className={source === "demo" ? "active" : ""} onClick={() => { setSource("demo"); setSelected(demoGraph.nodes[0] ?? null); setExploration(null); }}>交互演示</button>
+          <button className={source === "corpus" ? "active" : ""} onClick={() => { setSource("corpus"); setSelected(null); setExploration(null); }}>预置语料演示</button>
+          <button className={source === "mine" ? "active" : ""} disabled={!user} title={user ? "查看自己上传文档的知识" : "登录后查看自己的图谱"} onClick={() => { setSource("mine"); setSelected(null); setExploration(null); }}>我的图谱</button>
         </div>
         <label className="search-field"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索实体、方法或结论" aria-label="搜索图谱" /></label>
         <select className="select-field" value={group} onChange={(event) => setGroup(event.target.value as "all" | KnowledgeGroup)} aria-label="按实体类型筛选">
           <option value="all">全部类型</option><option value="experiment">实验</option><option value="resource">资源</option><option value="knowledge">知识</option>
         </select>
-        <select className="select-field" value={year} onChange={(event) => setYear(event.target.value)} aria-label="按年份筛选">
-          <option value="all">全部年份</option>{availableYears.map((item) => <option key={item} value={item}>{item}</option>)}
+        <select className="select-field" value={year} onChange={(event) => setYear(event.target.value)} aria-label="按收录年份筛选">
+          <option value="all">全部收录年份</option>{availableYears.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
         <div className="segmented-control" aria-label="切换数据视图">
           <button className={view === "graph" ? "active" : ""} onClick={() => setView("graph")}><Network size={13} />关系图</button>
@@ -205,18 +239,24 @@ function GraphWorkspace() {
         </div>
       </div>
 
-      {source === "real" && graphError ? <div className="form-message error graph-data-message" role="alert"><span>{graphError}。未用演示数据冒充真实结果。</span><button className="btn btn-secondary" onClick={() => void loadRealGraph()}><RotateCcw size={13} />重试</button></div> : null}
+      <div className={`graph-source-note ${source}`}>
+        {source === "corpus"
+          ? "首次使用默认探索预置公开实验报告的已发布知识；这是可交互的真实语料演示，不是虚构节点。"
+          : "这里只显示你上传文档的已发布知识。文本解析成功后默认进入此视图；完成知识抽取与发布即可看到节点。"}
+      </div>
+
+      {graphError ? <div className="form-message error graph-data-message" role="alert"><span>{graphError}。未用其他数据源冒充当前图谱。</span><button className="btn btn-secondary" onClick={() => void loadGraph()}><RotateCcw size={13} />重试</button></div> : null}
 
       <div className="workspace-grid">
         <section className={`panel graph-workspace obsidian-workspace ${expanded ? "is-expanded" : ""}`} aria-label="知识图谱工作区">
           <div className="panel-heading">
-            <div><h2 className="panel-title">{source === "real" ? "已发布实验知识网络" : "新能源材料知识网络"}</h2><p className="panel-subtitle">当前显示 {filteredData.nodes.length} 个实体 · {filteredData.edges.length} 条关系 · {pinnedIds.length} 个固定节点</p></div>
-            <span className="graph-live"><i />{source === "demo" ? (engineState.ready ? `${engineState.engine === "wasm" ? "WASM" : "TS"} 布局 · 演示数据` : "正在启动布局引擎") : graphLoading ? "正在读取真实图谱" : "真实数据 · 仅已发布"}</span>
+            <div><h2 className="panel-title">{source === "corpus" ? "预置语料 · 交互演示" : "我的知识图谱"}</h2><p className="panel-subtitle">{filteredData.nodes.length} 个节点 · {filteredData.edges.length} 条连接 · {pinnedIds.length} 个固定节点</p></div>
+            <span className="graph-live"><i />{!sourceReady || graphLoading ? "正在读取已发布知识" : source === "corpus" ? "真实公开语料 · 可交互演示" : "我的上传 · 仅已发布"}</span>
           </div>
-          {source === "real" && graphLoading ? (
+          {!sourceReady || graphLoading ? (
             <div className="empty-state"><RotateCcw size={26} className="animate-spin" /><h3>正在读取已发布知识</h3><p>同时应用公开、私有和团队文档访问边界。</p></div>
           ) : filteredData.nodes.length === 0 ? (
-            <div className="empty-state"><Search size={28} /><h3>{activeGraph.nodes.length === 0 && source === "real" ? "还没有已发布的知识实体" : "没有匹配的知识实体"}</h3><p>{activeGraph.nodes.length === 0 && source === "real" ? "从文档中心选择已解析文档，完成按需抽取与人工发布后，真实实体关系会出现在这里。" : "尝试减少筛选条件或更换关键词。"}</p>{activeGraph.nodes.length === 0 && source === "real" ? <Link href="/documents" className="btn btn-primary mt-4"><FileText size={14} />前往文档中心</Link> : <button className="btn btn-secondary mt-4" onClick={clearFilters}>清除筛选</button>}</div>
+            <div className="empty-state"><Search size={28} /><h3>{activeGraph.nodes.length === 0 ? (source === "corpus" ? "预置语料还没有已发布实体" : "你的图谱还没有已发布实体") : "没有匹配的知识实体"}</h3><p>{activeGraph.nodes.length === 0 ? (source === "corpus" ? "预置报告完成知识抽取与人工发布后，会在这里形成可交互的公开知识图谱。" : "上传解析成功只完成文本处理；请在文档中心继续完成知识抽取与人工发布。") : "尝试减少筛选条件或更换关键词。"}</p>{activeGraph.nodes.length === 0 && source === "mine" ? <Link href="/documents" className="btn btn-primary mt-4"><FileText size={14} />前往文档中心</Link> : activeGraph.nodes.length !== 0 ? <button className="btn btn-secondary mt-4" onClick={clearFilters}>清除筛选</button> : null}</div>
           ) : view === "graph" ? (
             <div className="obsidian-stage">
               <ObsidianGraph
@@ -237,8 +277,6 @@ function GraphWorkspace() {
                 onEngineReady={setEngineState}
                 ariaLabel={`知识图谱，${filteredData.nodes.length} 个实体，${filteredData.edges.length} 条关系。拖拽平移，滚轮缩放，双击固定节点。`}
               />
-
-              <div className="obsidian-canvas-caption" aria-hidden="true"><span>{exploration ? "LOCAL GRAPH / 局部图谱" : "GLOBAL GRAPH / 全局图谱"}</span><small>FORCE-DIRECTED KNOWLEDGE ATLAS</small></div>
 
               {exploration ? (
                 <div className="obsidian-exploration-bar">
@@ -261,12 +299,11 @@ function GraphWorkspace() {
               <div className="graph-legend obsidian-legend" aria-label="图例">
                 {(Object.keys(groupMeta) as Array<keyof typeof groupMeta>).map((item) => <span key={item}><i className={`legend-mark ${item}`} style={{ background: groupMeta[item].color }} />{groupMeta[item].label}</span>)}
               </div>
-              <p className="obsidian-canvas-hint">拖拽节点 · 双击固定 · 右键探索 · 滚轮缩放</p>
             </div>
           ) : (
             <div className="data-table-wrapper mt-5">
               <table className="data-table">
-                <thead><tr><th>实体名称</th><th>类型</th><th>分类</th><th>年份</th><th>关联关系</th></tr></thead>
+                <thead><tr><th>实体名称</th><th>类型</th><th>分类</th><th>收录年份</th><th>关联关系</th></tr></thead>
                 <tbody>{filteredData.nodes.map((node) => {
                   const nodeRelations = filteredData.edges.filter((edge) => edge.source === node.id || edge.target === node.id);
                   return <tr key={node.id}><td><button className="table-node-button" onClick={() => { selectAndFocus(node); setView("graph"); }}>{node.name}</button></td><td>{node.type}</td><td>{groupMeta[node.group].label}</td><td>{node.year}</td><td>{nodeRelations.map((edge) => edge.relation).filter((value, index, array) => array.indexOf(value) === index).join("、") || "—"}</td></tr>;
@@ -289,7 +326,7 @@ function GraphWorkspace() {
               selected ? (
                 <>
                   <div className="inspector-hero"><span className="inspector-type">{selected.type} · {groupMeta[selected.group].label}</span><h2>{selected.name}</h2><p>{selected.summary}</p></div>
-                  <div className="inspector-stat-grid"><div className="inspector-stat"><strong>{relations.length}</strong><span>直接关联</span></div><div className="inspector-stat"><strong>{selected.year}</strong><span>知识年份</span></div></div>
+                  <div className="inspector-stat-grid"><div className="inspector-stat"><strong>{relations.length}</strong><span>直接关联</span></div><div className="inspector-stat"><strong>{selected.year}</strong><span>收录年份</span></div></div>
                   <div className="obsidian-detail-actions">
                     <button className="btn btn-secondary" onClick={() => graphRef.current?.togglePin(selected.id)}><Pin size={13} />{pinnedIds.includes(selected.id) ? "解除固定" : "固定节点"}</button>
                     <button className="btn btn-secondary" onClick={() => exploreNode(selected.id)}><Network size={13} />局部探索</button>
@@ -312,7 +349,7 @@ function GraphWorkspace() {
             {inspectorTab === "display" ? (
               <div className="obsidian-settings">
                 <div className="obsidian-panel-heading"><div><strong>显示设置</strong><span>即时应用到画布</span></div><small>缩放时标签会自然渐入</small></div>
-                <label className="obsidian-range"><span>标签显示阈值<output>{displaySettings.textFadeThreshold.toFixed(2)}</output></span><input type="range" min="0.1" max="1.5" step="0.05" value={displaySettings.textFadeThreshold} onChange={(event) => updateDisplay("textFadeThreshold", Number(event.target.value))} /></label>
+                <label className="obsidian-range"><span>标签显示阈值<output>{displaySettings.textFadeThreshold.toFixed(2)}</output></span><input type="range" min="0.05" max="1.5" step="0.05" value={displaySettings.textFadeThreshold} onChange={(event) => updateDisplay("textFadeThreshold", Number(event.target.value))} /></label>
                 <label className="obsidian-range"><span>节点大小<output>{displaySettings.nodeSize.toFixed(1)}×</output></span><input type="range" min="0.5" max="2.5" step="0.1" value={displaySettings.nodeSize} onChange={(event) => updateDisplay("nodeSize", Number(event.target.value))} /></label>
                 <label className="obsidian-range"><span>连线粗细<output>{displaySettings.linkThickness.toFixed(1)}×</output></span><input type="range" min="0.4" max="3" step="0.1" value={displaySettings.linkThickness} onChange={(event) => updateDisplay("linkThickness", Number(event.target.value))} /></label>
                 <label className="obsidian-toggle"><span>关系箭头<small>显示知识关系的方向</small></span><input type="checkbox" checked={displaySettings.showArrows} onChange={(event) => updateDisplay("showArrows", event.target.checked)} /></label>

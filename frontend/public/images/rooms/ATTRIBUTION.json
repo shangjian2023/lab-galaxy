@@ -1,0 +1,21 @@
+{
+  "title": "Van Tromp, going about to please his Masters, Ships a Sea, getting a Good Wetting",
+  "artist": "Joseph Mallord William Turner",
+  "year": 1844,
+  "collection": "The J. Paul Getty Museum",
+  "accession": "93.PA.32",
+  "source": "https://media.getty.edu/iiif/image/73c90d1d-0026-4c34-bae3-ff6a14f99fff/full/2048,/0/default.jpg",
+  "sourcePage": "https://www.getty.edu/news/how-to-use-getty-open-content-for-your-custom-zoom-background/",
+  "reuse": "Getty Open Content Program; source page explicitly offers this image as a downloadable background",
+  "processing": "Resized and encoded as WebP; CSS adds atmospheric scrim",
+  "files": {
+    "turner-harbor-mobile.webp": {
+      "bytes": 61302,
+      "sha256": "3f87b89b10dbfbfbb4e2368ee2ce97a2ca746b05e2a7d8c61502a91f2bf19b2e"
+    },
+    "turner-harbor.webp": {
+      "bytes": 387834,
+      "sha256": "e1a57fcb32ab773d724cc34062a2c552afd137c10bf7523a48ff91c205d024b7"
+    }
+  }
+}

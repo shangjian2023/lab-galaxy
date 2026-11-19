@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-11-10T13:15:34.621Z",
+  "generator": "Magpie generate_image with sui-xiang/gpt-image-2.6-flare",
+  "purpose": "Text-free impasto backgrounds and transparent decorative still-life objects for tactile UI cards. Typography, data and controls are rendered separately in HTML.",
+  "promptPractice": "Backgrounds: landscape, evenly distributed low-contrast palette-knife texture, no subject, no text, no logos, no watermark. Objects: one isolated subject, hand-painted gouache and palette-knife texture, transparent background, no writing or branding.",
+  "alphaValidation": "All decorative objects have four channels, fully transparent and nearly or fully opaque source pixels, and transparent pixels retained in optimized WebP output. For the seven new categories, low-alpha backdrop haze below 96 was removed before trimming; five revised sources were selected after visual inspection.",
+  "textures": [
+    {
+      "tone": "sage",
+      "file": "/images/card-textures/sage.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-0"
+    },
+    {
+      "tone": "blue",
+      "file": "/images/card-textures/blue.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-1"
+    },
+    {
+      "tone": "rose",
+      "file": "/images/card-textures/rose.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-2"
+    },
+    {
+      "tone": "ochre",
+      "file": "/images/card-textures/ochre.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-3"
+    },
+    {
+      "tone": "lavender",
+      "file": "/images/card-textures/lavender.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-4"
+    },
+    {
+      "tone": "terracotta",
+      "file": "/images/card-textures/terracotta.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-5"
+    },
+    {
+      "tone": "mint",
+      "file": "/images/card-textures/mint.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-6"
+    },
+    {
+      "tone": "pearl",
+      "file": "/images/card-textures/pearl.webp",
+      "width": 1200,
+      "height": 800,
+      "className": "tone-7"
+    }
+  ]
+}

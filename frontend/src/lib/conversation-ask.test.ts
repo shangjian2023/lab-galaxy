@@ -8,6 +8,7 @@ import { completeMessage, createConversation, listMessages } from "./conversatio
 import { askNonStream, prepareAsk } from "./conversation-ask";
 import { POST as askPost } from "../app/api/corpus/ask/route";
 import { getCurrentViewer } from "@/lib/server-auth";
+import { createKnowledgeExtractionTask, publishKnowledgeTask, setKnowledgeModelForTests } from "./knowledge-store";
 
 vi.mock("@/lib/server-auth", () => ({ getCurrentViewer: vi.fn() }));
 vi.mock("@/lib/auth-http", () => ({ checkSameOrigin: () => null }));
@@ -60,6 +61,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setKnowledgeModelForTests(undefined);
   delete process.env.CORPUS_DB_PATH;
   delete process.env.LLM_BASE_URL;
   delete process.env.LLM_MODEL;
@@ -68,6 +70,23 @@ afterEach(() => {
 });
 
 describe("conversation ask", () => {
+  it("uses an authorized @node as direct evidence even when plain retrieval misses", async () => {
+    setKnowledgeModelForTests(async () => JSON.stringify({
+      entities: [{ name: "专属节点", type: "概念", group: "knowledge", summary: "仅用于节点证据测试", confidence: 0.9, evidenceChunkId: "public-chunk" }],
+      relations: [],
+    }));
+    const extracted = await createKnowledgeExtractionTask({ documentId: "public", viewer, maxChunks: 1, model: "test-model" });
+    if (!("task" in extracted)) throw new Error("expected extraction");
+    publishKnowledgeTask(extracted.task.id, viewer);
+    const nodeId = extracted.task.entities[0].id;
+    const conversation = createConversation(viewer, "Mention evidence");
+    const outcome = await prepareAsk(viewer, `解释 @[专属节点](${nodeId})`, conversation.id);
+    if (!("prepare" in outcome)) throw new Error("expected grounded mention evidence");
+    expect(outcome.question).toBe("解释 @专属节点");
+    expect(outcome.sources).toHaveLength(1);
+    expect(outcome.sources[0]).toMatchObject({ chunkId: "public-chunk", matchedTerms: ["@专属节点"] });
+  });
+
   it("rejects another owner's conversation", async () => {
     const conversation = createConversation(other, "Other");
     const outcome = await prepareAsk(viewer, "tcp protocol", conversation.id);

@@ -94,6 +94,8 @@ export interface KnowledgeTask {
   evidence: KnowledgeEvidence[];
 }
 
+export type KnowledgeGraphScope = "all" | "corpus" | "mine";
+
 export interface KnowledgeGraphNode {
   id: string;
   name: string;
@@ -102,6 +104,7 @@ export interface KnowledgeGraphNode {
   summary: string;
   year: number;
   documentId: string;
+  sourceScope?: "corpus" | "mine" | "shared";
   taskId: string;
   sourceDocumentId: string;
   sourceChunkId: string;

@@ -7,6 +7,7 @@ import type { ForumBoard, ForumThread } from "@/lib/api";
 import BoardCard from "@/components/forum/BoardCard";
 import ThreadCard from "@/components/forum/ThreadCard";
 import ThreadList from "@/components/forum/ThreadList";
+import { PageHeader } from "@/components/app/PageHeader";
 
 const SORT_OPTIONS = [
   { value: "hot", label: "综合" },
@@ -29,6 +30,7 @@ const PAGE_SIZE = 15;
 export default function ForumPage() {
   const [boards, setBoards] = useState<ForumBoard[]>([]);
   const [boardsLoading, setBoardsLoading] = useState(true);
+  const [boardsError, setBoardsError] = useState("");
 
   const [threads, setThreads] = useState<ForumThread[]>([]);
   const [total, setTotal] = useState(0);
@@ -36,16 +38,18 @@ export default function ForumPage() {
   const [sort, setSort] = useState("hot");
   const [postType, setPostType] = useState("");
   const [threadsLoading, setThreadsLoading] = useState(false);
+  const [threadsError, setThreadsError] = useState("");
 
   useEffect(() => {
     listForumBoards()
       .then((res) => setBoards(res.boards))
-      .catch(console.error)
+      .catch(() => setBoardsError("论坛板块服务尚未接入新版数据源，当前无法读取真实板块。"))
       .finally(() => setBoardsLoading(false));
   }, []);
 
   const fetchThreads = useCallback(async () => {
     setThreadsLoading(true);
+    setThreadsError("");
     try {
       const res = await listForumThreads({
         sort,
@@ -57,6 +61,8 @@ export default function ForumPage() {
       setTotal(res.total);
     } catch {
       setThreads([]);
+      setTotal(0);
+      setThreadsError("论坛帖子服务尚未接入新版数据源，当前无法读取真实帖子。");
     } finally {
       setThreadsLoading(false);
     }
@@ -67,21 +73,11 @@ export default function ForumPage() {
   }, [fetchThreads]);
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="liquid-glass-card px-6 py-5">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🧪</span>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">知识发酵池</h1>
-              <p className="text-sm text-gray-700">让静态的知识在这里产生化学反应</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <main className="atlas-legacy-page">
+      <PageHeader eyebrow="RESEARCH COMMONS / 知识发酵池" title="让问题，在讨论中继续生长。" description="围绕实验发现、方法与研究问题展开讨论。帖子与板块只在真实服务返回后展示。" actions={<Link href="/forum/new" className="btn btn-primary">发布研究讨论</Link>} />
 
       {/* Board cards */}
+      {boardsError ? <div className="form-message error mb-6" role="alert">{boardsError}</div> : null}
       <div className="mb-8">
         {boardsLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -138,12 +134,6 @@ export default function ForumPage() {
             </button>
           ))}
           <div className="flex-1" />
-          <Link
-            href="/forum/new"
-            className="btn-primary rounded-lg px-4 py-1.5 text-xs font-medium"
-          >
-            + 发帖
-          </Link>
         </div>
       </div>
 
@@ -152,6 +142,8 @@ export default function ForumPage() {
         <div className="flex items-center justify-center py-16">
           <p className="text-black">加载中...</p>
         </div>
+      ) : threadsError ? (
+        <div className="form-message error" role="alert">{threadsError}</div>
       ) : (
         <ThreadList
           threads={threads}

@@ -73,11 +73,11 @@ export type WorkerResponse =
   | TickMessage;
 
 export const DEFAULT_SETTINGS: EngineSettings = {
-  repel: 1600,
-  centerStrength: 0.02,
-  linkDistance: 145,
-  linkStrength: 0.55,
-  clusterForce: 0.015,
+  repel: 1000,
+  centerStrength: 0.01,
+  linkDistance: 120,
+  linkStrength: 0.9,
+  clusterForce: 0,
 };
 
 export const ALPHA_DONE = 0.005;

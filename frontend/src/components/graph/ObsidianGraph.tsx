@@ -44,6 +44,7 @@ import {
   type ViewTransform,
 } from "@/lib/graph/graph-math";
 import { neighborhoodDistances } from "@/lib/graph/graph-math";
+import { planGraphLabels, type GraphLabelPlacement } from "@/lib/graph/graph-labels";
 import { graphSignature, loadLayout, saveLayout, type CacheScope } from "@/lib/graph/position-cache";
 import type { GraphDisplaySettings, GraphExploration } from "@/lib/graph/graph-settings";
 import { drawNodeShape, GRAPH_COLORS, NODE_BASE_RADIUS, visualOf } from "./obsidian-shapes";
@@ -187,7 +188,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
         hitDirtyRef.current = true;
         if (
           autoViewRef.current &&
-          (msg.tick === 1 || (msg.alpha <= 0.2 && msg.alpha > 0.035 && msg.tick - lastFitTickRef.current >= 60))
+          (msg.done || msg.tick === 1 || (msg.alpha <= 0.2 && msg.alpha > 0.035 && msg.tick - lastFitTickRef.current >= 60))
         ) {
           lastFitTickRef.current = msg.tick;
           requestFit(false);
@@ -230,13 +231,16 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     }
     const { w, h } = dimsRef.current;
     if (w <= 0 || h <= 0) return;
-    const to = neighborhood?.size === 1 && positions
+    const fitted = neighborhood?.size === 1 && positions
       ? (() => {
         const index = neighborhood.keys().next().value!;
         const k = 1.2;
         return { x: w / 2 - positions[index * 2] * k, y: h / 2 - positions[index * 2 + 1] * k, k };
       })()
       : fitBounds({ minX, minY, maxX, maxY }, w, h, neighborhood ? 110 : 60);
+    // 小屏首次打开大图时保留可读标签的局部总览；显式“适应全部”仍使用完整 fit。
+    const automaticMobileOverview = autoViewRef.current && !neighborhood && ids.length > 60 && w < 600;
+    const to = automaticMobileOverview ? { ...fitted, k: Math.max(fitted.k, 0.28) } : fitted;
     if (reducedMotionRef.current || !animate) {
       transformRef.current = to;
       hitDirtyRef.current = true;
@@ -639,9 +643,46 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     ctx.globalAlpha = 1;
 
     // ── 节点 ──
-    const lo = labelOpacity(t.k, display.textFadeThreshold, display.textFadeThreshold + 0.4);
+    const lo = labelOpacity(t.k, display.textFadeThreshold, display.textFadeThreshold + (ids.length > 60 ? 0.2 : 0.4));
     const baseR = NODE_BASE_RADIUS * display.nodeSize * Math.max(0.85, Math.min(1.5, t.k * 0.85 + 0.4));
     const maxDegree = Math.max(1, ...data.nodes.map((node) => degreeById.get(node.id) ?? 0));
+    const labelFontSize = ids.length > 60 ? 11 : 12;
+    const labelPlacements: GraphLabelPlacement[] = [];
+    ctx.font = `400 ${labelFontSize}px 'Noto Sans SC', 'Microsoft YaHei', sans-serif`;
+    for (let i = 0; i < ids.length; i += 1) {
+      const node = data.nodes[i];
+      if (!node) continue;
+      const x = px(i);
+      const y = py(i);
+      if (x < vx0 || x > vx1 || y < vy0 || y > vy1) continue;
+      const force = hoverId === node.id || selected === node.id || highlights.has(node.id) || explorationRef.current?.rootId === node.id;
+      if (!force && (lo <= 0.02 || (neighborhood && !neighborhood.has(i)))) continue;
+      const degree = degreeById.get(node.id) ?? 0;
+      const r = baseR * visualOf(node.group).scale * (1 + Math.sqrt(degree / maxDegree) * 0.6);
+      const label = node.name.length > 16 ? `${node.name.slice(0, 15)}…` : node.name;
+      const labelWidth = ctx.measureText(label).width;
+      const screenX = x * t.k + t.x;
+      const screenY = y * t.k + t.y;
+      const labelX = Math.max(10 + labelWidth / 2, Math.min(w - 10 - labelWidth / 2, screenX));
+      const labelY = Math.min(h - 36, screenY + r * t.k + 10);
+      labelPlacements.push({
+        id: node.id,
+        group: node.group,
+        force,
+        left: labelX - labelWidth / 2,
+        right: labelX + labelWidth / 2,
+        top: labelY - labelFontSize / 2 - 2,
+        bottom: labelY + labelFontSize / 2 + 2,
+      });
+    }
+    const overviewLabels = ids.length > 60 && t.k < 0.75;
+    const maxVisibleLabels = overviewLabels
+      ? Math.max(24, Math.floor((w * h) / (t.k < 0.55 ? 8000 : 6500)))
+      : undefined;
+    const plannedLabels = planGraphLabels(labelPlacements, {
+      maxVisible: maxVisibleLabels,
+      gap: overviewLabels ? 6 : 3,
+    });
     let hoverIndexForTop = -1;
 
     const drawOne = (i: number): void => {
@@ -690,25 +731,30 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
       }
 
       const forceLabel = isHover || isSelected || highlights.has(node.id) || explorationRef.current?.rootId === node.id;
-      const isImportant = forceLabel || (lo > 0.5 && degree / maxDegree >= 0.45) || isNeighbor;
-      if (forceLabel || (lo > 0.02 && (!neighborhood || neighborhood.has(i)) && isImportant)) {
+      // 小图显示全部名称；大图按空间碰撞与类型轮换显示，避免文字堆叠。
+      // 悬浮、选中和局部根节点始终保留名称，不采用度数或紫色优先策略。
+      if (forceLabel || (lo > 0.02 && plannedLabels.has(node.id))) {
         const labelAlpha = forceLabel ? Math.max(0.85, alpha) : lo * 0.96;
         if (labelAlpha > 0.02) {
           ctx.globalAlpha = labelAlpha * (dimByHover ? 1 - hoverAlpha * 0.6 : 1);
           ctx.fillStyle = GRAPH_COLORS.ink;
-          ctx.font = `${isSelected || isHover ? 550 : 400} 12px 'Noto Sans SC', 'Microsoft YaHei', sans-serif`;
+          ctx.font = `${isSelected || isHover ? 550 : 400} ${labelFontSize}px 'Noto Sans SC', 'Microsoft YaHei', sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           const label = node.name.length > 16 ? `${node.name.slice(0, 15)}…` : node.name;
           // 文字保持屏幕像素大小，不随世界坐标缩放变糊或缩成微字。
           ctx.save();
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          ctx.font = `${isSelected || isHover ? 550 : 400} 12px 'Noto Sans SC', 'Microsoft YaHei', sans-serif`;
+          ctx.font = `${isSelected || isHover ? 550 : 400} ${labelFontSize}px 'Noto Sans SC', 'Microsoft YaHei', sans-serif`;
           const labelWidth = ctx.measureText(label).width;
           const screenX = x * t.k + t.x;
           const screenY = y * t.k + t.y;
           const labelX = Math.max(10 + labelWidth / 2, Math.min(w - 10 - labelWidth / 2, screenX));
           const labelY = Math.min(h - 36, screenY + r * t.k + 10);
+          ctx.strokeStyle = GRAPH_COLORS.canvas;
+          ctx.lineWidth = 3;
+          ctx.lineJoin = "round";
+          ctx.strokeText(label, labelX, labelY);
           ctx.fillText(label, labelX, labelY);
           ctx.restore();
           ctx.globalAlpha = 1;

@@ -22,10 +22,10 @@ async function request(path: string, init?: RequestInit): Promise<AuthPayload> {
   return payload ?? {};
 }
 
-export function AccountPanel() {
+export function AccountPanel({ initialMode = "login" }: { initialMode?: "login" | "register" }) {
   const { user, loading, logout } = useAuth();
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");

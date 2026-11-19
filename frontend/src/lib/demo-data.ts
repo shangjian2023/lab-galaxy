@@ -43,7 +43,7 @@ export const demoDocuments: ResearchDocument[] = [
 ];
 
 export const groupMeta = {
-  experiment: { label: "实验", color: "#3987e5", description: "研究项目与实验过程" },
-  resource: { label: "资源", color: "#d95926", description: "样品、试剂与设备" },
-  knowledge: { label: "知识", color: "#199e70", description: "方法、理论与结论" },
+  experiment: { label: "实验", color: "#7856a8", description: "研究项目与实验过程" },
+  resource: { label: "资源", color: "#c47a22", description: "样品、试剂与设备" },
+  knowledge: { label: "知识", color: "#00856f", description: "方法、理论与结论" },
 } as const;

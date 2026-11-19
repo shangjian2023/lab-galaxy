@@ -1,0 +1,15 @@
+演示视频素材署名 / Attribution
+================================
+
+视频:lab-galaxy-demo-draft.mp4(2026-11-19)
+
+背景音乐:
+- 曲目:Electrodoodle
+- 作者:Kevin MacLeod (incompetech.com)
+- 授权:Creative Commons: By Attribution 4.0 License
+- 链接:http://creativecommons.org/licenses/by/4.0/
+
+画面素材:
+- 平台界面:本项目(LAB GALAXY 创新实验知识图谱平台)真实运行录制
+- 演示文档:Bluetooth_Communication_Experiment_Supplement.pdf(为本演示生成的英文样例报告)
+- 站内油画/铜版画素材:见 frontend/THIRD_PARTY_NOTICES.md 与 public/images/atlas-engravings/ATTRIBUTION.json

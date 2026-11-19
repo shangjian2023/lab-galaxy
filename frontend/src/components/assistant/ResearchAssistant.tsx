@@ -6,6 +6,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowUp, Bot, Check, ExternalLink, FileSearch, History, LockKeyhole, MessageSquarePlus, Pencil, RefreshCw, RotateCcw, Sparkles, Square, Trash2, User, X } from "lucide-react";
 import { useAuth } from "@/components/app/AuthProvider";
+import { NodeMentionInput } from "@/components/assistant/NodeMentionInput";
+import { NodeMentionText } from "@/components/assistant/NodeMentionText";
+import { nodeMentionsToText } from "@/lib/node-mentions";
 import { createConversation, deleteConversation, listConversationMessages, listConversations, renameConversation, streamConversationAsk } from "@/lib/conversation-client";
 import type { ConversationMessage, ConversationSummary } from "@/lib/conversation-types";
 
@@ -143,7 +146,8 @@ export function ResearchAssistant({ compact = false }: { compact?: boolean }) {
     let optimisticId = "";
     try {
       if (!conversationId) {
-        const created = await createConversation(cleaned.length > 38 ? `${cleaned.slice(0, 38)}…` : cleaned);
+        const titleText = nodeMentionsToText(cleaned);
+        const created = await createConversation(titleText.length > 38 ? `${titleText.slice(0, 38)}…` : titleText);
         if (generation !== generationRef.current) return;
         conversationId = created.id;
         setCurrentConversation(created.id);
@@ -260,7 +264,7 @@ export function ResearchAssistant({ compact = false }: { compact?: boolean }) {
           </div>
         ) : visibleMessages.map((item) => (
           <div className="answer-group" key={item.id}>
-            <div className="user-question"><User size={14} /><span>{item.question}</span>{item.status !== "completed" ? <small className={`message-status ${item.status}`}>{item.status === "pending" ? "回答中" : item.status === "incomplete" ? "未完成" : "失败"}</small> : null}</div>
+            <div className="user-question"><User size={14} /><span><NodeMentionText text={item.question} /></span>{item.status !== "completed" ? <small className={`message-status ${item.status}`}>{item.status === "pending" ? "回答中" : item.status === "incomplete" ? "未完成" : "失败"}</small> : null}</div>
             <div className="assistant-answer">
               <span className="answer-icon">{item.status === "pending" ? <RefreshCw size={14} className="animate-spin" /> : <Bot size={15} />}</span>
               <div>
@@ -283,10 +287,10 @@ export function ResearchAssistant({ compact = false }: { compact?: boolean }) {
       {!user && !authLoading ? <div className="assistant-login-notice"><LockKeyhole size={18} /><p><strong>登录后开始证据问答</strong><span>公开原文仍可阅读；登录可防止未授权模型调用，并按你的知识范围检索。</span></p><Link href="/account" className="btn btn-secondary">登录 / 注册</Link></div> : null}
 
       <form className="assistant-input" onSubmit={(event) => { event.preventDefault(); void ask(question); }}>
-        <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={user ? "询问网络、系统、数据库或云计算实验…" : "请先登录后提问"} aria-label="向研究助手提问" maxLength={500} disabled={streaming || !user} />
+        <NodeMentionInput value={question} onChange={setQuestion} placeholder={user ? "询问实验，或输入 @ 引用知识节点…" : "请先登录后提问"} disabled={streaming || !user} />
         {streaming ? <button type="button" onClick={abortActive} className="assistant-stop" aria-label="停止回答"><Square size={13} /></button> : <button type="submit" disabled={!question.trim() || !user} aria-label="发送问题"><ArrowUp size={17} /></button>}
       </form>
-      <p className="assistant-disclaimer">问题与命中的有权原文会发送至服务端配置的 Qwen；会话按账号保存。请核对证据，谨慎提交私密内容。</p>
+      <p className="assistant-disclaimer">输入 @ 可引用已发布节点及其原文证据。问题与命中的有权原文会发送至服务端 Qwen；会话按账号保存。</p>
     </section>
   );
 

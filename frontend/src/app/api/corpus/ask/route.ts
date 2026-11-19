@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       return NextResponse.json(outcome.payload);
     }
     const controller = new AbortController();
-    const upstreamRequest = createModelStreamRequest(question, prepared.sources, controller.signal);
+    const upstreamRequest = createModelStreamRequest(prepared.question, prepared.sources, controller.signal);
     return streamAsk(
       viewer,
       question,

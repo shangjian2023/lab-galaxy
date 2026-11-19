@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { ChatMessageItem } from "@/lib/api";
-import SmartNodeLink from "../graph/SmartNodeLink";
 
 interface Props {
   msg: ChatMessageItem;
@@ -48,14 +47,13 @@ function MentionHighlight({ content }: { content: string }) {
       parts.push(content.slice(lastIndex, match.index));
     }
     parts.push(
-      <SmartNodeLink
+      <Link
         key={match.index}
-        nodeId={match[2]}
-        displayName={match[1]}
+        href={`/graph?node=${encodeURIComponent(match[2])}`}
         className="rounded bg-[#9A8C73]/15 px-1 py-0.5 font-medium underline decoration-[#9A8C73]/40 underline-offset-2 hover:bg-[#9A8C73]/25"
       >
         @{match[1]}
-      </SmartNodeLink>
+      </Link>
     );
     lastIndex = match.index + match[0].length;
   }

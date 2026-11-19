@@ -23,7 +23,7 @@ function loadPosition(): { x: number; y: number } {
       }
     }
   } catch { /* ignore */ }
-  return { x: 16, y: 112 };
+  return { x: window.innerWidth > 720 ? 60 : 16, y: Math.max(450, window.innerHeight - 140) };
 }
 
 function savePosition(x: number, y: number) {
@@ -33,7 +33,7 @@ function savePosition(x: number, y: number) {
 }
 
 export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
-  const [pos, setPos] = useState(loadPosition);
+  const [pos, setPos] = useState({ x: 16, y: 704 });
   const [scared, setScared] = useState(false);
   const dragRef = useRef<{
     originX: number;
@@ -48,6 +48,11 @@ export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
   const scaredRafRef = useRef(0);
   const posRef = useRef(pos);
   posRef.current = pos;
+
+  // Restore the saved position after hydration to keep server and client markup identical.
+  useEffect(() => {
+    setPos(loadPosition());
+  }, []);
 
   // Clamp on resize
   useEffect(() => {
@@ -139,13 +144,12 @@ export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
     window.addEventListener("mouseup", handleWindowMouseUp);
   }, [handleWindowMouseMove, handleWindowMouseUp]);
 
-  // Cleanup on unmount
+  // Position is saved after each completed drag. Avoid writing the initial
+  // position during Strict Mode's setup/cleanup probe.
   useEffect(() => {
     return () => {
       window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
-      const p = posRef.current;
-      savePosition(p.x, p.y);
     };
   }, [handleWindowMouseMove, handleWindowMouseUp]);
 
@@ -155,6 +159,15 @@ export default function DraggablePixelChar({ isFullscreen, onToggle }: Props) {
       className="fixed z-50 select-none"
       style={{ left: pos.x, top: pos.y, touchAction: "none", cursor: "grab" }}
       onMouseDown={handleMouseDown}
+      role="button"
+      tabIndex={0}
+      aria-label={isFullscreen ? "退出全屏图谱；也可拖拽移动此角色" : "全屏图谱；也可拖拽移动此角色"}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onToggle();
+        }
+      }}
     >
       <div className="flex flex-col items-center gap-0.5">
         <div className="flex items-center gap-1">

@@ -18,7 +18,7 @@ export default function BoardCard({ board, index }: Props) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
       onClick={() => router.push(`/forum/${board.slug}`)}
-      className="liquid-glass-card flex cursor-pointer flex-col gap-3 p-5 text-left"
+      className={`liquid-glass-card tactile-card forum-board-card tone-${index % 8} flex cursor-pointer flex-col gap-3 p-5 text-left`}
     >
       <div className="flex items-center gap-3">
         <span className="text-3xl">{board.icon}</span>

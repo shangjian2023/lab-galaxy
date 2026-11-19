@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { searchGraphNodes } from "@/lib/api";
-import type { GraphNode } from "@/lib/api";
+import type { KnowledgeGraphNode } from "@/lib/knowledge-types";
 
 interface Props {
   value: string;
@@ -43,10 +42,11 @@ export default function ChatMentionInput({ value, onChange, onKeyDown, placehold
       setResults([]);
       return;
     }
-    const nodesPromise = searchGraphNodes(q, undefined, 5, "team").catch(() => ({ nodes: [] }));
-    let nodes: GraphNode[] = [];
+    let nodes: KnowledgeGraphNode[] = [];
     try {
-      const res = await nodesPromise;
+      const response = await fetch(`/api/knowledge/nodes?q=${encodeURIComponent(q)}&limit=5`, { cache: "no-store" });
+      if (!response.ok) throw new Error("节点检索失败");
+      const res = await response.json() as { nodes?: KnowledgeGraphNode[] };
       nodes = res.nodes || [];
     } catch {
       nodes = [];

@@ -1,0 +1,86 @@
+{
+  "home-water-lilies": {
+    "id": "1e691a57-153d-466e-b6d6-5e489099c635",
+    "source_page": "https://www.getty.edu/news/how-to-use-getty-open-content-for-your-custom-zoom-background/",
+    "mood": "misty blue and green",
+    "source": "https://media.getty.edu/iiif/image/1e691a57-153d-466e-b6d6-5e489099c635/full/1200,/0/default.jpg",
+    "reuse": "Getty Open Content; image is stored locally as a resized WebP derivative for decorative background use",
+    "processing": "Resized and encoded as WebP; CSS adds a dark atmospheric scrim",
+    "dimensions": [
+      1154,
+      1536
+    ],
+    "bytes": 115910,
+    "sha256": "4013cfce7ea57e5a7678c9c24c4bc8378ebc09195fd77b2a0eed2d17602f9848"
+  },
+  "documents-still-life": {
+    "id": "3441f83b-6130-466b-a236-c4283e732e60",
+    "source_page": "https://www.getty.edu/news/how-to-use-getty-open-content-for-your-custom-zoom-background/",
+    "mood": "warm ochre and umber",
+    "source": "https://media.getty.edu/iiif/image/3441f83b-6130-466b-a236-c4283e732e60/full/1200,/0/default.jpg",
+    "reuse": "Getty Open Content; image is stored locally as a resized WebP derivative for decorative background use",
+    "processing": "Resized and encoded as WebP; CSS adds a dark atmospheric scrim",
+    "dimensions": [
+      1200,
+      888
+    ],
+    "bytes": 84242,
+    "sha256": "72fb4e7de45255339c56d3a0c8c895a21ec738aa047fc666a382816881894d77"
+  },
+  "graph-landscape": {
+    "id": "7954d5b8-68ac-46a2-b3d2-a9d0fdd45374",
+    "source_page": "https://www.getty.edu/news/how-to-use-getty-open-content-for-your-custom-zoom-background/",
+    "mood": "deep green and slate blue",
+    "source": "https://media.getty.edu/iiif/image/7954d5b8-68ac-46a2-b3d2-a9d0fdd45374/full/1200,/0/default.jpg",
+    "reuse": "Getty Open Content; image is stored locally as a resized WebP derivative for decorative background use",
+    "processing": "Resized and encoded as WebP; CSS adds a dark atmospheric scrim",
+    "dimensions": [
+      1200,
+      1418
+    ],
+    "bytes": 401140,
+    "sha256": "b07a997c2d6bd92c2eddb8f1b06e53023e10289c352b4cd8bfbec992ed31bf23"
+  },
+  "forum-flower-study": {
+    "id": "a52cd63a-6561-417d-a2c6-61f4daa8b651",
+    "source_page": "https://www.getty.edu/news/how-to-use-getty-open-content-for-your-custom-zoom-background/",
+    "mood": "crimson, brown and candlelight",
+    "source": "https://media.getty.edu/iiif/image/a52cd63a-6561-417d-a2c6-61f4daa8b651/full/1200,/0/default.jpg",
+    "reuse": "Getty Open Content; image is stored locally as a resized WebP derivative for decorative background use",
+    "processing": "Resized and encoded as WebP; CSS adds a dark atmospheric scrim",
+    "dimensions": [
+      1200,
+      917
+    ],
+    "bytes": 183878,
+    "sha256": "74d6337496e87bbd415c742ab2eee7a5ae64229b7260c011e1e96ec0857d0a00"
+  },
+  "profile-portrait": {
+    "id": "da38b60b-fda6-4ea4-ad29-a1296734a507",
+    "source_page": "https://www.getty.edu/news/how-to-use-getty-open-content-for-your-custom-zoom-background/",
+    "mood": "quiet charcoal and gold",
+    "source": "https://media.getty.edu/iiif/image/da38b60b-fda6-4ea4-ad29-a1296734a507/full/1200,/0/default.jpg",
+    "reuse": "Getty Open Content; image is stored locally as a resized WebP derivative for decorative background use",
+    "processing": "Resized and encoded as WebP; CSS adds a dark atmospheric scrim",
+    "dimensions": [
+      1200,
+      948
+    ],
+    "bytes": 205766,
+    "sha256": "315e0023769595231ad747d382a0cfea80f801b5ec0ddcef7edcc5403461248b"
+  },
+  "workbench-evening": {
+    "id": "dffc719a-63f5-4f6c-8a57-a8be9feabfbe",
+    "source_page": "https://www.getty.edu/news/how-to-use-getty-open-content-for-your-custom-zoom-background/",
+    "mood": "smoky blue and dusk gold",
+    "source": "https://media.getty.edu/iiif/image/dffc719a-63f5-4f6c-8a57-a8be9feabfbe/full/1200,/0/default.jpg",
+    "reuse": "Getty Open Content; image is stored locally as a resized WebP derivative for decorative background use",
+    "processing": "Resized and encoded as WebP; CSS adds a dark atmospheric scrim",
+    "dimensions": [
+      1200,
+      909
+    ],
+    "bytes": 234706,
+    "sha256": "3ce9efd4ff436d503a150869df8ffdee3a16fd15c81def1b6acea905e685fcce"
+  }
+}

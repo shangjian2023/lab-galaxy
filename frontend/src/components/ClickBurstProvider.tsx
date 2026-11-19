@@ -20,7 +20,7 @@ export default function ClickBurstProvider() {
       const target = e.target as HTMLElement;
       // Only burst on actual buttons / links / role=button elements
       const clickable = target.closest("button, a[href], [role='button'], [data-burst]");
-      if (!clickable) return;
+      if (!clickable || document.documentElement.dataset.atmosphere === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
       // Skip if the element is disabled
       if ((clickable as HTMLElement).hasAttribute("disabled")) return;

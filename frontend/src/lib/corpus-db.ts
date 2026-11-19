@@ -165,6 +165,41 @@ export function searchCorpus(question: string, limit = 6, viewer: Viewer | null 
   }
 }
 
+export function getCorpusSourcesByChunkIds(chunkIds: readonly string[], viewer: Viewer | null = null): CorpusSource[] {
+  const ids = [...new Set(chunkIds.filter((id) => typeof id === "string" && id.length > 0))].slice(0, 8);
+  if (!ids.length) return [];
+  const database = openReadonlyDatabase();
+  try {
+    const access = documentAccess(viewer);
+    const placeholders = ids.map(() => "?").join(",");
+    const rows = database.prepare(`
+      SELECT c.id AS chunk_id, c.document_id, c.page_start, c.page_end, c.text,
+             d.title, d.source_url, d.institution
+      FROM document_chunks c JOIN documents d ON d.id = c.document_id
+      WHERE d.status = 'parsed' AND ${access.sql} AND c.id IN (${placeholders})
+    `).all(...access.params, ...ids) as Array<Record<string, unknown>>;
+    const byId = new Map(rows.map((row) => [String(row.chunk_id), row]));
+    return ids.flatMap((chunkId) => {
+      const row = byId.get(chunkId);
+      if (!row) return [];
+      return [{
+        chunkId,
+        documentId: String(row.document_id),
+        title: String(row.title),
+        sourceUrl: String(row.source_url),
+        institution: row.institution ? String(row.institution) : null,
+        pageStart: row.page_start === null ? null : Number(row.page_start),
+        pageEnd: row.page_end === null ? null : Number(row.page_end),
+        text: String(row.text),
+        score: 100,
+        matchedTerms: ["@节点原文"],
+      }];
+    });
+  } finally {
+    database.close();
+  }
+}
+
 export function getCorpusStats(viewer: Viewer | null = null) {
   const database = openReadonlyDatabase();
   try {

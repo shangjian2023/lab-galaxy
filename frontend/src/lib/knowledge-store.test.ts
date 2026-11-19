@@ -68,7 +68,7 @@ afterEach(() => {
   rmSync(temporary, { recursive: true, force: true });
 });
 
-function addDocument(id: string, visibility: "private" | "team" | "public", ownerId: string, chunks = 2) {
+function addDocument(id: string, visibility: "private" | "team" | "public", ownerId: string | null, chunks = 2) {
   database.prepare(`
     INSERT INTO documents (id,title,source_url,status,owner_id,visibility,team_id,created_at,updated_at)
     VALUES (?,?,?,'parsed',?,?,CASE WHEN ?='team' THEN 'team-1' ELSE NULL END,'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')
@@ -129,6 +129,16 @@ describe("knowledge store", () => {
     expect(getKnowledgeGraph(bob).nodes).toHaveLength(2);
     expect(getKnowledgeGraph(admin).nodes).toHaveLength(2);
     expect(getKnowledgeGraph(alice).nodes).toHaveLength(6);
+    expect(getKnowledgeGraph(alice, "mine").nodes).toHaveLength(6);
+    expect(getKnowledgeGraph(alice, "corpus").nodes).toHaveLength(0);
+
+    addDocument("doc-preloaded", "public", null, 2);
+    const corpusResult = await createKnowledgeExtractionTask({ documentId: "doc-preloaded", viewer: alice, maxChunks: 4, model: "qwen-test" });
+    if (!("task" in corpusResult)) throw new Error("unexpected corpus extraction failure");
+    publishKnowledgeTask(corpusResult.task.id, alice);
+    expect(getKnowledgeGraph(alice, "corpus").nodes).toHaveLength(2);
+    expect(getKnowledgeGraph(alice, "mine").nodes).toHaveLength(6);
+    expect(getKnowledgeGraph(null, "corpus").nodes).toHaveLength(2);
   });
 
   it("enforces private and team visibility", async () => {
@@ -177,6 +187,8 @@ describe("knowledge model prompt", () => {
   it("includes exact schema and grounded chunks", () => {
     const messages = buildExtractionMessages([{ chunkId: "c1", pageStart: 7, pageEnd: 7, text: "原文" }]);
     expect(messages[0].content).toContain("只输出一个 JSON 对象");
+    expect(messages[0].content).toContain("最多输出 12 个实体和 16 条关系");
+    expect(messages[0].content).toContain("不要抽取学生或教师姓名");
     expect(messages[1].content).toContain("\"chunkId\":\"c1\"");
     expect(messages[1].content).toContain("\"text\":\"原文\"");
   });

@@ -11,6 +11,7 @@ import type {
   KnowledgeGraphData,
   KnowledgeGraphEdge,
   KnowledgeGraphNode,
+  KnowledgeGraphScope,
   KnowledgeModel,
   KnowledgeRelationCandidate,
   KnowledgeTask,
@@ -431,17 +432,23 @@ function serializeTask(database: DatabaseSync, row: Record<string, unknown>): Kn
   };
 }
 
-export function getKnowledgeGraph(viewer: Viewer | null): KnowledgeGraphData {
+export function getKnowledgeGraph(viewer: Viewer | null, scope: KnowledgeGraphScope = "all"): KnowledgeGraphData {
   const database = openDatabase();
   try {
     const access = documentAccess(viewer);
+    const scopeSql = scope === "corpus"
+      ? "d.owner_id IS NULL AND d.visibility = 'public'"
+      : scope === "mine"
+        ? viewer ? "d.owner_id = ?" : "0"
+        : "1 = 1";
+    const scopeParams = scope === "mine" && viewer ? [viewer.id] : [];
     const nodeRows = database.prepare(`
-      SELECT e.*, t.status, d.updated_at FROM knowledge_entities e
+      SELECT e.*, t.status, d.updated_at, d.owner_id FROM knowledge_entities e
       JOIN knowledge_extraction_tasks t ON t.id = e.task_id
       JOIN documents d ON d.id = e.document_id
-      WHERE t.status = 'published' AND ${documentAccess(viewer, "d").sql}
+      WHERE t.status = 'published' AND ${documentAccess(viewer, "d").sql} AND ${scopeSql}
       ORDER BY e.name
-    `).all(...access.params) as Array<Record<string, unknown>>;
+    `).all(...access.params, ...scopeParams) as Array<Record<string, unknown>>;
     const nodes: KnowledgeGraphNode[] = nodeRows.map((row) => ({
       id: String(row.id),
       name: String(row.name),
@@ -450,6 +457,7 @@ export function getKnowledgeGraph(viewer: Viewer | null): KnowledgeGraphData {
       summary: String(row.summary),
       year: new Date(Date.parse(String(row.updated_at))).getUTCFullYear() || 0,
       documentId: String(row.document_id),
+      sourceScope: row.owner_id === null ? "corpus" : String(row.owner_id) === viewer?.id ? "mine" : "shared",
       taskId: String(row.task_id),
       sourceDocumentId: String(row.source_document_id),
       sourceChunkId: String(row.source_chunk_id),

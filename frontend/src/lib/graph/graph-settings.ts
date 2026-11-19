@@ -8,12 +8,12 @@ export interface GraphDisplaySettings {
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: GraphDisplaySettings = {
-  textFadeThreshold: 0.45,
+  textFadeThreshold: 0.15,
   nodeSize: 1,
   linkThickness: 1,
-  showArrows: true,
+  showArrows: false,
   showPreview: true,
-  ambient: true,
+  ambient: false,
 };
 
 export type ExplorationDepth = 1 | 2 | 3;
