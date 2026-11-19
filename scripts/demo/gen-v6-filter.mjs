@@ -19,8 +19,9 @@ const SEGS = [
   { start: 115.2, dur: 4.33, clauses: ["本地解析,PDF 变结构化分块。"] },
   { start: 125.2, dur: 6.56, clauses: ["让经验,凝结成知识。", "抽取结果,带证据与置信度。"] },
   { start: 139.2, dur: 6.91, clauses: ["同类产品上传原文档,我们将知识结构化储存", "新知识,落进星图。"] },
-  { start: 154.7, dur: 10.63, clauses: ["主打功能三 · 证据问答", "痛点:问AI实验问题,答案查无出处", "通用AI有幻觉,可能胡乱回答"] },
-  { start: 165.5, dur: 5.87, clauses: ["用 @,把问题锚在节点上", "提问,也要知其来源。"] },
+  { start: 151.2, dur: 10.63, clauses: ["主打功能三 · 证据问答", "痛点:问AI实验问题,答案查无出处", "通用AI有幻觉,可能胡乱回答"] },
+  { start: 162.1, dur: 3.13, clauses: ["用 @,把问题锚在节点上"] },
+  { start: 170.7, dur: 2.31, clauses: ["提问,也要知其来源。"] },
   { start: 179.7, dur: 2.90, clauses: ["每一次回答,都回到原文。"] },
   { start: 196.2, dur: 8.92, clauses: ["让研究,在共同的边界里生长。", "上传团队可见文档,成员共享检索与问答。"] },
   { start: 232.7, dur: 6.14, clauses: ["让下一次发现,从已有知识开始。", "LAB GALAXY · RESEARCH, CONNECTED."] },
@@ -49,13 +50,13 @@ for (const seg of SEGS) {
 }
 lines.push("[v0]" + videoFilters.join(",") + "[vv]");
 // 音频链(与 v5 一致:16 段 trim wav @ 同起点)
-const DELAYS = [800, 12700, 41200, 53200, 58300, 67600, 80700, 106700, 115200, 125200, 139200, 154700, 165500, 179700, 196200, 232700];
+const DELAYS = [800, 12700, 41200, 53200, 58300, 67600, 80700, 106700, 115200, 125200, 139200, 151200, 162100, 170700, 179700, 196200, 232700];
 lines.push("[1:a]volume=0.30,afade=t=in:st=0:d=2,afade=t=out:st=236.8:d=3[bg]");
 DELAYS.forEach((d, i) => {
   lines.push(`[${i + 2}:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.5,adelay=${d}|${d}[v${i + 1}]`);
 });
 const refs = DELAYS.map((_, i) => `[v${i + 1}]`).join("");
-lines.push(`${refs}amix=inputs=16:normalize=0[voc]`);
+lines.push(`${refs}amix=inputs=17:normalize=0[voc]`);
 lines.push("[voc]asplit=2[voSC][voM]");
 lines.push("[voSCp]null[voSCx]"); // 占位防误用
 lines.push("[voSC]apad=whole_dur=240[voSCp2]");
