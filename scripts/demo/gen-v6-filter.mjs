@@ -23,13 +23,13 @@ const SEGS = [
   { start: 162.1, dur: 3.13, clauses: ["用 @,把问题锚在节点上"] },
   { start: 170.7, dur: 2.31, clauses: ["提问,也要知其来源。"] },
   { start: 179.7, dur: 2.90, clauses: ["每一次回答,都回到原文。"] },
-  { start: 196.2, dur: 8.92, clauses: ["让研究,在共同的边界里生长。", "上传团队可见文档,成员共享检索与问答。"] },
+  { start: 190.7, dur: 8.92, clauses: ["让研究,在共同的边界里生长。", "上传团队可见文档,成员共享检索与问答。"] },
   { start: 232.7, dur: 6.14, clauses: ["让下一次发现,从已有知识开始。", "LAB GALAXY · RESEARCH, CONNECTED."] },
 ];
 
 const lines = [];
 // 视频链:遮盖原字幕带(深色暖底横带)+ 逐句 drawtext
-lines.push("[0:v]drawbox=x=430:y=992:w=1060:h=68:color=0x1E1913@0.92:t=fill[v0]");
+lines.push("[0:v]drawbox=x=430:y=990:w=1060:h=72:color=0x1E1913@1:t=fill[v0]");
 const FONT = "C\\:/Windows/Fonts/simsun.ttc";
 let idx = 0;
 const videoFilters = [];
@@ -50,7 +50,7 @@ for (const seg of SEGS) {
 }
 lines.push("[v0]" + videoFilters.join(",") + "[vv]");
 // 音频链(与 v5 一致:16 段 trim wav @ 同起点)
-const DELAYS = [800, 12700, 41200, 53200, 58300, 67600, 80700, 106700, 115200, 125200, 139200, 151200, 162100, 170700, 179700, 196200, 232700];
+const DELAYS = [800, 12700, 41200, 53200, 58300, 67600, 80700, 106700, 115200, 125200, 139200, 151200, 162100, 170700, 179700, 190700, 232700];
 lines.push("[1:a]volume=0.30,afade=t=in:st=0:d=2,afade=t=out:st=236.8:d=3[bg]");
 DELAYS.forEach((d, i) => {
   lines.push(`[${i + 2}:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.5,adelay=${d}|${d}[v${i + 1}]`);
